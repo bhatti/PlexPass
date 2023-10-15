@@ -1,0 +1,15 @@
+tenant_id: local-host-name
+heartbeat_period_ms: 5000
+mutexes_table_name: mutexes 
+semaphores_table_name: semaphores
+use_cache: true
+max_semaphore_size: 1000
+database_url: null
+database_pool_size: 32
+run_database_migrations: false
+aws_region: null
+ddb_read_consistency: true
+server_error_retries_limit: 20
+wait_before_server_error_retries_ms: 250
+fair_semaphore: false
+redis_url: null
