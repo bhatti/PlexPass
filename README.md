@@ -7,7 +7,7 @@ With the proliferation of online services and accounts, it has become almost imp
 ## 1.0 Design Tenets and Features
 ----------------
 
-The PlexPass is be designed based on following tenets and features:
+The PlexPass is designed based on following tenets and features:
 
 *   End-to-End Encryption: All data is encrypted using strong cryptographic algorithms. The decryption key will be derived from the user’s master password.
 *   Zero-Knowledge Architecture: The password manager won’t have the ability to view the decrypted data unless explicitly instructed by the user.
