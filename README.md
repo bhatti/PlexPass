@@ -9,26 +9,26 @@ With the proliferation of online services and accounts, it has become almost imp
 
 The PlexPass is be designed based on following tenets and features:
 
-*   End-to-End Encryption: All data will be encrypted using strong cryptographic algorithms. The decryption key will be derived from the user’s master password.
+*   End-to-End Encryption: All data is encrypted using strong cryptographic algorithms. The decryption key will be derived from the user’s master password.
 *   Zero-Knowledge Architecture: The password manager won’t have the ability to view the decrypted data unless explicitly instructed by the user.
-*   No Cloud: It will allow using the password manager to be used as a local command-line tool or as a web server for local hosting without storing any data in the cloud.
-*   Great User Experience: It will provide a great user-experience based on a command-line tool and a web-based responsive UI that can be accessed by local devices.
-*   Strong Master Password: It will encourage users to create a robust and strong master password.
-*   Secure Password Generation: It will allow users to generate strong, random passwords for users, reducing the temptation to reuse passwords.
-*   Password Strength Analyzer: It will evaluate the strength of stored passwords and prompt users to change weak or repeated ones.
-*   Secure Import and Export: It will allow users to import and export password vault data in a standardized, encrypted format so that users can backup and restore in case of application errors or device failures.
-*   Data Integrity Checks: It will verify the integrity of the stored data to ensure it hasn’t been tampered with.
-*   Local Authentication: It will support standards such as [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP) and [Yubikey](https://www.yubico.com/). In addition, it will implement security measures such as auto-locking after a period of inactivity, secure data deletion, and protection against brute-force attacks.
-*   Version History: It will store encrypted previous versions of entries, allowing users to revert to older passwords or data if necessary.
-*   Open-Source: The PlexPass will be open-source so that the community can inspect the code, which can lead to the identification and rectification of vulnerabilities.
+*   No Cloud: It allows using the password manager to be used as a local command-line tool or as a web server for local hosting without storing any data in the cloud.
+*   Great User Experience: It provides a great user-experience based on a command-line tool and a web-based responsive UI that can be accessed by local devices.
+*   Strong Master Password: It encourages users to create a robust and strong master password.
+*   Secure Password Generation: It allows users to generate strong, random passwords for users, reducing the temptation to reuse passwords.
+*   Password Strength Analyzer: It evaluates the strength of stored passwords and prompt users to change weak or repeated ones.
+*   Secure Import and Export: It allows users to import and export password vault data in a standardized, encrypted format so that users can backup and restore in case of application errors or device failures.
+*   Data Integrity Checks: It verifies the integrity of the stored data to ensure it hasn’t been tampered with.
+*   Version History: It stores encrypted previous versions of entries, allowing users to revert to older passwords or data if necessary.
+*   Open-Source: The PlexPass is open-source so that the community can inspect the code, which can lead to the identification and rectification of vulnerabilities.
 *   Regular Updates: It will be consistently updated to address known vulnerabilities and to stay aligned with best practices in cryptographic and security standards.
-*   Physical Security: It will ensure the physical security of the device where the password manager is installed, since the device itself becomes a potential point of vulnerability.
-*   Data Breach Notifications: It will allow uses to scan passwords with known breached password hashes (without compromising privacy) that may have been leaked in data breaches.
-*   Multi-Device and Sharing: As a family-friendly password manager, PlexPass will allow sharing passwords safely to the nearby trusted devices (Bluetooth, NFC, etc. through QR codes or encrypted file sharing) without the risks associated with online storage.
-*   Clipboard Protection: It will offer mechanisms like clearing the clipboard after a certain time to protect copied passwords.
-*   Tagging and Organization: It will provide users with the ability to organize entries using tags, categories, or folders for a seamless user experience.
-*   Secure Notes: It will store encrypted notes and additional form-filled data.
-*   Search and Filter Options: It will provide intuitive search and filter capabilities.
+*   Physical Security: It ensures the physical security of the device where the password manager is installed, since the device itself becomes a potential point of vulnerability.
+*   Data Breach Notifications: It allows uses to scan passwords with known breached password hashes (without compromising privacy) that may have been leaked in data breaches.
+*   Multi-Device and Sharing: As a family-friendly password manager, PlexPass allows sharing passwords safely to the nearby trusted devices without the risks associated with online storage.
+*   Clipboard Protection: It offers mechanisms like clearing the clipboard after a certain time to protect copied passwords.
+*   Tagging and Organization: It provides users with the ability to organize entries using tags, categories, or folders for a seamless user experience.
+*   Secure Notes: It stores encrypted notes and additional form-filled data.
+*   Search and Filter Options: It provides intuitive search and filter capabilities.
+*   Local Authentication: PlexPass will support standards such as [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP) and [Yubikey](https://www.yubico.com/). 
 
 ## 2.0 Cryptography
 ----------------
@@ -50,14 +50,14 @@ Many of the popular password managers [fall short of these standards](https://du
 
 PlexPass incorporates a robust encryption strategy that utilizes both symmetric and asymmetric encryption methodologies, in conjunction with envelope encryption, detailed as follows:
 
-*   **Symmetric Encryption**: Based on [OWasp](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html) recommendations, the private account information will be safeguarded with Symmetric key algorithm of AES (Advanced Encryption Standard) with GCM (Galois/Counter Mode) mode that provides confidentiality and authenticity and will use key size of 256 bits (AES-256) for the highest security. The Symmetric key will be used for both the encryption and decryption of accounts and sensitive data.
-*   **Asymmetric Encryption**: PlexPass will employ Elliptic Curve Cryptography (ECC) based Asymmetric key algorithm with SECP256k1 standard for encrypting Symmetric keys and sharing data with other users based on public key infrastructure (PKI). The public key is used for encrypting keys and shared data, while the private key is used for decryption. This allows users to share encrypted data without the need to exchange a secret key over the network.
+*   **Symmetric Encryption**: Based on [OWasp](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html) recommendations, the private account information are safeguarded with Symmetric key algorithm of AES (Advanced Encryption Standard) with GCM (Galois/Counter Mode) mode that provides confidentiality and authenticity and uses key size of 256 bits (AES-256) for the highest security. The Symmetric key is used for both the encryption and decryption of accounts and sensitive data.
+*   **Asymmetric Encryption**: PlexPass employs Elliptic Curve Cryptography (ECC) based Asymmetric key algorithm with SECP256k1 standard for encrypting Symmetric keys and sharing data with other users based on public key infrastructure (PKI). The public key is used for encrypting keys and shared data, while the private key is used for decryption. This allows users to share encrypted data without the need to exchange a secret key over the network.
 *   **Envelope Encryption**: PlexPass’s envelope encryption mechanism involves encrypting a Symmetric data encryption key (DEK) with a Asymmetric encryption key (KEK). The Symmetric DEK is responsible for securing the actual user data, while the Asymmetric KEK is used to encrypt and protect the DEK itself. The top-level KEK key is then encrypted with a Symmetric key derived from the master user password and a pepper key for the local device. This multi-tiered encryption system ensures that even if data were to be accessed without authorization, it would remain undecipherable without the corresponding KEK.
 
 ## 3.0 Data Storage and Network Communication
 ------------------------------------------
 
-With Envelope Encryption strategy, PlexPass will ensure a multi-layered protective barrier for user accounts and sensitive information. This security measure involves encrypting data with a unique Symmetric key, which is then further secured using a combination of the user’s master password and a device-specific pepper key. The pepper key is securely stored within Hardware Security Modules (**HSMs**), providing an additional layer of defense. To generate the user’s secret key, PlexPass relies on the master password in tandem with the device’s pepper key, while ensuring that the master password itself is never stored locally or on any cloud-based platforms. PlexPass will allow a versatile range of access points, including command-line tools, REST API, and a user-friendly interface. Although PlexPass is primarily designed for local hosting, it guarantees secure browser-to-local-server communications through the implementation of **TLS 1.3**, reflecting the commitment to the highest standards of network security.
+With Envelope Encryption strategy, PlexPass ensures a multi-layered protective barrier for user accounts and sensitive information. This security measure involves encrypting data with a unique Symmetric key, which is then further secured using a combination of the user’s master password and a device-specific pepper key. The pepper key is securely stored within Hardware Security Modules (**HSMs**), providing an additional layer of defense. To generate the user’s secret key, PlexPass relies on the master password in tandem with the device’s pepper key, while ensuring that the master password itself is never stored locally or on any cloud-based platforms. PlexPass allows a versatile range of access points, including command-line tools, REST API, and a user-friendly interface. Although PlexPass is primarily designed for local hosting, it guarantees secure browser-to-local-server communications through the implementation of **TLS 1.3**, reflecting the commitment to the highest standards of network security.
 
 ### 3.1 Data Encryption
 
