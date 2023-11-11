@@ -2,12 +2,12 @@
 Secured Family-friendly Password Manager (WIP)
 
 ## Background
-With the proliferation of online services and accounts, it has become almost impossible for users to remember unique and strong passwords for each of them. Some users use the same password across multiple accounts, which is risky because if one account is compromised, all other accounts are at risk. With increase of cyber threats such as [2022-Morgan-Stanley](https://techcrunch.com/2022/09/21/morgan-stanley-hard-drives-data-breach/), [2019-Facebook](https://www.wired.com/story/facebook-passwords-plaintext-change-yours/), [2018-MyFitnessPal](https://www.aafp.org/news/practice-professional-issues/20180403myfitnesspal.html), [2019-CapitalOne](https://www.capitalone.com/digital/facts2019/), more services demand stronger and more complex passwords, which are harder to remember. Standards like [FIDO](https://fidoalliance.org/what-is-fido/) (Fast IDentity Online), [WebAuthn](https://webauthn.guide/) (Web Authentication), and [Passkeys](https://fidoalliance.org/passkeys/) aim to address the problems associated with traditional passwords by introducing stronger, simpler, and more phishing-resistant user authentication methods. These standards mitigate Man-in-the-Middle attacks by using decentralized on-device authentication. Yet, their universal adoption remains a work in progress. Until then, a popular alternative for dealing with the password complexity is a Password manager such as [LessPass](https://www.lesspass.com/#/), [1Password](https://1password.com/), and [Bitwarden](https://bitwarden.com/), which offer enhanced security, convenience, and cross-platform access. However, these password managers are also prone to security and privacy risks especially and become a single point of failure when they store user passwords in the cloud. As password managers may also store other sensitive information such as credit card details and secured notes, the Cloud-based password managers with centralized storage become high value target hackers. Many cloud-based password managers implement additional security measures such as end-to-end encryption, zero-knowledge architecture, and multifactor authentication but once hackers get access to the encrypted password vaults, they become vulnerable to sophisticated encryption attacks. For example, In 2022, LastPass, serving 25 million users, experienced [significant security breaches](https://blog.lastpass.com/2023/03/security-incident-update-recommended-actions/). Attackers accessed a range of user data, including billing and email addresses, names, telephone numbers, and IP addresses. More alarmingly, the breach compromised customer vault data, revealing unencrypted website URLs alongside encrypted usernames, passwords, secure notes, and form-filled information. The access to the encrypted vaults allow [“offline attacks” for password cracking](https://krebsonsecurity.com/2023/09/lastpass-horse-gone-barn-bolted-is-strong-password/) attempts that may use powerful computers for trying millions of password guesses per second. In another incident, LastPass users were [locked out of their accounts due to MFA reset](https://www.bleepingcomputer.com/news/security/lastpass-users-furious-after-being-locked-out-due-to-mfa-resets/) after a security upgrade. In order to address these risks with cloud-based password managers, we will build a secured family-friendly password manager named “PlexPass” with an enhanced security and ease of use including multi-device support for family members but without relying on storing data in cloud.
+With the proliferation of online services and accounts, it has become almost impossible for users to remember unique and strong passwords for each of them. Some users use the same password across multiple accounts, which is risky because if one account is compromised, all other accounts are at risk. With increase of cyber threats such as [2022-Morgan-Stanley](https://techcrunch.com/2022/09/21/morgan-stanley-hard-drives-data-breach/), [2019-Facebook](https://www.wired.com/story/facebook-passwords-plaintext-change-yours/), [2018-MyFitnessPal](https://www.aafp.org/news/practice-professional-issues/20180403myfitnesspal.html), [2019-CapitalOne](https://www.capitalone.com/digital/facts2019/), more services demand stronger and more complex passwords, which are harder to remember. Standards like [FIDO](https://fidoalliance.org/what-is-fido/) (Fast IDentity Online), [WebAuthn](https://webauthn.guide/) (Web Authentication), and [Passkeys](https://fidoalliance.org/passkeys/) aim to address the problems associated with traditional passwords by introducing stronger, simpler, and more phishing-resistant user authentication methods. These standards mitigate Man-in-the-Middle attacks by using decentralized on-device authentication. Yet, their universal adoption remains a work in progress. Until then, a popular alternative for dealing with the password complexity is a Password manager such as [LessPass](https://www.lesspass.com/#/), [1Password](https://1password.com/), and [Bitwarden](https://bitwarden.com/), which offer enhanced security, convenience, and cross-platform access. However, these password managers are also prone to security and privacy risks especially and become a single point of failure when they store user passwords in the cloud. As password managers may also store other sensitive information such as credit card details and secured notes, the Cloud-based password managers with centralized storage become high value target hackers. Many cloud-based password managers implement additional security measures such as end-to-end encryption, zero-knowledge architecture, and multifactor authentication but once hackers get access to the encrypted password vaults, they become vulnerable to sophisticated encryption attacks. For example, In 2022, LastPass, serving 25 million users, experienced [significant security breaches](https://blog.lastpass.com/2023/03/security-incident-update-recommended-actions/). Attackers accessed a range of user data, including billing and email addresses, names, telephone numbers, and IP addresses. More alarmingly, the breach compromised customer vault data, revealing unencrypted website URLs alongside encrypted usernames, passwords, secure notes, and form-filled information. The access to the encrypted vaults allow [“offline attacks” for password cracking](https://krebsonsecurity.com/2023/09/lastpass-horse-gone-barn-bolted-is-strong-password/) attempts that may use powerful computers for trying millions of password guesses per second. In another incident, LastPass users were [locked out of their accounts due to MFA reset](https://www.bleepingcomputer.com/news/security/lastpass-users-furious-after-being-locked-out-due-to-mfa-resets/) after a security upgrade. In order to address these risks with cloud-based password managers, we are building a secured family-friendly password manager named “PlexPass” with an enhanced security and ease of use including multi-device support for family members but without relying on storing data in cloud.
 
 ## 1.0 Design Tenets and Features
 ----------------
 
-The PlexPass will be designed based on following tenets and features:
+The PlexPass is be designed based on following tenets and features:
 
 *   End-to-End Encryption: All data will be encrypted using strong cryptographic algorithms. The decryption key will be derived from the user’s master password.
 *   Zero-Knowledge Architecture: The password manager won’t have the ability to view the decrypted data unless explicitly instructed by the user.
@@ -48,7 +48,7 @@ Many of the popular password managers [fall short of these standards](https://du
 
 ### 2.2 Encryption
 
-PlexPass will incorporate a robust encryption strategy that utilizes both symmetric and asymmetric encryption methodologies, in conjunction with envelope encryption, detailed as follows:
+PlexPass incorporates a robust encryption strategy that utilizes both symmetric and asymmetric encryption methodologies, in conjunction with envelope encryption, detailed as follows:
 
 *   **Symmetric Encryption**: Based on [OWasp](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html) recommendations, the private account information will be safeguarded with Symmetric key algorithm of AES (Advanced Encryption Standard) with GCM (Galois/Counter Mode) mode that provides confidentiality and authenticity and will use key size of 256 bits (AES-256) for the highest security. The Symmetric key will be used for both the encryption and decryption of accounts and sensitive data.
 *   **Asymmetric Encryption**: PlexPass will employ Elliptic Curve Cryptography (ECC) based Asymmetric key algorithm with SECP256k1 standard for encrypting Symmetric keys and sharing data with other users based on public key infrastructure (PKI). The public key is used for encrypting keys and shared data, while the private key is used for decryption. This allows users to share encrypted data without the need to exchange a secret key over the network.
@@ -163,7 +163,7 @@ In general, there is a direct correlation between the domain model and the datab
 
 ### 5.1 UserEntity
 
-The UserEntity captures essential user attributes including the user\_id and username. It securely retains encrypted user data alongside associated salt and nonce—components utilized in the encryption and decryption process. This entity leverages a secret-key, which is generated through a combination of the user’s master password and a unique device-specific pepper key. Importantly, the secret-key itself is not stored in the database to prevent unauthorized access.
+The UserEntity captures essential user attributes including the user_id and username. It securely retains encrypted user data alongside associated salt and nonce—components utilized in the encryption and decryption process. This entity leverages a secret-key, which is generated through a combination of the user’s master password and a unique device-specific pepper key. Importantly, the secret-key itself is not stored in the database to prevent unauthorized access.
 
 ### 5.2 LoginSessionEntity
 
@@ -176,8 +176,8 @@ The CryptoKeyEntity encompasses both asymmetric and symmetric encryption keys. T
 *   The unique identifier of the key.
 *   The identifier of the parent key, which, if absent, signifies it as a root key—this is enforced as non-null for database integrity.
 *   The user who owns the crypto key.
-*   The keyable\_id linked through a polymorphic association.
-*   The keyable\_type, determining the nature of the association.
+*   The keyable_id linked through a polymorphic association.
+*   The keyable_type, determining the nature of the association.
 *   The salt utilized in the encryption process.
 *   The nonce that ensures encryption uniqueness.
 *   The public key utilized for encryption purposes.
@@ -199,11 +199,11 @@ The VaultEntity is the structural representation of a secure repository designed
 
 The AccountEntity serves as the database abstraction for the Account object, which is responsible for storing various user data, including account credentials, secure notes, and other bespoke attributes. Its principal characteristics are:
 
-*   The vault\_id that links the account to its respective vault.
-*   The archived\_version, which holds historical data of the account for reference or restoration purposes.
+*   The vault_id that links the account to its respective vault.
+*   The archived_version, which holds historical data of the account for reference or restoration purposes.
 *   The salt, a random data input that is used in conjunction with hashing to ensure the uniqueness of each hash and prevent attacks such as hash collisions.
 *   The key-nonce, a one-time use number utilized in the encryption process to guarantee the security of each encryption operation.
-*   The encrypted\_value, which is the securely encrypted form of the account’s data, preserving the confidentiality and integrity of user information.
+*   The encrypted_value, which is the securely encrypted form of the account’s data, preserving the confidentiality and integrity of user information.
 *   The hash of primary attributes, which functions as a unique fingerprint to identify and prevent duplicate accounts from being created inadvertently.
 *   Other metadata such as unique identifier, version and timestamp for tracking changes.
 
@@ -263,30 +263,30 @@ UserService is entrusted with user management tasks, including registration, upd
 [async_trait]
 pub trait UserService {
     // signup and create a user.
-    async fn signup\_user(&self,
+    async fn signup_user(&self,
                          user: &User,
-                         master\_password: &str,
+                         master_password: &str,
                          context: HashMap<String, String>, ) -> PassResult<(UserContext, UserToken)>;
 
     // signin and retrieve the user.
-    async fn signin\_user(
+    async fn signin_user(
         &self,
         username: &str,
-        master\_password: &str,
+        master_password: &str,
         context: HashMap<String, String>,
     ) -> PassResult<(UserContext, User, UserToken)>;
 
     // logout user
-    async fn signout\_user(&self, ctx: &UserContext, login\_session\_id: &str) -> PassResult<()>;
+    async fn signout_user(&self, ctx: &UserContext, login_session_id: &str) -> PassResult<()>;
 
     // get user by id.
-    async fn get\_user(&self, ctx: &UserContext, id: &str) -> PassResult<(UserContext, User)>;
+    async fn get_user(&self, ctx: &UserContext, id: &str) -> PassResult<(UserContext, User)>;
 
     // updates existing user.
-    async fn update\_user(&self, ctx: &UserContext, user: &User) -> PassResult<usize>;
+    async fn update_user(&self, ctx: &UserContext, user: &User) -> PassResult<usize>;
 
     // delete the user by id.
-    async fn delete\_user(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
+    async fn delete_user(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
 }
 ```
 
@@ -298,25 +298,25 @@ VaultService facilitates the creation, modification, and deletion of vaults, in 
 [async_trait]
 pub trait VaultService {
     // create an vault.
-    async fn create\_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize>;
+    async fn create_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize>;
 
     // updates existing vault.
-    async fn update\_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize>;
+    async fn update_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize>;
 
     // get the vault by id.
-    async fn get\_vault(&self, ctx: &UserContext, id: &str) -> PassResult<Vault>;
+    async fn get_vault(&self, ctx: &UserContext, id: &str) -> PassResult<Vault>;
 
     // delete the vault by id.
-    async fn delete\_vault(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
+    async fn delete_vault(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
 
-    // find all vaults by user\_id without account summaries.
-    async fn get\_user\_vaults(&self, ctx: &UserContext) -> PassResult<Vec<Vault>>;
+    // find all vaults by user_id without account summaries.
+    async fn get_user_vaults(&self, ctx: &UserContext) -> PassResult<Vec<Vault>>;
 
     // account summaries.
-    async fn account\_summaries\_by\_vault(
+    async fn account_summaries_by_vault(
         &self,
         ctx: &UserContext,
-        vault\_id: &str,
+        vault_id: &str,
         q: Option<String>,
     ) -> PassResult<Vec<AccountSummary>>;
 }
@@ -330,32 +330,32 @@ AccountService oversees the handling of account credentials, ensuring secure sto
 [async_trait]
 pub trait AccountService {
     // create an account.
-    async fn create\_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize>;
+    async fn create_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize>;
 
     // updates existing account.
-    async fn update\_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize>;
+    async fn update_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize>;
 
     // get account by id.
-    async fn get\_account(&self, ctx: &UserContext, id: &str) -> PassResult<Account>;
+    async fn get_account(&self, ctx: &UserContext, id: &str) -> PassResult<Account>;
 
     // delete the account by id.
-    async fn delete\_account(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
+    async fn delete_account(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
 
     // find all accounts by vault.
-    async fn find\_accounts\_by\_vault(
+    async fn find_accounts_by_vault(
         &self,
         ctx: &UserContext,
-        vault\_id: &str,
+        vault_id: &str,
         predicates: HashMap<String, String>,
         offset: i64,
         limit: usize,
     ) -> PassResult<PaginatedResult<Account>>;
 
     // count all accounts by vault.
-    async fn count\_accounts\_by\_vault(
+    async fn count_accounts_by_vault(
         &self,
         ctx: &UserContext,
-        vault\_id: &str,
+        vault_id: &str,
         predicates: HashMap<String, String>,
     ) -> PassResult<i64>;
 }
@@ -369,19 +369,19 @@ EncryptionService provides the encryption and decryption operations for protecti
 [async_trait]
 pub trait EncryptionService {
     // generate private public keys
-    fn generate\_private\_public\_keys(&self,
+    fn generate_private_public_keys(&self,
                                     secret: Option<String>,
     ) -> PassResult<(String, String)>;
 
     // encrypt asymmetric
-    fn asymmetric\_encrypt(&self,
+    fn asymmetric_encrypt(&self,
                           pk: &str,
                           data: Vec<u8>,
                           encoding: EncodingScheme,
     ) -> PassResult<Vec<u8>>;
 
     // decrypt asymmetric
-    fn asymmetric\_decrypt(&self,
+    fn asymmetric_decrypt(&self,
                           sk: &str,
                           data: Vec<u8>,
                           encoding: EncodingScheme,
@@ -389,7 +389,7 @@ pub trait EncryptionService {
 
 
     // encrypt symmetric
-    fn symmetric\_encrypt(&self,
+    fn symmetric_encrypt(&self,
                          salt: &str,
                          pepper: &str,
                          secret: &str,
@@ -398,7 +398,7 @@ pub trait EncryptionService {
     ) -> PassResult<Vec<u8>>;
 
     // decrypt symmetric
-    fn symmetric\_decrypt(&self,
+    fn symmetric_decrypt(&self,
                          pepper: &str,
                          secret: &str,
                          data: Vec<u8>,
@@ -415,20 +415,20 @@ ImportExportService allows users to import account data into vaults or export it
 [async_trait]
 pub trait ImportExportService {
     // import accounts.
-    async fn import\_accounts(&self,
+    async fn import_accounts(&self,
                              ctx: &UserContext,
-                             vault\_id: Option<String>,
-                             vault\_kind: Option<VaultKind>,
+                             vault_id: Option<String>,
+                             vault_kind: Option<VaultKind>,
                              password: Option<String>,
                              encoding: EncodingScheme,
-                             data: &\[u8\],
+                             data: &[u8],
                              callback: Box<dyn Fn(ProgressStatus) + Send + Sync>,
     ) -> PassResult<ImportResult>;
 
     // export accounts.
-    async fn export\_accounts(&self,
+    async fn export_accounts(&self,
                              ctx: &UserContext,
-                             vault\_id: &str,
+                             vault_id: &str,
                              password: Option<String>,
                              encoding: EncodingScheme,
                              callback: Box<dyn Fn(ProgressStatus) + Send + Sync>,
@@ -446,16 +446,16 @@ MessageSevice manages the creation, delivery, and processing of messages within 
 [async_trait]
 pub trait MessageService {
     // create an message.
-    async fn create\_message(&self, ctx: &UserContext, message: &Message) -> PassResult<usize>;
+    async fn create_message(&self, ctx: &UserContext, message: &Message) -> PassResult<usize>;
 
     // updates existing message flags
-    async fn update\_message(&self, ctx: &UserContext, message: &Message) -> PassResult<usize>;
+    async fn update_message(&self, ctx: &UserContext, message: &Message) -> PassResult<usize>;
 
     // delete the message by id.
-    async fn delete\_message(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
+    async fn delete_message(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
 
     // find all messages by vault.
-    async fn find\_messages\_by\_user(
+    async fn find_messages_by_user(
         &self,
         ctx: &UserContext,
         kind: Option<MessageKind>,
@@ -473,33 +473,33 @@ PasswordService offers operations for the generation of secure passwords, alongs
 [async_trait]
 pub trait PasswordService {
     // create strong password.
-    async fn generate\_password(&self, policy: &PasswordPolicy) -> Option<String>;
+    async fn generate_password(&self, policy: &PasswordPolicy) -> Option<String>;
 
     // check strength of password.
-    async fn password\_info(&self, password: &str) -> PassResult<PasswordInfo>;
+    async fn password_info(&self, password: &str) -> PassResult<PasswordInfo>;
 
     // check strength of password.
-    async fn password\_compromised(&self, password: &str) -> PassResult<bool>;
+    async fn password_compromised(&self, password: &str) -> PassResult<bool>;
 
     // check if email is compromised.
-    async fn email\_compromised(&self, email: &str) -> PassResult<String>;
+    async fn email_compromised(&self, email: &str) -> PassResult<String>;
 
     // check similarity of password.
-    async fn password\_similarity(&self, password1: &str, password2: &str) -> PassResult<PasswordSimilarity>;
+    async fn password_similarity(&self, password1: &str, password2: &str) -> PassResult<PasswordSimilarity>;
 
     // analyze passwords and accounts of all accounts in given vault
     // It returns hashmap by account-id and password analysis
-    async fn analyze\_all\_account\_passwords(&self, ctx: &UserContext, vault\_id: &str) -> PassResult<VaultAnalysis>;
+    async fn analyze_all_account_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<VaultAnalysis>;
 
     // analyze passwords and accounts of all accounts in all vaults
     // It returns hashmap by (vault-id, account-id) and password analysis
-    async fn analyze\_all\_vault\_passwords(&self, ctx: &UserContext) -> PassResult<HashMap<String, VaultAnalysis>>;
+    async fn analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<HashMap<String, VaultAnalysis>>;
 
     // schedule password analysis for vault
-    async fn schedule\_analyze\_all\_account\_passwords(&self, ctx: &UserContext, vault\_id: &str) -> PassResult<()>;
+    async fn schedule_analyze_all_account_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<()>;
 
     // schedule password analysis for all vaults
-    async fn schedule\_analyze\_all\_vault\_passwords(&self, ctx: &UserContext) -> PassResult<()>;
+    async fn schedule_analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<()>;
 }
 ```
 
@@ -513,31 +513,31 @@ ShareVaultAccountService handles the intricacies of sharing vaults and accounts,
 /// Service interface for sharing vaults or accounts.
 pub trait ShareVaultAccountService {
     // share vault with another user
-    async fn share\_vault(
+    async fn share_vault(
         &self,
         ctx: &UserContext,
-        vault\_id: &str,
-        target\_username: &str,
-        read\_only: bool,
+        vault_id: &str,
+        target_username: &str,
+        read_only: bool,
     ) -> PassResult<usize>;
 
     // share account with another user
-    async fn share\_account(
+    async fn share_account(
         &self,
         ctx: &UserContext,
-        account\_id: &str,
-        target\_username: &str,
+        account_id: &str,
+        target_username: &str,
     ) -> PassResult<usize>;
 
     // lookup usernames
-    async fn lookup\_usernames(
+    async fn lookup_usernames(
         &self,
         ctx: &UserContext,
         q: &str,
     ) -> PassResult<Vec<String>>;
 
     // handle shared vaults and accounts from inbox of messages
-    async fn handle\_shared\_vaults\_accounts(
+    async fn handle_shared_vaults_accounts(
         &self,
         ctx: &UserContext,
     ) -> PassResult<(usize, usize)>;
@@ -611,9 +611,9 @@ Alternatively, you can use Docker for the server by pulling plexpass image as fo
 ```
 
 docker pull plexobject/plexpass:latest
-docker run -p 8080:8080 -p 8443:8443 -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -e CERT\_FILE=/data/cert-pass.pem \\
-    -e KEY\_FILE=/data/key-pass.pem -v $PARENT\_DIR/PlexPassData:/data plexpass server
+docker run -p 8080:8080 -p 8443:8443 -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -e CERT_FILE=/data/cert-pass.pem 
+    -e KEY_FILE=/data/key-pass.pem -v $PARENT_DIR/PlexPassData:/data plexpass server
 ```
 
 Note: You only need to run server when using REST APIs or a UI for the web application.
@@ -625,44 +625,44 @@ Before engaging with the system, users are required to complete the registration
 #### 11.2.1 Command Line
 ```
 
-./target/release/plexpass -j true --master-username charlie --master-password \*\*\* create-user
+./target/release/plexpass -j true --master-username charlie --master-password *** create-user
 ```
 
 The -j argument generates a JSON output such as:
 ```json
 {
-  "user\_id": "3b12c573-d4e4-4470-a1b4-ac7689c40e8a",
+  "user_id": "3b12c573-d4e4-4470-a1b4-ac7689c40e8a",
   "version": 0,
   "username": "charlie",
   "name": null,
   "email": null,
   "locale": null,
-  "light\_mode": null,
+  "light_mode": null,
   "icon": null,
-  "attributes": \[\],
-  "created\_at": "2023-11-06T04:25:28.004321",
-  "updated\_at": "2023-11-06T04:25:28.004325"
+  "attributes": [],
+  "created_at": "2023-11-06T04:25:28.004321",
+  "updated_at": "2023-11-06T04:25:28.004325"
 }
 ```
 
 #### 11.2.2 Docker CLI
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true \\
-    --master-username charlie --master-password \*\*\* create-user
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true 
+    --master-username charlie --master-password *** create-user
 ```
 
 #### 11.2.3 REST API
 ```bash
-curl -v -k https://localhost:8443/api/v1/auth/signup \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    -d '{"username": "david", "master\_password": "\*\*\*"}'
+curl -v -k https://localhost:8443/api/v1/auth/signup 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    -d '{"username": "david", "master_password": "***"}'
 ```
 
 or
 ```bash
 headers = {'Content-Type': 'application/json'}
-data = {'username': 'charlie', 'master\_password': '\*\*\*'}
+data = {'username': 'charlie', 'master_password': '***'}
 resp = requests.post(SERVER + '/api/v1/auth/signin', json = data,
                      headers = headers, verify = False)
 ```
@@ -679,16 +679,16 @@ The user-signin is requied when using REST APIs but CLIBefore engaging with the 
 
 #### 11.3.1 REST APIs
 ```bash
-curl -v -k https://localhost:8443/api/v1/auth/signin \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    -d '{"username": "bob", "master\_password": ""}'
+curl -v -k https://localhost:8443/api/v1/auth/signin 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    -d '{"username": "bob", "master_password": ""}'
 ```
 It will show the JWT Token in the response, e.g.,
 ```bash
 < HTTP/2 200
 < content-length: 50
 < content-type: application/json
-< access\_token: eyJ0eXA\*\*\*
+< access_token: eyJ0eXA***
 < vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers
 < date: Tue, 07 Nov 2023 20:19:42 GMT
 <
@@ -713,7 +713,7 @@ You can use -h argument to see full list of commands with PlexPass CLI, e.g.,
 ```bash
 PlexPass - a locally hostable secured password manager
 
-Usage: plexpass \[OPTIONS\] <COMMAND>
+Usage: plexpass [OPTIONS] <COMMAND>
 
 Commands:
   server
@@ -790,19 +790,19 @@ Commands:
           Print this message or the help of the given subcommand(s)
 
 Options:
-  -j, --json-output <JSON\_OUTPUT>
-          json output of result from action \[default: false\] \[possible values: true, false\]
-  -d, --data-dir <DATA\_DIR>
+  -j, --json-output <JSON_OUTPUT>
+          json output of result from action [default: false] [possible values: true, false]
+  -d, --data-dir <DATA_DIR>
           Sets a data directory
-      --device-pepper-key <DEVICE\_PEPPER\_KEY>
+      --device-pepper-key <DEVICE_PEPPER_KEY>
           Device pepper key
-      --crypto-algorithm <CRYPTO\_ALG>
-          Sets default crypto algorithm \[possible values: aes256-gcm, cha-cha20-poly1305\]
-      --hash-algorithm <HASH\_ALG>
-          Sets default crypto hash algorithm \[possible values: pbkdf2-hmac-sha256, argon2id\]
-      --master-username <MASTER\_USERNAME>
+      --crypto-algorithm <CRYPTO_ALG>
+          Sets default crypto algorithm [possible values: aes256-gcm, cha-cha20-poly1305]
+      --hash-algorithm <HASH_ALG>
+          Sets default crypto hash algorithm [possible values: pbkdf2-hmac-sha256, argon2id]
+      --master-username <MASTER_USERNAME>
           The username of local user
-      --master-password <MASTER\_PASSWORD>
+      --master-password <MASTER_PASSWORD>
           The master-password of user
   -c, --config <FILE>
           Sets a custom config file
@@ -818,24 +818,24 @@ Options:
 
 You can view your user profile using:
 ```bash
-./target/release/plexpass -j true --master-username charlie \\
-	--master-password \*\*\* get-user
+./target/release/plexpass -j true --master-username charlie 
+	--master-password *** get-user
 ```
 
 Which will show your user profile such as:
 ```json
 {
-  "user\_id": "d163a4bb-6767-4f4c-845f-86874a04fe20",
+  "user_id": "d163a4bb-6767-4f4c-845f-86874a04fe20",
   "version": 0,
   "username": "charlie",
   "name": null,
   "email": null,
   "locale": null,
-  "light\_mode": null,
+  "light_mode": null,
   "icon": null,
-  "attributes": \[\],
-  "created\_at": "2023-11-07T20:30:32.063323960",
-  "updated\_at": "2023-11-07T20:30:32.063324497"
+  "attributes": [],
+  "created_at": "2023-11-07T20:30:32.063323960",
+  "updated_at": "2023-11-07T20:30:32.063324497"
 }
 ```
 
@@ -843,17 +843,17 @@ Which will show your user profile such as:
 
 You can view your user profile using:
 ```bash
-curl -k https://localhost:8443/api/v1/users/me \\
-	--header "Content-Type: application/json; charset=UTF-8"  \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -k https://localhost:8443/api/v1/users/me 
+	--header "Content-Type: application/json; charset=UTF-8"  
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 #### 11.4.3 Docker CLI
 
 You can view your user profile with docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass -j true \\
-    --master-username charlie --master-password \*\*\* get-user
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true 
+    --master-username charlie --master-password *** get-user
 ```
 ### 11.5 Update User Profile
 
@@ -861,24 +861,24 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can update your user profile using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username charlie \\
-	--master-password \*\*\* update-user --name "Charles" --email "charlie@mail.com"
+./target/release/plexpass -j true --master-username charlie 
+	--master-password *** update-user --name "Charles" --email "charlie@mail.com"
 ```
 #### 11.5.2 REST API
 
 You can update your user profile using REST APIs as follows:
 ```bash
-./target/release/plexpass -j true --master-username charlie \\
-	--master-password \*\*\* --name "Charles" --email "charlie@mail.com"
+./target/release/plexpass -j true --master-username charlie 
+	--master-password *** --name "Charles" --email "charlie@mail.com"
 ```
 #### 11.5.2 Docker CLI
 
 You can update your user profile using docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data \\
-    -j true --master-username charlie \\
-	--master-password \*\*\* update-user --name "Charles" --email "charlie@mail.com"
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
+    -j true --master-username charlie 
+	--master-password *** update-user --name "Charles" --email "charlie@mail.com"
 ```
 
 ### 11.6 Creating Vaults
@@ -889,17 +889,17 @@ PlexPass automatically creates a few Vaults upon registration but you can create
 
 You can create new Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* create-vault --title MyVault --kind Logins
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** create-vault --title MyVault --kind Logins
 ```
 
 #### 11.6.2 REST API
 
 You can create new Vault using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/vaults \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k -X POST https://localhost:8443/api/v1/vaults 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
     -d '{"title": "NewVault"}'
 ```
 
@@ -907,9 +907,9 @@ curl -v -k -X POST https://localhost:8443/api/v1/vaults \\
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \*\* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password ** 
     create-vault --title MyVault
 ```
 
@@ -919,29 +919,29 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query all Vaults using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* get-vaults
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** get-vaults
 ```
 Which will show list of vaults such as:
 ```json
 [
   {
-    "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+    "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Identity",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.163762",
-    "updated\_at": "2023-11-08T03:45:44.163762"
+    "created_at": "2023-11-08T03:45:44.163762",
+    "updated_at": "2023-11-08T03:45:44.163762"
   },
   {
-    "vault\_id": "070ba646-192b-47df-8134-c6ed40056575",
+    "vault_id": "070ba646-192b-47df-8134-c6ed40056575",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Personal",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.165378",
-    "updated\_at": "2023-11-08T03:45:44.165378"
+    "created_at": "2023-11-08T03:45:44.165378",
+    "updated_at": "2023-11-08T03:45:44.165378"
   },
   ..
 ]
@@ -951,19 +951,19 @@ Which will show list of vaults such as:
 
 You can query Vaults using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.7.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data \\
-    plexpass -j true --master-username frank \\
-    --master-password \*\* get-vaults
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
+    plexpass -j true --master-username frank 
+    --master-password ** get-vaults
 ```
 
 ### 11.8 Show Specific Vault Data
@@ -972,24 +972,24 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query specific Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
 Which will show list of vaults such as:
 ```json
 {
-  "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+  "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
   "version": 0,
-  "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+  "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
   "title": "Identity",
   "kind": "Logins",
   "icon": null,
   "entries": null,
   "analysis": null,
-  "analyzed\_at": null,
-  "created\_at": "2023-11-08T03:45:44.163762",
-  "updated\_at": "2023-11-08T03:45:44.163762"
+  "analyzed_at": null,
+  "created_at": "2023-11-08T03:45:44.163762",
+  "updated_at": "2023-11-08T03:45:44.163762"
 }
 ```
 
@@ -997,18 +997,18 @@ Which will show list of vaults such as:
 
 You can show a specific Vault using REST API as follows where ’44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa’ is the vault-id:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.8.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password * 
     get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
@@ -1018,8 +1018,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query all Vaults using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* get-vaults
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** get-vaults
 ```
 
 Which will show list of vaults such as:
@@ -1027,22 +1027,22 @@ Which will show list of vaults such as:
 ```json
 [
   {
-    "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+    "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Identity",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.163762",
-    "updated\_at": "2023-11-08T03:45:44.163762"
+    "created_at": "2023-11-08T03:45:44.163762",
+    "updated_at": "2023-11-08T03:45:44.163762"
   },
   {
-    "vault\_id": "070ba646-192b-47df-8134-c6ed40056575",
+    "vault_id": "070ba646-192b-47df-8134-c6ed40056575",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Personal",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.165378",
-    "updated\_at": "2023-11-08T03:45:44.165378"
+    "created_at": "2023-11-08T03:45:44.165378",
+    "updated_at": "2023-11-08T03:45:44.165378"
   },
   ..
 ]
@@ -1052,19 +1052,19 @@ Which will show list of vaults such as:
 
 You can query Vaults using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.7.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data \\
-    plexpass -j true --master-username frank \\
-    --master-password \*\* get-vaults
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
+    plexpass -j true --master-username frank 
+    --master-password ** get-vaults
 ```
 
 ### 11.8 Show Specific Vault Data
@@ -1073,24 +1073,24 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query specific Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
 Which will show list of vaults such as:
 ```json
 {
-  "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+  "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
   "version": 0,
-  "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+  "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
   "title": "Identity",
   "kind": "Logins",
   "icon": null,
   "entries": null,
   "analysis": null,
-  "analyzed\_at": null,
-  "created\_at": "2023-11-08T03:45:44.163762",
-  "updated\_at": "2023-11-08T03:45:44.163762"
+  "analyzed_at": null,
+  "created_at": "2023-11-08T03:45:44.163762",
+  "updated_at": "2023-11-08T03:45:44.163762"
 }
 ```
 
@@ -1098,18 +1098,18 @@ Which will show list of vaults such as:
 
 You can show a specific Vault using REST API as follows where ’44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa’ is the vault-id:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.8.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password * 
     get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
@@ -1119,30 +1119,30 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query all Vaults using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* get-vaults
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** get-vaults
 ```
 
 Which will show list of vaults such as:
 ```json
 [
   {
-    "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+    "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Identity",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.163762",
-    "updated\_at": "2023-11-08T03:45:44.163762"
+    "created_at": "2023-11-08T03:45:44.163762",
+    "updated_at": "2023-11-08T03:45:44.163762"
   },
   {
-    "vault\_id": "070ba646-192b-47df-8134-c6ed40056575",
+    "vault_id": "070ba646-192b-47df-8134-c6ed40056575",
     "version": 0,
-    "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
     "title": "Personal",
     "kind": "Logins",
-    "created\_at": "2023-11-08T03:45:44.165378",
-    "updated\_at": "2023-11-08T03:45:44.165378"
+    "created_at": "2023-11-08T03:45:44.165378",
+    "updated_at": "2023-11-08T03:45:44.165378"
   },
   ..
 ]
@@ -1152,18 +1152,18 @@ Which will show list of vaults such as:
 
 You can query Vaults using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 #### 11.7.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data \\
-    plexpass -j true --master-username frank \\
-    --master-password \*\* get-vaults
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
+    plexpass -j true --master-username frank 
+    --master-password ** get-vaults
 ```
 
 ### 11.8 Show Specific Vault Data
@@ -1172,24 +1172,24 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query specific Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
 Which will show list of vaults such as:
 ```json
 {
-  "vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
+  "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
   "version": 0,
-  "owner\_user\_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
+  "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
   "title": "Identity",
   "kind": "Logins",
   "icon": null,
   "entries": null,
   "analysis": null,
-  "analyzed\_at": null,
-  "created\_at": "2023-11-08T03:45:44.163762",
-  "updated\_at": "2023-11-08T03:45:44.163762"
+  "analyzed_at": null,
+  "created_at": "2023-11-08T03:45:44.163762",
+  "updated_at": "2023-11-08T03:45:44.163762"
 }
 ```
 
@@ -1197,18 +1197,18 @@ Which will show list of vaults such as:
 
 You can show a specific Vault using REST API as follows where ’44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa’ is the vault-id:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.8.3 Docker CLI
 
 You can create new Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \*\*\* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password *** 
     get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
@@ -1218,8 +1218,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can update a Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* update-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** update-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
     --icon newicon --title new-title
 ```
 
@@ -1227,19 +1227,19 @@ You can update a Vault using CLI as follows:
 
 You can update a Vault using REST API as follows:
 ```bash
-curl -v -k -X PUT https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"  \\
-    -d '{"vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "version": 0, "title": "new-title"}'
+curl -v -k -X PUT https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"  
+    -d '{"vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "version": 0, "title": "new-title"}'
 ```
 
 #### 11.9.3 Docker CLI
 
 You can update a Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \*\*\* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password *** 
     update-vault --vault-id $44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa --title new-title
 ```
 
@@ -1249,8 +1249,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can delete a Vault using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* delete-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** delete-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
 #### 11.10.2 REST API
@@ -1258,9 +1258,9 @@ You can delete a Vault using CLI as follows:
 You can delete a Vault using REST API as follows:
 
 ```bash
-curl -v -k -X DELETE https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k -X DELETE https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.10.3 Docker CLI
@@ -1268,9 +1268,9 @@ curl -v -k -X DELETE https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80
 You can update a Vault using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-    -j true --master-username frank --master-password \*\*\* \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+    -j true --master-username frank --master-password *** 
     delete-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
@@ -1281,34 +1281,34 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 You can create an Account using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-    --label "My Bank Login" --username samuel --email "myemail@somewhere.com" \\
-    --url "https://mybank.com"  --category "Banking" \\
-    --password "\*\*\*" --notes "Lorem ipsum dolor sit amet"
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+    --label "My Bank Login" --username samuel --email "myemail@somewhere.com" 
+    --url "https://mybank.com"  --category "Banking" 
+    --password "***" --notes "Lorem ipsum dolor sit amet"
 ```
 
 #### 11.11.2 REST API
 
 You can create an Account using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/vaults \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
-    -d '{"vault\_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "label": "Amazon", "username": "harry", "password": "\*\*", "url": "https://www.amazon.com", "email": "harry@bitvault.com"}'
+curl -v -k -X POST https://localhost:8443/api/v1/vaults 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
+    -d '{"vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "label": "Amazon", "username": "harry", "password": "**", "url": "https://www.amazon.com", "email": "harry@bitvault.com"}'
 ```
 
 #### 11.11.3 Docker CLI
 
 You can create an Account using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa \\
-    --label "My Bank Login" --username samuel --email "myemail@somewhere.com" \\
-    --url "https://mybank.com"  --category "Banking" \\
-    --password "\*\*\*" --notes "Lorem ipsum dolor sit amet"
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
+    --label "My Bank Login" --username samuel --email "myemail@somewhere.com" 
+    --url "https://mybank.com"  --category "Banking" 
+    --password "***" --notes "Lorem ipsum dolor sit amet"
 ```
 
 ### 11.12 Querying Data
@@ -1317,8 +1317,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can query Accounts data using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* get-accounts \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** get-accounts 
     --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa --q "amazon"
 ```
 You can search your accounts based on username, email, categories, tags, label and description with above command. For example, above command will show all amazon accounts.
@@ -1327,8 +1327,8 @@ You can search your accounts based on username, email, categories, tags, label a
 
 You can query Accounts using REST API as follows:
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
     "https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa/accounts?q=amazon" 
 ```
 
@@ -1336,10 +1336,10 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
 
 You can create an Account using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* get-accounts \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** get-accounts 
     --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa --q "amazon"
 ```
 
@@ -1349,15 +1349,15 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can show a specific Account by its data using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* get-account --account-id $account\_id
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** get-account --account-id $account_id
 ```
 
 Which will show account details such as:
 ```json
 {
-  "vault\_id": "73b091ba-710b-4de4-8a1e-c185e3ddd304",
-  "account\_id": "e60321d2-8cad-42b8-b779-4ba5b8911bbf",
+  "vault_id": "73b091ba-710b-4de4-8a1e-c185e3ddd304",
+  "account_id": "e60321d2-8cad-42b8-b779-4ba5b8911bbf",
   "version": 2,
   "kind": "Login",
   "label": null,
@@ -1365,31 +1365,31 @@ Which will show account details such as:
   "risk": "High",
   "description": null,
   "username": "bob",
-  "password": "\*\*",
+  "password": "**",
   "email": "bob@bitvault.com",
   "url": "https://amazon.com",
   "category": "Shopping",
-  "tags": \["Family"\],
+  "tags": ["Family"],
   "otp": null,
   "icon": null,
-  "form\_fields": {"CreditCard": "\*\*\*"},
+  "form_fields": {"CreditCard": "***"},
   "notes": null,
   "advisories": {
     "WeakPassword": "The password is MODERATE",
     "CompromisedPassword": "The password is compromised and found in 'Have I been Pwned' database."
   },
-  "renew\_interval\_days": null,
-  "expires\_at": null,
-  "credentials\_updated\_at": "2023-11-08T02:39:50.656771977",
-  "analyzed\_at": "2023-11-08T02:40:00.019194124",
-  "password\_min\_uppercase": 1,
-  "password\_min\_lowercase": 1,
-  "password\_min\_digits": 1,
-  "password\_min\_special\_chars": 1,
-  "password\_min\_length": 12,
-  "password\_max\_length": 16,
-  "created\_at": "2023-11-08T02:39:50.657929166",
-  "updated\_at": "2023-11-08T02:40:00.020244928"
+  "renew_interval_days": null,
+  "expires_at": null,
+  "credentials_updated_at": "2023-11-08T02:39:50.656771977",
+  "analyzed_at": "2023-11-08T02:40:00.019194124",
+  "password_min_uppercase": 1,
+  "password_min_lowercase": 1,
+  "password_min_digits": 1,
+  "password_min_special_chars": 1,
+  "password_min_length": 12,
+  "password_max_length": 16,
+  "created_at": "2023-11-08T02:39:50.657929166",
+  "updated_at": "2023-11-08T02:40:00.020244928"
 }
 ```
 
@@ -1397,20 +1397,20 @@ Which will show account details such as:
 
 You can show Account by its ID using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults/$vault\_id/accounts/$account\_id \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.13.3 Docker CLI
 
 You can show an Account using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* get-accounts \\
-    get-account --account-id $account\_id
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** get-accounts 
+    get-account --account-id $account_id
 ```
 
 ### 11.14 Updating an Account by ID
@@ -1419,31 +1419,31 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can update an Account data using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* update-account --vault-id $vault\_id \\
-    --account-id $account\_id --kind Logins \\
-    --label "My Bank" --username myuser --email "myemail@bitvault.com" \\
-    --password "\*\*" --notes "Lorem ipsum dolor sit amet."
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** update-account --vault-id $vault_id 
+    --account-id $account_id --kind Logins 
+    --label "My Bank" --username myuser --email "myemail@bitvault.com" 
+    --password "**" --notes "Lorem ipsum dolor sit amet."
 ```
 
 #### 11.14.2 REST API
 
 You can update an Account using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/vaults/$vault\_id/accounts/$account\_id \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.14.3 Docker CLI
 
 You can update an Account using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* get-accounts \\
-    get-account --account-id $account\_id
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** get-accounts 
+    get-account --account-id $account_id
 ```
 
 ### 11.15 Deleting an Account by ID
@@ -1452,26 +1452,26 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can delete an Account using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* delete-account --account-id $account\_id
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** delete-account --account-id $account_id
 ```
 #### 11.15.2 REST API
 
 You can delete Account by its ID using REST API as follows:
 ```bash
-curl -v -k -X DELETE https://localhost:8443/api/v1/vaults/$vault\_id/accounts/$account\_id \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k -X DELETE https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.15.3 Docker CLI
 
 You can delete an Account using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* delete-account --account-id $account\_id
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** delete-account --account-id $account_id
 ```
 
 ### 11.16 Creating a Category
@@ -1482,27 +1482,27 @@ The categories are used to organize accounts in a Vault and PlexPass includes bu
 
 You can create a Category using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* create-category --name "Finance"
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** create-category --name "Finance"
 ```
 
 #### 11.16.2 REST API
 
 You can create a Category using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/categories \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"  -d '{"name": "Banking"}'
+curl -v -k -X POST https://localhost:8443/api/v1/categories 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"  -d '{"name": "Banking"}'
 ```
 
 #### 11.16.3 Docker CLI
 
 You can create a Category using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* create-category --name "Finance"
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** create-category --name "Finance"
 ```
 
 ### 11.17 Showing Categories
@@ -1511,27 +1511,27 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can show all custom Categories using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* get-categories
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** get-categories
 ```
 
 #### 11.17.2 REST API
 
 You can show all custom categories using REST API as follows:
 ```bash
-curl -v -k https://localhost:8443/api/v1/categories \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k https://localhost:8443/api/v1/categories 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.17.3 Docker CLI
 
 You can show all custom categories using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* get-categories
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** get-categories
 ```
 
 ### 11.18 Deleting a Category
@@ -1540,27 +1540,27 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can delete a Category using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* delete-category --name "Banking"
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** delete-category --name "Banking"
 ```
 
 #### 11.18.2 REST API
 
 You can delete a category using REST API as follows:
 ```bash
-curl -v -k -X DELETE https://localhost:8443/api/v1/categories/Gaming \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN"
+curl -v -k -X DELETE https://localhost:8443/api/v1/categories/Gaming 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 #### 11.18.3 Docker CLI
 
 You can show all custom categories using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* delete-category --name "Banking"
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** delete-category --name "Banking"
 ```
 
 ### 11.19 Generate Asymmetric Encryption Keys
@@ -1569,8 +1569,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can generate asymmetric encryption keys using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* generate-private-public-keys
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** generate-private-public-keys
 ```
 
 You can optionally pass a seed password to generate secret and public keys. Here
@@ -1579,16 +1579,16 @@ You can optionally pass a seed password to generate secret and public keys. Here
 
 You can generate asymmetric encryption keys using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/encryption/generate\_keys \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" -d '{}'
+curl -v -k -X POST https://localhost:8443/api/v1/encryption/generate_keys 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" -d '{}'
 ```
 
 Here is a sample output:
 ```json
 {
-  "secret\_key": "7e28c2849a6316596014fea5cedf51d21236be47766b82ae35c62d2747a85bfe",
-  "public\_key": "04339d73ffd49da063d0518ea6661a81e92644c8571df57af3b522a7bcbcd3232f1949d2d60e3ecb096f4a5521453df30420e514c314de8c49cb6d7f5565fe8864"
+  "secret_key": "7e28c2849a6316596014fea5cedf51d21236be47766b82ae35c62d2747a85bfe",
+  "public_key": "04339d73ffd49da063d0518ea6661a81e92644c8571df57af3b522a7bcbcd3232f1949d2d60e3ecb096f4a5521453df30420e514c314de8c49cb6d7f5565fe8864"
 }
 ```
 
@@ -1596,10 +1596,10 @@ Here is a sample output:
 
 You can generate asymmetric encryption keys using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass \\
-	-j true --master-username eddie \\
-	--master-password \*\*\* generate-private-public-keys
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
+	-j true --master-username eddie 
+	--master-password *** generate-private-public-keys
 ```
 ### 11.20 Asymmetric Encryption
 
@@ -1607,11 +1607,11 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY \\
 
 You can encrypt data using asymmetric encryption using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* asymmetric-encrypt --public-key $pub \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** asymmetric-encrypt --public-key $pub 
     --in-path plaintext.dat --out-path base64-encrypted.dat
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* asymmetric-decrypt \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** asymmetric-decrypt 
     --secret-key $prv --in-path base64-encrypted.dat --out-path plaintext-copy.dat
 ```
 In above example, you can first generate asymmetric keys and then encrypt a file using public key and then decrypt it using private key.
@@ -1620,29 +1620,29 @@ In above example, you can first generate asymmetric keys and then encrypt a file
 
 You can encrypt data using asymmetric encryption using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/encryption/asymmetric\_encrypt/$pub \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
-    --data-binary "@plaintext.dat" > base64\_encypted.dat
+curl -v -k -X POST https://localhost:8443/api/v1/encryption/asymmetric_encrypt/$pub 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
+    --data-binary "@plaintext.dat" > base64_encypted.dat
 
-curl -v -k -X POST https://localhost:8443/api/v1/encryption/asymmetric\_decrypt/$prv \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
-    --data-binary "@base64\_encypted.dat" > plaintext-copy.dat
+curl -v -k -X POST https://localhost:8443/api/v1/encryption/asymmetric_decrypt/$prv 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
+    --data-binary "@base64_encypted.dat" > plaintext-copy.dat
 ```
 #### 11.20.3 Docker CLI
 
 You can encrypt data using asymmetric encryption using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true \\
-    --master-username eddie --master-password \*\*\* asymmetric-encrypt --public-key $pub \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username eddie --master-password *** asymmetric-encrypt --public-key $pub 
     --in-path plaintext.dat --out-path base64-encrypted.dat
     
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true \\
-    --master-username eddie --master-password \*\*\* asymmetric-decrypt \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username eddie --master-password *** asymmetric-decrypt 
     --secret-key $prv --in-path base64-encrypted.dat --out-path plaintext-copy.dat
 ```
 ### 11.21 Asymmetric Encryption
@@ -1651,11 +1651,11 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 
 You can encrypt data using symmetric encryption using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* symmetric-encrypt --secret-key $prv \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** symmetric-encrypt --secret-key $prv 
     --in-path plaintext.dat --out-path base64-encrypted.dat
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* asymmetric-decrypt \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** asymmetric-decrypt 
     --secret-key $prv --in-path base64-encrypted.dat --out-path plaintext-copy.dat
 ```
 In above example, you use the same symmetric key or password to encrypt and decrypt data.
@@ -1664,15 +1664,15 @@ In above example, you use the same symmetric key or password to encrypt and decr
 
 You can encrypt data using symmetric encryption using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1/encryption/symmetric\_encrypt/$prv \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
-    --data-binary "@plaintext.dat" > base64\_encypted.dat
+curl -v -k -X POST https://localhost:8443/api/v1/encryption/symmetric_encrypt/$prv 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
+    --data-binary "@plaintext.dat" > base64_encypted.dat
 
-curl -v -k -X POST https://localhost:8443/api/v1/encryption/symmetric\_decrypt/$prv \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
-    --data-binary "@base64\_encypted.dat" > plaintext-copy.dat
+curl -v -k -X POST https://localhost:8443/api/v1/encryption/symmetric_decrypt/$prv 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
+    --data-binary "@base64_encypted.dat" > plaintext-copy.dat
 ```
 
 #### 11.21.3 Docker CLI
@@ -1680,14 +1680,14 @@ curl -v -k -X POST https://localhost:8443/api/v1/encryption/symmetric\_decrypt/$
 You can encrypt data using symmetric encryption using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true \\
-    --master-username eddie --master-password \*\*\* symmetric-encrypt --secret-key $prv \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username eddie --master-password *** symmetric-encrypt --secret-key $prv 
     --in-path plaintext.dat --out-path base64-encrypted.dat
     
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true \\
-    --master-username eddie --master-password \*\*\* symmetric-decrypt \\
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username eddie --master-password *** symmetric-decrypt 
     --secret-key $prv --in-path base64-encrypted.dat --out-path plaintext-copy.dat
 ```
 
@@ -1708,46 +1708,46 @@ Secure Note,Personal Note name,,,,My Secure Note,,
 
 You can import accounts data from a CSV file using CLI as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* import-accounts --vault-id $vault\_id \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** import-accounts --vault-id $vault_id 
     --in-path accounts.csv
 ```
 You can also export accounts data as follows:
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* export-accounts --vault-id $vault\_id \\
-    --password \*\*\* --out-path encrypted-accounts.dat
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** export-accounts --vault-id $vault_id 
+    --password *** --out-path encrypted-accounts.dat
 ```
 In above example, the exported data will be encrypted with given password and you can use symmetric encryption to decrypt it or import it later as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* import-accounts --vault-id $vault\_id \\
-    --password \*\* --in-path encrypted-accounts.dat
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** import-accounts --vault-id $vault_id 
+    --password ** --in-path encrypted-accounts.dat
 ```
 #### 11.22.2 REST API
 
 You can import accounts data from a CSV file using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault\_id/import \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault_id/import 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" 
     --data-binary "@accounts.csv" -d '{}'
 ```
 You can then export accounts data as an encrypted CSV file as follows:
 
 ```bash
-curl -v -k --http2 --sslv2 -X POST "https://localhost:8443/api/v1//vaults/$vault\_id/export" \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" -d '{"password": "\*\*"}' > encrypted\_csv.dat
+curl -v -k --http2 --sslv2 -X POST "https://localhost:8443/api/v1//vaults/$vault_id/export" 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" -d '{"password": "**"}' > encrypted_csv.dat
 ```
 And then import it back later as follows:
 
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault\_id/import \\
-	--header "Content-Type: application/json; charset=UTF-8" \\
-    --header "Authorization: Bearer $AUTH\_TOKEN" --data-binary "@encrypted\_csv.dat" \\
-    -d '{"password": "\*\*\*"}'
+curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault_id/import 
+	--header "Content-Type: application/json; charset=UTF-8" 
+    --header "Authorization: Bearer $AUTH_TOKEN" --data-binary "@encrypted_csv.dat" 
+    -d '{"password": "***"}'
 ```
 
 #### 11.22.3 Docker CLI
@@ -1755,18 +1755,18 @@ curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault\_id/import \\
 You can import accounts data from a CSV file using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass \\
-    -j true --master-username frank --master-password \*\*\* import-accounts \\
-    --vault-id $vault\_id --in-path /files/accounts.csv
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass 
+    -j true --master-username frank --master-password *** import-accounts 
+    --vault-id $vault_id --in-path /files/accounts.csv
 ```
 And export it without password as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true \\
-    --master-username frank --master-password \*\*\* export-accounts \\
-    --vault-id $vault\_id --out-path /files/plaintext.csv
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username frank --master-password *** export-accounts 
+    --vault-id $vault_id --out-path /files/plaintext.csv
 ```
 ### 11.23 Generating Strong Password
 
@@ -1775,36 +1775,36 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 You can generate a strong password using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* generate-password
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** generate-password
 ```
 That generates a memorable or random password such as:
 ```json
-{"password": "\*\*"}
+{"password": "**"}
 ```
 
 #### 11.23.2 REST API
 
 You can generate a strong password using REST API as follows:
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
     https://localhost:8443/api/v1//password/memorable -d '{}'
     
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
     https://localhost:8443/api/v1//password/random -d '{}'
 ```
 
 You can optionally specify password policies with following properties:
 ```json
 -d '{
-  "password\_min\_uppercase": 1,
-  "password\_min\_lowercase": 1,
-  "password\_min\_digits": 1,
-  "password\_min\_special\_chars": 1,
-  "password\_min\_length": 12,
-  "password\_max\_length": 16,
+  "password_min_uppercase": 1,
+  "password_min_lowercase": 1,
+  "password_min_digits": 1,
+  "password_min_special_chars": 1,
+  "password_min_length": 12,
+  "password_max_length": 16,
 }'
 ```
 
@@ -1813,9 +1813,9 @@ You can optionally specify password policies with following properties:
 You can generate a strong password using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\* generate-password
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password ** generate-password
 ```
 
 ### 11.24 Checking if a Password is Compromised
@@ -1825,8 +1825,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 You can check if a password is compromised using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* password-compromised --password \*\*
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** password-compromised --password **
 ```
 That returns as a flag as follows:
 
@@ -1838,18 +1838,18 @@ That returns as a flag as follows:
 
 You can check if a password is compromised using REST API as follows:
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/password/\*\*\*/compromised
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/password/***/compromised
 ```
 
 #### 11.24.3 Docker CLI
 
 You can check if a password is compromised using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data -v $CWD:/files plexpass \\
-    -j true --master-username frank --master-password \*\*\* password-compromised --password \*\*
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass 
+    -j true --master-username frank --master-password *** password-compromised --password **
 ```
 
 ### 11.25 Checking Strength of a Password
@@ -1859,8 +1859,8 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 You can check strength of a password using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* password-strength --password \*\*
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** password-strength --password **
 ```
 
 That returns as password properties as follows:
@@ -1872,7 +1872,7 @@ That returns as password properties as follows:
   "uppercase": 0,
   "lowercase": 10,
   "digits": 0,
-  "special\_chars": 0,
+  "special_chars": 0,
   "length": 10
 }
 ```
@@ -1881,18 +1881,18 @@ That returns as password properties as follows:
 
 You can check strength of a password using REST API as follows:
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/password/\*\*/strength
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/password/**/strength
 ```
 
 #### 11.25.3 Docker CLI
 
 You can check strength of a password using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\*\* password-strength --password \*\*\*
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password *** password-strength --password ***
 ```
 
 ### 11.26 Checking if Email is Compromised
@@ -1902,15 +1902,15 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 PlexPass integrates with [https://haveibeenpwned.com/](https://haveibeenpwned.com/) and you can check if an emaill or website is compromised if you have an API key from the website. Here is how you can check if email is compromised using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password Cru5h\_rfIt:v\_Bk email-compromised \\
+./target/release/plexpass -j true --master-username eddie 
+	--master-password Cru5h_rfIt:v_Bk email-compromised 
     --email myemail@bitvault.com
 ```
 
 This would return an error if you haven’t configured the API key, e.g.
 
 ```bash
-could not check password: Validation { message: "could not find api key for HIBP", reason\_code: None }
+could not check password: Validation { message: "could not find api key for HIBP", reason_code: None }
 ```
 
 #### 11.26.2 REST API
@@ -1918,8 +1918,8 @@ could not check password: Validation { message: "could not find api key for HIBP
 You can check if an email is compromised using REST API as follows:
 
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
     https://localhost:8443/api/v1/emails/email/compromised
 ```
 
@@ -1928,9 +1928,9 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
 You can check if an email is compromised using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\* email-compromised --email myemail@mail.com
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password ** email-compromised --email myemail@mail.com
 ```
 
 ### 11.27 Analyzing Passwords for a Vault
@@ -1940,22 +1940,22 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 PlexPass integrates with [https://haveibeenpwned.com/](https://haveibeenpwned.com/) and checks for strength, similarity, and password reuse. Here is how you can analyze all passwords in a vault using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* analyze-vault-passwords --vault-id $vault\_id
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** analyze-vault-passwords --vault-id $vault_id
 ```
 
 This would return return summary of the analysis:
 ```json
 {
-  "total\_accounts": 35,
-  "count\_strong\_passwords": 1,
-  "count\_moderate\_passwords": 20,
-  "count\_weak\_passwords": 14,
-  "count\_healthy\_passwords": 1,
-  "count\_compromised": 32,
-  "count\_reused": 29,
-  "count\_similar\_to\_other\_passwords": 22,
-  "count\_similar\_to\_past\_passwords": 0
+  "total_accounts": 35,
+  "count_strong_passwords": 1,
+  "count_moderate_passwords": 20,
+  "count_weak_passwords": 14,
+  "count_healthy_passwords": 1,
+  "count_compromised": 32,
+  "count_reused": 29,
+  "count_similar_to_other_passwords": 22,
+  "count_similar_to_past_passwords": 0
 }
 ```
 
@@ -1966,18 +1966,18 @@ Each acount will be updated with advisories based on the analysis.
 You can analyze all accounts in a Vault using REST API as follows:
 
 ```bash
-curl -v -k -X POST --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/vaults/$vault\_id/analyze\_passwords
+curl -v -k -X POST --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/vaults/$vault_id/analyze_passwords
 ```
 
 #### 11.27.3 Docker CLI
 
 You can analyze all accounts in a Vault using Docker CLI as follows:
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\* analyze-vault-passwords --vault-id $vault\_id
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password ** analyze-vault-passwords --vault-id $vault_id
 ```
 
 ### 11.28 Analyzing Passwords for all Vaults
@@ -1987,23 +1987,23 @@ docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
 Here is how you can analyze passwords in all vaults using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* analyze-all-vaults-passwords
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** analyze-all-vaults-passwords
 ```
 
 This would return return summary of the analysis:
 ```json
 { 
   "vault-id" :{
-    "total\_accounts": 35,
-    "count\_strong\_passwords": 1,
-    "count\_moderate\_passwords": 20,
-    "count\_weak\_passwords": 14,
-    "count\_healthy\_passwords": 1,
-    "count\_compromised": 32,
-    "count\_reused": 29,
-    "count\_similar\_to\_other\_passwords": 22,
-   "count\_similar\_to\_past\_passwords": 0
+    "total_accounts": 35,
+    "count_strong_passwords": 1,
+    "count_moderate_passwords": 20,
+    "count_weak_passwords": 14,
+    "count_healthy_passwords": 1,
+    "count_compromised": 32,
+    "count_reused": 29,
+    "count_similar_to_other_passwords": 22,
+   "count_similar_to_past_passwords": 0
  }
 }
 ```
@@ -2015,9 +2015,9 @@ Each acount will be updated with advisories based on the analysis.
 You can analyze accounts in all Vaults using REST API as follows:
 
 ```bash
-curl -v -k -X POST --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/password/analyze\_all\_passwords
+curl -v -k -X POST --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/password/analyze_all_passwords
 ```
 
 #### 11.28.3 Docker CLI
@@ -2025,9 +2025,9 @@ curl -v -k -X POST --header "Content-Type: application/json; charset=UTF-8" \\
 You can analyze accounts in all Vaults using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\* analyze-all-vaults-passwords
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password ** analyze-all-vaults-passwords
 ```
 
 ### 11.29 Searching Usernames
@@ -2039,8 +2039,8 @@ PlexPass allows searching usernames for sharing data, however by default this fe
 You can search usernames using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\* search-usernames --q ali
+./target/release/plexpass -j true --master-username eddie 
+	--master-password ** search-usernames --q ali
 ```
 
 #### 11.29.2 REST API
@@ -2048,8 +2048,8 @@ You can search usernames using CLI as follows:
 You can search usernames using REST API as follows:
 
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" https://localhost:8443/api/v1/usernames?q=ali
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" https://localhost:8443/api/v1/usernames?q=ali
 ```
 
 #### 11.29.3 Docker CLI
@@ -2057,9 +2057,9 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
 You can search usernames using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e DATA\_DIR=/data \\
-	-v $PARENT\_DIR/PlexPassData:/data plexpass -j true --master-username frank \\
-    --master-password \*\*\* search-usernames --q ali
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
+    --master-password *** search-usernames --q ali
 ```
 ### 11.30 Sharing a Vault with another User
 
@@ -2070,8 +2070,8 @@ PlexPass allows sharing a vault with another user for read-only or read/write ac
 You can share a Vault with another user using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* share-vault --vault-id $vault\_id --target-username frank
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** share-vault --vault-id $vault_id --target-username frank
 ```
 
 
@@ -2082,10 +2082,10 @@ Vault and Account sharing within the system leverages public key infrastructure 
 You can share a Vault with another user using REST API as follows:
 
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/vaults/$vault\_id/share \\
-    -d '{"target\_username": "frank"}'
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/vaults/$vault_id/share 
+    -d '{"target_username": "frank"}'
 ```
 
 #### 11.30.3 Docker CLI
@@ -2093,10 +2093,10 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
 You can search usernames using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e RUST\_BACKTRACE=1 \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass -j true \\
-    --master-username frank --master-password \*\* share-vault \\
-    --vault-id $vault\_id --target-username charlie
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true 
+    --master-username frank --master-password ** share-vault 
+    --vault-id $vault_id --target-username charlie
 ```
 
 ### 11.31 Sharing an Account with another User
@@ -2108,9 +2108,9 @@ PlexPass allows sharing an account by sending an encrypted account data, which u
 You can share an Account with another user using CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie \\
-	--master-password \*\*\* share-account --vault-id $vault\_id \\
-    --account-id $account\_id --target-username frank
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** share-account --vault-id $vault_id 
+    --account-id $account_id --target-username frank
 ```
 
 #### 11.31.2 REST API
@@ -2118,10 +2118,10 @@ You can share an Account with another user using CLI as follows:
 You can share an Account with another user using REST API as follows:
 
 ```bash
-curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
-	--header "Authorization: Bearer $AUTH\_TOKEN" \\
-    https://localhost:8443/api/v1/vaults/$vault\_id/accounts/$account\_id/share \\
-    -d '{"target\_username": "frank"}'
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id/share 
+    -d '{"target_username": "frank"}'
 ```
 
 #### 11.31.3 Docker CLI
@@ -2129,10 +2129,10 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8" \\
 You can share an Account with another using Docker CLI as follows:
 
 ```bash
-docker run -e DEVICE\_PEPPER\_KEY=$DEVICE\_PEPPER\_KEY -e RUST\_BACKTRACE=1 \\
-	-e DATA\_DIR=/data -v $PARENT\_DIR/PlexPassData:/data plexpass -j true \\
-    --master-username frank --master-password \*\* share-vault \\
-    --vault-id $vault\_id --target-username charlie
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true 
+    --master-username frank --master-password ** share-vault 
+    --vault-id $vault_id --target-username charlie
 ```
 
 ### 11.32 Security Dashboad and Auditing
