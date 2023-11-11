@@ -11,14 +11,14 @@ fn term_frequency(s: &str) -> Vec<f64> {
 
 // Edit Distance (Levenshtein Distance): Measures the minimum number of single-character edits
 // (i.e., insertions, deletions, or substitutions) to change one word into the other.
-fn levenshtein_distance(pass1: &str, pass2: &str) -> usize {
+pub fn levenshtein_distance(pass1: &str, pass2: &str) -> usize {
     strsim::levenshtein(pass1, pass2)
 }
 
 // Jaccard similarity measures the similarity between two sets.
 // The Jaccard similarity between two sets is the size of the intersection divided by the size
 // of the union.
-fn jaccard_similarity(s1: &str, s2: &str) -> f64 {
+pub fn jaccard_similarity(s1: &str, s2: &str) -> f64 {
     let set1: HashSet<_> = s1.chars().collect();
     let set2: HashSet<_> = s2.chars().collect();
 
@@ -31,7 +31,7 @@ fn jaccard_similarity(s1: &str, s2: &str) -> f64 {
 // Cosine Similarity: Represent passwords as vectors (e.g., using TF-IDF), then compute the
 // cosine of the angle between them. For Cosine similarity, let's assume we're treating each
 // string as a "document" and each character in the string as a "term" in that document.
-fn cosine_similarity(s1: &str, s2: &str) -> f64 {
+pub fn cosine_similarity(s1: &str, s2: &str) -> f64 {
     let tf1 = term_frequency(s1);
     let tf2 = term_frequency(s2);
 
@@ -46,26 +46,13 @@ fn cosine_similarity(s1: &str, s2: &str) -> f64 {
     dot_product / (magnitude1 * magnitude2)
 }
 
-fn find_similar_strings<'a>(
-    target: &'a str,
-    candidates: &'a [&'a str],
-    threshold: f64,
-) -> Vec<&'a str> {
-    candidates
-        .iter()
-        .filter(|&&candidate| {
-            let similarity = strsim::jaro_winkler(target, candidate);
-            similarity > threshold
-        })
-        .cloned()
-        .collect()
+pub fn jaro_winkler_similarity(s1: &str, s2: &str) -> f64 {
+    strsim::jaro_winkler(s1, s2)
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::text::{
-        cosine_similarity, find_similar_strings, jaccard_similarity, levenshtein_distance,
-    };
+    use crate::utils::text::{cosine_similarity, jaccard_similarity, jaro_winkler_similarity, levenshtein_distance};
 
     #[test]
     fn test_should_compute_levenshtein_distance() {
@@ -95,9 +82,7 @@ mod tests {
 
     #[test]
     fn test_should_find_similar_strings() {
-        let target = "apple";
-        let candidates = ["apl", "aple", "applepie", "banana", "apple"];
-        let similar_strings = find_similar_strings(target, &candidates, 0.9);
-        assert_eq!(3, similar_strings.len()); //  ["aple", "applepie", "apple"]
+        assert!(jaro_winkler_similarity("apple", "aple") > 0.9);
+        assert!(jaro_winkler_similarity("apple", "applepie") > 0.9);
     }
 }

@@ -37,8 +37,8 @@ impl SettingRepository for SettingRepositoryImpl {}
 impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
     // create setting.
     async fn create(&self, ctx: &UserContext, setting: &Setting) -> PassResult<usize> {
-        // ensure user-context and setting user-id matches
-        ctx.validate_user_id(&setting.user_id)?;
+        // ensure user-context and setting user-id matches -- no acl check
+        ctx.validate_user_id(&setting.user_id, || false)?;
 
         let setting_entity = SettingEntity::new(setting);
 
@@ -49,7 +49,6 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
         {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("created setting {:?} {}", setting, size);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -65,8 +64,8 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
 
     // updates existing setting.
     async fn update(&self, ctx: &UserContext, setting: &Setting) -> PassResult<usize> {
-        // ensure setting belongs to user
-        ctx.validate_user_id(&setting.user_id)?;
+        // ensure setting belongs to user -- no acl check
+        ctx.validate_user_id(&setting.user_id, || false)?;
 
         let existing_setting_entity = self.get_entity(&ctx, &setting.setting_id).await?;
 
@@ -86,7 +85,6 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
         ))
         .execute(&mut conn)?;
         if size > 0 {
-            log::debug!("updated setting {:?} {}", setting, size);
             Ok(size)
         } else {
             Err(PassError::database(
@@ -108,14 +106,13 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
     async fn delete(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {
         let setting_entity = self.get_entity(&ctx, id).await?;
 
-        // ensure setting belongs to user
-        ctx.validate_user_id(&setting_entity.user_id)?;
+        // ensure setting belongs to user - no acl check
+        ctx.validate_user_id(&setting_entity.user_id, || false)?;
 
         let mut conn = self.connection()?;
         match diesel::delete(settings.filter(setting_id.eq(id))).execute(&mut conn) {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("deleted setting setting {}", id);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -153,8 +150,8 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
             ));
         }
         let entity = items.remove(0);
-        // ensure setting belongs to user
-        ctx.validate_user_id(&entity.user_id)?;
+        // ensure setting belongs to user - no acl check
+        ctx.validate_user_id(&entity.user_id, || false)?;
         Ok(entity)
     }
 

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %} Categories {% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Top Section -->
+</div>
+<div class="container mt-3">
+    <h2 class="text-center">PlexPass - Categories</h2>
+    <!-- Button to add new category -->
+    <button class="btn btn-primary mb-2 float-end" data-bs-toggle="modal" data-bs-target="#categoryModal" onclick="prepareNewCategoryModal()">Add New Category</button>
+
+    <!-- Table to show categories -->
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Category Name</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody id="categoryTableBody">
+        {% for category in categories %}
+        <tr>
+            <td>{{category.name}}</td>
+            <td>
+                <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
+                        onclick="deleteCategory('{{category.name}}')">Delete
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock content %}
+
+{% block extra_content %}
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalLabel">Edit Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId">
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name</label>
+                        <input type="text" class="form-control" id="categoryName">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveCategory()">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock extra_content %}
+

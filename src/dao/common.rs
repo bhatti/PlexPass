@@ -63,7 +63,7 @@ pub(crate) fn build_sqlite_pool(
     let manager = ConnectionManager::<SqliteConnection>::new(&db_url);
 
     if !Path::new(db_url.as_str()).exists() {
-        log::info!("running sqlite migrations for {}", &db_url);
+        log::info!("running sqlite migrations for {}, data-dir {:?}, cwd {:?}", &db_url, &config.data_dir, std::env::current_dir()?);
         let conn = build_sqlite_connection(&db_url).unwrap();
         run_migrations(conn)?;
     }
@@ -116,6 +116,10 @@ impl From<diesel::result::Error> for PassError {
             } else if lower_reason.contains("unique") {
                 return PassError::duplicate_key(
                     format!("duplicate key error {:?} {:?}", err, reason).as_str(),
+                );
+            } else if lower_reason.contains("oreign") {
+                return PassError::constraints(
+                    format!("database constraints error {:?} {:?}", err, reason).as_str(),
                 );
             }
         }

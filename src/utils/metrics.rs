@@ -55,7 +55,6 @@ impl<'a> Metric<'a> {
 pub(crate) struct PassMetrics {
     requests_total: IntCounterVec,
     requests_duration_seconds: HistogramVec,
-    acquire_retry_wait_total: IntCounterVec,
 }
 
 impl PassMetrics {
@@ -66,7 +65,7 @@ impl PassMetrics {
             requests_total: IntCounterVec::new(
                 Opts::new(
                     format!("{}requests_total", prefix).as_str(),
-                    "Total number of lock acquire requests",
+                    "Total number of requests",
                 )
                 .const_labels(const_labels.clone()),
                 &["method", "status"],
@@ -74,19 +73,11 @@ impl PassMetrics {
             requests_duration_seconds: HistogramVec::new(
                 HistogramOpts::new(
                     format!("{}requests_duration_seconds", prefix).as_str(),
-                    "Lock acquire request duration in seconds for all requests",
+                    "Request duration in seconds for all requests",
                 )
                 .buckets(buckets.to_vec())
                 .const_labels(const_labels.clone()),
                 &["method", "status"],
-            )?,
-            acquire_retry_wait_total: IntCounterVec::new(
-                Opts::new(
-                    format!("{}acquire_retry_wait_total", prefix).as_str(),
-                    "Total number of lock waits while acquiring",
-                )
-                .const_labels(const_labels),
-                &[],
             )?,
         };
         match metrics.register(registry) {
@@ -110,14 +101,10 @@ impl PassMetrics {
     fn register(&self, registry: &Registry) -> Result<(), prometheus::Error> {
         registry.register(Box::new(self.requests_total.clone()))?;
         registry.register(Box::new(self.requests_duration_seconds.clone()))?;
-        registry.register(Box::new(self.acquire_retry_wait_total.clone()))?;
         Ok(())
     }
 
-    pub(crate) fn inc_retry_wait(&self) {
-        self.acquire_retry_wait_total.with_label_values(&[]).inc();
-    }
-
+    #[allow(dead_code)]
     pub(crate) fn get_request_total(&self, method: &str) -> i64 {
         match self
             .requests_total
@@ -128,10 +115,12 @@ impl PassMetrics {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn new_metric(&self, method: &str) -> Metric {
         Metric::new(self, method)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn summary(&self) -> HashMap<String, f64> {
         let mut summary = HashMap::new();
         for metric in prometheus::gather() {

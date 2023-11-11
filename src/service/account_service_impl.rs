@@ -6,6 +6,7 @@ use prometheus::Registry;
 
 use crate::dao::models::UserContext;
 use crate::dao::AccountRepository;
+use crate::domain::error::PassError;
 use crate::domain::models::{Account, PaginatedResult, PassConfig, PassResult};
 use crate::service::AccountService;
 use crate::utils::metrics::PassMetrics;
@@ -33,7 +34,17 @@ impl AccountServiceImpl {
 impl AccountService for AccountServiceImpl {
     async fn create_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize> {
         let _ = self.metrics.new_metric("create_account");
-        self.account_repository.create(ctx, account).await
+        match self.account_repository.create(ctx, account).await {
+            Ok(size) => {
+                Ok(size)
+            }
+            Err(err) => {
+                if let PassError::DuplicateKey { .. } = err {
+                    return Err(PassError::duplicate_key("duplicate account"));
+                }
+                Err(err)
+            }
+        }
     }
 
     async fn update_account(&self, ctx: &UserContext, account: &Account) -> PassResult<usize> {
@@ -66,6 +77,21 @@ impl AccountService for AccountServiceImpl {
             .find(ctx, predicates, offset, limit)
             .await
     }
+
+    // count all accounts by vault.
+    async fn count_accounts_by_vault(
+        &self,
+        ctx: &UserContext,
+        vault_id: &str,
+        predicates: HashMap<String, String>,
+    ) -> PassResult<i64> {
+        let _ = self.metrics.new_metric("count_accounts_by_vault");
+        let mut predicates = predicates.clone();
+        predicates.insert("vault_id".into(), vault_id.into());
+        self.account_repository
+            .count(ctx, predicates)
+            .await
+    }
 }
 
 #[cfg(test)]
@@ -73,7 +99,7 @@ mod tests {
     use std::collections::HashMap;
     use uuid::Uuid;
 
-    use crate::domain::models::{Account, HSMProvider, PassConfig, User, Vault};
+    use crate::domain::models::{Account, AccountKind, HSMProvider, PassConfig, User, Vault, VaultKind};
     use crate::service::factory::{
         create_account_service, create_user_service, create_vault_service,
     };
@@ -90,14 +116,18 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        // Signup with weak password such as `password` should fail
+        assert!(user_service.signup_user(&user, "password", HashMap::new()).await.is_err());
+
+        // But with strong password should succeed
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
-        let vault = Vault::new(&user.user_id, "title1");
+        let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
         // WHEN creating a new account
-        let mut account = Account::new(&vault.vault_id);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
         account.details.username = Some("user".into());
         account.credentials.password = Some("pass".into());
         // THEN it should succeed
@@ -145,14 +175,14 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
-        let vault = Vault::new(&user.user_id, "title1");
+        let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
         // WHEN creating a new account
-        let mut account = Account::new(&vault.vault_id);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
         account.details.username = Some("user".into());
         account.credentials.password = Some("pass".into());
         // THEN it should succeed
@@ -192,17 +222,17 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
-        let vault = Vault::new(&user.user_id, "title1");
+        let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
         for i in 0..5 {
             // WHEN creating a new account
-            let mut account = Account::new(&vault.vault_id);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
             account.details.username = Some(format!("user_{}", i));
-            account.details.categories = vec!["cat1".into(), "cat2".into()];
+            account.details.category = Some("cat1".into());
             account.details.tags = vec!["tag1".into(), "tag2".into()];
             account.credentials.password = Some(format!("pass_{}", i));
             account.credentials.notes = Some(format!("note_{}", i));
@@ -215,19 +245,27 @@ mod tests {
                     .unwrap()
             );
         }
-        // WHEN finding vaults for the user
+        // WHEN finding accounts for the user
         let all = account_service
             .find_accounts_by_vault(&ctx, &vault.vault_id, HashMap::new(), 0, 1000)
             .await
             .unwrap();
-        // THEN it should return all vaults
+        // THEN it should return all accounts
         assert_eq!(5, all.records.len());
+
+        // WHEN counting accounts
+        let count = account_service
+            .count_accounts_by_vault(&ctx, &vault.vault_id, HashMap::new())
+            .await
+            .unwrap();
+        // THEN it should return count of accounts
+        assert_eq!(5 as i64, count);
 
         // Verify summary in vault
         let loaded = vault_service
             .get_vault(&ctx, vault.vault_id.as_str())
             .await
             .unwrap();
-        assert_eq!(5, loaded.entries.len());
+        assert_eq!(5, loaded.entries.unwrap().len());
     }
 }

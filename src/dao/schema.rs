@@ -17,6 +17,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    acls (acl_id) {
+        acl_id -> Text,
+        version -> BigInt,
+        acl_user_id -> Text,
+        resource_type -> Text,
+        resource_id -> Text,
+        permissions -> BigInt,
+        scope -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     archived_accounts (account_id, version) {
         account_id -> Text,
         version -> BigInt,
@@ -35,6 +49,7 @@ diesel::table! {
         audit_id -> Text,
         user_id -> Text,
         kind -> Text,
+        ip_address -> Nullable<Text>,
         context -> Text,
         message -> Text,
         created_at -> Timestamp,
@@ -44,6 +59,7 @@ diesel::table! {
 diesel::table! {
     crypto_keys (crypto_key_id) {
         crypto_key_id -> Text,
+        parent_crypto_key_id -> Text,
         user_id -> Text,
         keyable_id -> Text,
         keyable_type -> Text,
@@ -85,7 +101,7 @@ diesel::table! {
         user_id -> Text,
         specversion -> Text,
         source -> Text,
-        message_type -> Text,
+        kind -> Text,
         flags -> BigInt,
         salt -> Text,
         nonce -> Text,
@@ -137,6 +153,7 @@ diesel::table! {
         version -> BigInt,
         owner_user_id -> Text,
         title -> Text,
+        kind -> Text,
         salt -> Text,
         nonce -> Text,
         encrypted_value -> Text,
@@ -146,6 +163,7 @@ diesel::table! {
 }
 
 diesel::joinable!(accounts -> vaults (vault_id));
+diesel::joinable!(acls -> users (acl_user_id));
 diesel::joinable!(archived_accounts -> crypto_keys (crypto_key_id));
 diesel::joinable!(archived_accounts -> vaults (vault_id));
 diesel::joinable!(audit_records -> users (user_id));
@@ -160,6 +178,7 @@ diesel::joinable!(vaults -> users (owner_user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     accounts,
+    acls,
     archived_accounts,
     audit_records,
     crypto_keys,

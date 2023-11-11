@@ -112,6 +112,7 @@ impl SettingService for SettingServiceImpl {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use uuid::Uuid;
 
     use crate::domain::models::{PassConfig, Setting, SettingKind, User};
@@ -126,7 +127,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating a setting
         let mut setting = Setting::new(&user.user_id, SettingKind::Config, "name", "value");
@@ -170,7 +171,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating an setting
         let setting = Setting::new(&user.user_id, SettingKind::Scan, "name1", "value1");
@@ -208,7 +209,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         let kinds = [SettingKind::Scan, SettingKind::Config];
         for i in 0..10 {

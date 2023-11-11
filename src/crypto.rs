@@ -2,7 +2,6 @@ extern crate argon2;
 extern crate ecies;
 extern crate hex;
 extern crate ring;
-extern crate security_framework;
 
 use std::num::NonZeroU32;
 
@@ -35,13 +34,13 @@ pub const SECRET_LEN: usize = 32;
 /// PUBLIC METHODS FOR HASHING
 ///
 /// Compute Sha1 Hash
-pub(crate) fn compute_sha1(input: &str) -> String {
+pub(crate) fn compute_sha1_hex(input: &str) -> String {
     let hash = Sha1::digest(input.as_bytes());
     hex::encode(hash)
 }
 
 /// Compute Sha256 Hash
-pub(crate) fn compute_sha256(input: &str) -> String {
+pub(crate) fn compute_sha256_hex(input: &str) -> String {
     let hash = digest::digest(&digest::SHA256, input.as_bytes());
     hex::encode(hash.as_ref())
 }
@@ -89,31 +88,46 @@ pub(crate) fn generate_private_public_keys() -> (String, String) {
 pub(crate) fn generate_private_public_keys_from_secret(
     secret: &str,
 ) -> PassResult<(String, String)> {
+    let (sk, _) = generate_private_key_from_secret(secret)?;
+    let pk = PublicKey::from_secret_key(&sk);
+    Ok((hex::encode(&sk.serialize()), hex::encode(pk.serialize())))
+}
+
+pub(crate) fn generate_private_key_from_secret(secret: &str) -> PassResult<(SecretKey, [u8; SECRET_LEN])> {
     let in_bytes = secret.as_bytes();
     if in_bytes.len() < SECRET_LEN {
-        return Err(PassError::validation("secret is too small", None));
+        return Err(PassError::validation(format!("secret ({}:{})is too small", secret, secret.len()).as_str(), None));
     }
     let mut p = [0; SECRET_LEN];
     for i in 0..SECRET_LEN {
         p[i] = in_bytes[i.clone()];
     }
     let sk = SecretKey::parse(&p)?;
-    let pk = PublicKey::from_secret_key(&sk);
-    Ok((hex::encode(&sk.serialize()), hex::encode(pk.serialize())))
+    Ok((sk, sk.serialize()))
 }
 
 /// Encrypt using hex-encoded public key and Elliptic Curve
-pub(crate) fn ec_encrypt(pk: &str, msg_str: &str) -> PassResult<String> {
+pub(crate) fn ec_encrypt_hex(pk: &str, msg_str: &str) -> PassResult<String> {
     let msg = msg_str.as_bytes().to_vec();
+    Ok(hex::encode(ec_encrypt_hex_bytes(pk, &msg)?))
+}
+
+/// Encrypt using hex-encoded public key and byte message
+pub(crate) fn ec_encrypt_hex_bytes(pk: &str, msg: &[u8]) -> PassResult<Vec<u8>> {
     let pub_bytes = hex::decode(pk)?;
-    Ok(hex::encode(&ecies::encrypt(&pub_bytes, &msg)?))
+    Ok(ecies::encrypt(&pub_bytes, msg)?)
 }
 
 /// Decrypt using hex-encoded secret private key and Elliptic Curve
-pub(crate) fn ec_decrypt(sk: &str, msg_str: &str) -> PassResult<String> {
+pub(crate) fn ec_decrypt_hex(sk: &str, msg_str: &str) -> PassResult<String> {
     let msg = hex::decode(msg_str)?;
+    Ok(String::from_utf8(ec_decrypt_hex_bytes(sk, &msg)?)?)
+}
+
+/// Decrypt using hex-encoded secret private key and Elliptic Curve
+pub(crate) fn ec_decrypt_hex_bytes(sk: &str, msg: &[u8]) -> PassResult<Vec<u8>> {
     let secret_bytes = hex::decode(sk)?;
-    Ok(String::from_utf8(ecies::decrypt(&secret_bytes, &msg)?)?)
+    Ok(ecies::decrypt(&secret_bytes, msg)?)
 }
 
 /// ENCRYPTION METHODS
@@ -123,24 +137,24 @@ pub(crate) fn ec_decrypt(sk: &str, msg_str: &str) -> PassResult<String> {
 /// Returns a tuple of `(nonce, ciphertext)`.
 pub(crate) fn encrypt(req: EncryptRequest) -> PassResult<EncryptResponse> {
     let seed_key = compute_hash(
-        &req.salt_bytes()?,
+        &req.salt_bytes(),
         &req.device_pepper,
         &req.master_secret,
         req.hash_algorithm.clone(),
     )?;
     let (nonce, ciphertext) = match req.crypto_algorithm {
         CryptoAlgorithm::Aes256Gcm => {
-            aes_encrypt(&seed_key, req.aad.as_bytes(), req.plaintext.as_bytes())?
+            aes_encrypt(&seed_key, req.aad.as_bytes(), &req.payload)?
         }
-        CryptoAlgorithm::ChaCha20Poly1305 => cha_encrypt(&seed_key, req.plaintext.as_bytes())?,
+        CryptoAlgorithm::ChaCha20Poly1305 => cha_encrypt(&seed_key, &req.payload)?,
     };
-    EncryptResponse::new(nonce, ciphertext)
+    Ok(EncryptResponse::new(nonce, ciphertext, req.encoding))
 }
 
 /// Decrypt ciphertext using crypto-algorithm.
 pub(crate) fn decrypt(req: DecryptRequest) -> PassResult<DecryptResponse> {
     let seed_key = compute_hash(
-        &req.salt_bytes()?,
+        &req.salt_bytes(),
         &req.device_pepper,
         &req.master_secret,
         req.hash_algorithm.clone(),
@@ -150,10 +164,10 @@ pub(crate) fn decrypt(req: DecryptRequest) -> PassResult<DecryptResponse> {
             &seed_key,
             req.aad.as_bytes(),
             &req.nonce_bytes()?,
-            &req.ciphertext_bytes()?,
+            &req.cipher_payload,
         )?,
         CryptoAlgorithm::ChaCha20Poly1305 => {
-            cha_decrypt(&seed_key, &req.nonce_bytes()?, &req.ciphertext_bytes()?)?
+            cha_decrypt(&seed_key, &req.nonce_bytes()?, &req.cipher_payload)?
         }
     };
     DecryptResponse::new(ciphertext)
@@ -167,7 +181,7 @@ pub(crate) fn decrypt(req: DecryptRequest) -> PassResult<DecryptResponse> {
 /// 256 bits (AES-256) is used for symmetric encryption algorithms.
 ///
 /// Returns a tuple of `(nonce, ciphertext)`.
-fn aes_encrypt(
+pub(crate) fn aes_encrypt(
     secret_key: &[u8; SECRET_LEN],
     aad: &[u8],
     plaintext: &[u8],
@@ -209,7 +223,7 @@ fn aes_decrypt(
 /// cipher suite in TLS.
 ///
 /// Returns a tuple of `(nonce, ciphertext)`.
-fn cha_encrypt(
+pub(crate) fn cha_encrypt(
     secret_key: &[u8; SECRET_LEN],
     plaintext: &[u8],
 ) -> Result<(Vec<u8>, Vec<u8>), chacha20poly1305::Error> {
@@ -273,7 +287,7 @@ fn compute_argon2id(
     let peppered_input = format!("{}{}", input, pepper);
 
     let mut output_key_material = [0u8; SECRET_LEN]; // Can be any desired size
-                                                     // Note: default parameters use 19MiB with iteration count of 2 and 1 degree of parallelism.
+    // Note: default parameters use 19MiB with iteration count of 2 and 1 degree of parallelism.
     let params = Params::new(m_cost, t_cost, p_cost, None)?;
     Argon2::new(Algorithm::default(), Version::default(), params).hash_password_into(
         peppered_input.as_bytes(),
@@ -284,6 +298,7 @@ fn compute_argon2id(
 }
 
 // Split the password into chunks by dividing a password into a sequence of trigrams.
+#[allow(dead_code)]
 fn trigrams(password: &str) -> Vec<&str> {
     let chars: Vec<_> = password.chars().collect();
     let mut trigrams = Vec::new();
@@ -298,6 +313,7 @@ fn trigrams(password: &str) -> Vec<&str> {
 // For each chunk, derive a set of features.
 // Hashing: For each feature, use a hash function to produce a hash value.
 // Combine these hash values into a single hash for the password.
+#[allow(dead_code)]
 fn tri_hash_password(password: &str) -> u64 {
     let trigrams = trigrams(password);
     let mut hash = 0u64;
@@ -323,12 +339,6 @@ impl From<argon2::password_hash::Error> for PassError {
     }
 }
 
-impl From<security_framework::base::Error> for PassError {
-    fn from(err: security_framework::base::Error) -> Self {
-        PassError::crypto(format!("keychain failed {:?}", err).as_str())
-    }
-}
-
 impl From<SecpError> for PassError {
     fn from(err: SecpError) -> Self {
         PassError::crypto(format!("secp encryption failed {:?}", err).as_str())
@@ -339,24 +349,21 @@ impl From<SecpError> for PassError {
 mod tests {
     use crate::crypto::{
         aes_decrypt, aes_encrypt, cha_decrypt, cha_encrypt, compute_argon2id, compute_hash,
-        compute_pbkdf2, compute_sha1, compute_sha256, decrypt, ec_decrypt, ec_encrypt, encrypt,
+        compute_pbkdf2, compute_sha1_hex, compute_sha256_hex, decrypt, ec_decrypt_hex, ec_encrypt_hex, encrypt,
         generate_nonce, generate_private_public_keys, generate_secret_key, tri_hash_password,
     };
-    use crate::domain::models::{
-        CryptoAlgorithm, DecryptRequest, EncryptRequest, HashAlgorithm,
-        PBKDF2_HMAC_SHA256_ITERATIONS,
-    };
+    use crate::domain::models::{CryptoAlgorithm, DecryptRequest, EncodingScheme, EncryptRequest, HashAlgorithm, PBKDF2_HMAC_SHA256_ITERATIONS};
 
     #[test]
     fn test_should_compute_sha1() {
-        let sha1 = compute_sha1("password");
+        let sha1 = compute_sha1_hex("password");
         assert_eq!("5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8", sha1);
         assert_eq!(40, sha1.len());
     }
 
     #[test]
     fn test_should_compute_sha256() {
-        let sha256 = compute_sha256("password");
+        let sha256 = compute_sha256_hex("password");
         assert_eq!(
             "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
             sha256
@@ -397,7 +404,7 @@ mod tests {
                     iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
                 },
             )
-            .unwrap(),
+                .unwrap(),
         );
         assert_eq!(
             "0fed7eb861b1a151f8f39836575afb272ec4f57d63ed327c8eef69e834219a2a",
@@ -416,7 +423,7 @@ mod tests {
                     parallelism: 1,
                 },
             )
-            .unwrap(),
+                .unwrap(),
         );
         assert_eq!(
             "9a00ed17cf1091a0b1275c624bee3ed24eab0c68a908910b9c54d8d214f397b9",
@@ -462,7 +469,7 @@ mod tests {
     fn test_should_encrypt_decrypt_algorithm_pbkdf2_aes256() {
         let data = "Hello, world!";
         let salt = hex::encode(generate_nonce());
-        let enc_res = encrypt(EncryptRequest::new(
+        let enc_res = encrypt(EncryptRequest::from_string(
             &salt,
             "pepper",
             "master",
@@ -471,28 +478,30 @@ mod tests {
             },
             CryptoAlgorithm::Aes256Gcm,
             data,
+            EncodingScheme::Base64,
         ))
-        .unwrap();
-        let dec_res = decrypt(DecryptRequest::new(
+            .unwrap();
+        let dec_res = decrypt(DecryptRequest::from_string(
             &salt,
-            &enc_res.nonce,
             "pepper",
             "master",
             HashAlgorithm::Pbkdf2HmacSha256 {
                 iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
             },
             CryptoAlgorithm::Aes256Gcm,
-            &enc_res.ciphertext,
-        ))
-        .unwrap();
-        assert_eq!(data, dec_res.plaintext);
+            &enc_res.nonce,
+            &enc_res.encoded_payload().unwrap(),
+            EncodingScheme::Base64,
+        ).unwrap())
+            .unwrap();
+        assert_eq!(data.as_bytes(), dec_res.payload);
     }
 
     #[test]
     fn test_should_encrypt_decrypt_algorithm_pbkdf2_chacha20() {
         let data = "Hello, world!";
         let salt = hex::encode(generate_nonce());
-        let enc_res = encrypt(EncryptRequest::new(
+        let enc_res = encrypt(EncryptRequest::from_string(
             &salt,
             "pepper",
             "master",
@@ -501,27 +510,30 @@ mod tests {
             },
             CryptoAlgorithm::ChaCha20Poly1305,
             data,
+            EncodingScheme::Base64,
         ))
-        .unwrap();
-        let dec_res = decrypt(DecryptRequest::new(
+            .unwrap();
+        let dec_res = decrypt(DecryptRequest::from_string(
             &salt,
-            &enc_res.nonce,
             "pepper",
             "master",
             HashAlgorithm::Pbkdf2HmacSha256 {
                 iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
             },
             CryptoAlgorithm::ChaCha20Poly1305,
-            &enc_res.ciphertext,
-        ))
-        .unwrap();
-        assert_eq!(data, dec_res.plaintext);
+            &enc_res.nonce,
+            &enc_res.encoded_payload().unwrap(),
+            EncodingScheme::Base64,
+        ).unwrap())
+            .unwrap();
+        assert_eq!(data.as_bytes(), dec_res.payload);
     }
+
     #[test]
     fn test_should_encrypt_decrypt_algorithm_argon2_aes256() {
         let data = "Hello, world!";
         let salt = hex::encode(generate_nonce());
-        let enc_res = encrypt(EncryptRequest::new(
+        let enc_res = encrypt(EncryptRequest::from_string(
             &salt,
             "pepper",
             "master",
@@ -532,11 +544,11 @@ mod tests {
             },
             CryptoAlgorithm::Aes256Gcm,
             data,
+            EncodingScheme::Base64,
         ))
-        .unwrap();
-        let dec_res = decrypt(DecryptRequest::new(
+            .unwrap();
+        let dec_res = decrypt(DecryptRequest::from_string(
             &salt,
-            &enc_res.nonce,
             "pepper",
             "master",
             HashAlgorithm::ARGON2id {
@@ -545,17 +557,19 @@ mod tests {
                 parallelism: 1,
             },
             CryptoAlgorithm::Aes256Gcm,
-            &enc_res.ciphertext,
-        ))
-        .unwrap();
-        assert_eq!(data, dec_res.plaintext);
+            &enc_res.nonce,
+            &enc_res.encoded_payload().unwrap(),
+            EncodingScheme::Base64,
+        ).unwrap())
+            .unwrap();
+        assert_eq!(data.as_bytes(), dec_res.payload);
     }
 
     #[test]
     fn test_should_encrypt_decrypt_algorithm_argon2_chacha20() {
         let data = "Hello, world!";
         let salt = hex::encode(generate_nonce());
-        let enc_res = encrypt(EncryptRequest::new(
+        let enc_res = encrypt(EncryptRequest::from_string(
             &salt,
             "pepper",
             "master",
@@ -566,11 +580,11 @@ mod tests {
             },
             CryptoAlgorithm::ChaCha20Poly1305,
             data,
+            EncodingScheme::Base64,
         ))
-        .unwrap();
-        let dec_res = decrypt(DecryptRequest::new(
+            .unwrap();
+        let dec_res = decrypt(DecryptRequest::from_string(
             &salt,
-            &enc_res.nonce,
             "pepper",
             "master",
             HashAlgorithm::ARGON2id {
@@ -579,18 +593,21 @@ mod tests {
                 parallelism: 1,
             },
             CryptoAlgorithm::ChaCha20Poly1305,
-            &enc_res.ciphertext,
-        ))
-        .unwrap();
-        assert_eq!(data, dec_res.plaintext);
+            &enc_res.nonce,
+            &enc_res.encoded_payload().unwrap(),
+            EncodingScheme::Base64,
+        ).unwrap())
+            .unwrap();
+        assert_eq!(data.as_bytes(), dec_res.payload);
     }
+
     #[test]
     fn test_should_generate_private_public_keys() {
         let (hex_secret, hex_public_key) = generate_private_public_keys();
 
         let msg = "Hello world";
-        let enc = ec_encrypt(&hex_public_key, msg).unwrap();
-        let dec = ec_decrypt(&hex_secret, &enc).unwrap();
+        let enc = ec_encrypt_hex(&hex_public_key, msg).unwrap();
+        let dec = ec_decrypt_hex(&hex_secret, &enc).unwrap();
         assert_eq!(msg, dec);
     }
 }

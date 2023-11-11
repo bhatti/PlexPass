@@ -4,15 +4,16 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use diesel::prelude::*;
 
-use crate::dao::models::{CryptoKeyEntity, UserContext, UserVaultEntity, VaultEntity};
+use crate::dao::models::{ACLEntity, AuditEntity, AuditKind, CryptoKeyEntity, UserContext, UserVaultEntity, VaultEntity, WRITE_PERMISSION};
 use crate::dao::schema::users;
 use crate::dao::schema::users_vaults;
 use crate::dao::schema::vaults;
 use crate::dao::schema::vaults::dsl::*;
-use crate::dao::{CryptoKeyRepository, DbConnection, DbPool, Repository, UserRepository};
+use crate::dao::{AuditRepository, CryptoKeyRepository, DbConnection, DbPool, Repository, UserRepository};
 use crate::dao::{UserVaultRepository, VaultRepository};
+use crate::dao::acl_repository_impl::ACLRepositoryImpl;
 use crate::domain::error::PassError;
-use crate::domain::models::{PaginatedResult, PassResult, Vault};
+use crate::domain::models::{PaginatedResult, PassResult, ShareVaultPayload, Vault, VaultKind};
 
 #[derive(Clone)]
 pub struct VaultRepositoryImpl {
@@ -21,6 +22,7 @@ pub struct VaultRepositoryImpl {
     user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
     user_repository: Arc<dyn UserRepository + Send + Sync>,
     crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+    audit_repository: Arc<dyn AuditRepository + Send + Sync>,
 }
 
 impl VaultRepositoryImpl {
@@ -30,6 +32,7 @@ impl VaultRepositoryImpl {
         user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
         user_repository: Arc<dyn UserRepository + Send + Sync>,
         crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+        audit_repository: Arc<dyn AuditRepository + Send + Sync>,
     ) -> Self {
         VaultRepositoryImpl {
             max_vaults_per_user,
@@ -37,6 +40,7 @@ impl VaultRepositoryImpl {
             user_vault_repository,
             user_repository,
             crypto_key_repository,
+            audit_repository,
         }
     }
 
@@ -49,6 +53,58 @@ impl VaultRepositoryImpl {
             )
         })
     }
+
+    pub async fn shared_create(
+        ctx: &UserContext,
+        payload: &ShareVaultPayload,
+        user_repository: Arc<dyn UserRepository + Send + Sync>,
+        crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+        user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
+        audit_repository: Arc<dyn AuditRepository + Send + Sync>,
+        conn: &mut DbConnection,
+    ) -> PassResult<usize> {
+        // Add access to the shared data from Inbox message
+        let user_crypto_key = user_repository.get_crypto_key(&ctx, &ctx.user_id).await?;
+        let user_private_key = user_crypto_key.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
+
+        let vault_crypto_key = CryptoKeyEntity::clone_from_sharing(
+            ctx,
+            &user_private_key,
+            &user_crypto_key.public_key,
+            &payload.encrypted_crypto_key,
+        )?;
+
+
+        // add vault and crypto-key in the same transaction.
+        let size = conn.transaction(|c| {
+            let _ = crypto_key_repository.create(&vault_crypto_key, c)?;
+            let _ = user_vault_repository
+                .create(&UserVaultEntity::new(&ctx.user_id, &payload.vault_id), c)?;
+            // Add ACL rules so that target user can access vault and its crypto keys along with
+            // Accounts
+            let acl_crypto_key = ACLEntity::for_crypto_key(&ctx.user_id,
+                                                           &vault_crypto_key.crypto_key_id);
+            let _ = ACLRepositoryImpl::create_conn(&acl_crypto_key, c)?;
+            if vault_crypto_key.parent_crypto_key_id != "" {
+                let acl_crypto_key = ACLEntity::for_crypto_key(&ctx.user_id,
+                                                               &vault_crypto_key.parent_crypto_key_id);
+                let _ = ACLRepositoryImpl::create_conn(&acl_crypto_key, c)?;
+            }
+            let acl_vault = ACLEntity::for_vault(&ctx.user_id, &payload.vault_id, payload.read_only.clone());
+            let _ = ACLRepositoryImpl::create_conn(&acl_vault, c)?;
+            audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::SharedCreatedVault, &payload.vault_id, "vault shared accepted"),
+                                    c)
+        })?;
+
+        if size > 0 {
+            log::info!("created shared vault {}", &payload.vault_id);
+            Ok(size)
+        } else {
+            Err(PassError::database("failed to accept shared vault", None, false))
+        }
+    }
 }
 
 #[async_trait]
@@ -58,7 +114,7 @@ impl VaultRepository for VaultRepositoryImpl {}
 impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
     // create vault
     async fn create(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize> {
-        ctx.validate_user_id(&vault.owner_user_id)?;
+        ctx.validate_user_id(&vault.owner_user_id, || false)?; // no acl check
         // checking existing vaults for the user.
         let count = self
             .count(
@@ -73,6 +129,8 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 None,
             ));
         }
+
+        // Finding user crypto key based on vault owner
         let user_crypto_key = self
             .user_repository
             .get_crypto_key(ctx, &vault.owner_user_id)
@@ -90,8 +148,12 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 .values(&vault_entity)
                 .execute(c)?;
             let _ = self.crypto_key_repository.create(&vault_crypto_key, c)?;
-            self.user_vault_repository
-                .create(&UserVaultEntity::new(&ctx.user_id, &vault.vault_id), c)
+            let _ = self.user_vault_repository
+                .create(&UserVaultEntity::new(&ctx.user_id, &vault.vault_id), c)?;
+            self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::CreatedVault, &vault.vault_id, "vault created"),
+                                         c)
         })?;
 
         if size > 0 {
@@ -103,16 +165,28 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
 
     // updates existing vault item
     async fn update(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize> {
+        // Retrieve user-crypto key based on owner as only owner can edit it.
         let user_crypto_key = self
             .user_repository
-            .get_crypto_key(ctx, &vault.owner_user_id)
+            .get_crypto_key(ctx, &ctx.user_id) // we don't need to use owner_user_id
             .await?;
         let mut vault_entity = self.get_entity(ctx, &vault.vault_id).await?;
         let vault_crypto_key = self.get_crypto_key(ctx, &vault.vault_id).await?;
 
-        // Only vault owner can update vault
-        let _ = ctx.validate_user_id(&vault_entity.owner_user_id)?;
-
+        // Only vault owner or ACL allowed users can update vault
+        let _ = ctx.validate_user_id(&vault_entity.owner_user_id,
+                                     || {
+                                         if let Ok(mut conn) = self.connection() {
+                                             ACLRepositoryImpl::check_acl(
+                                                 &ctx.user_id,
+                                                 &vault.vault_id,
+                                                 "Vault",
+                                                 WRITE_PERMISSION,
+                                                 &mut conn)
+                                         } else {
+                                             false
+                                         }
+                                     })?;
         // match version for optimistic concurrency control
         vault_entity.match_version(vault.version.clone())?;
 
@@ -124,8 +198,8 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             &vault_crypto_key,
         )?;
 
-        // updating vault in database
         let mut conn = self.connection()?;
+        // updating vault in database
         let size = diesel::update(
             vaults.filter(
                 vault_id
@@ -133,16 +207,22 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                     .and(version.eq(&vault.version)),
             ),
         )
-        .set((
-            version.eq(vault_entity.version.clone() + 1),
-            title.eq(&vault_entity.title),
-            nonce.eq(&vault_entity.nonce),
-            encrypted_value.eq(&vault_entity.encrypted_value),
-            updated_at.eq(&vault_entity.updated_at),
-        ))
-        .execute(&mut conn)?;
+            .set((
+                version.eq(vault_entity.version.clone() + 1),
+                title.eq(&vault_entity.title),
+                kind.eq(&vault_entity.kind),
+                nonce.eq(&vault_entity.nonce),
+                encrypted_value.eq(&vault_entity.encrypted_value),
+                updated_at.eq(&vault_entity.updated_at),
+            ))
+            .execute(&mut conn)?;
 
         if size > 0 {
+            let _ = self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::UpdatedVault, &vault.vault_id, "vault updated"),
+                                                 &mut conn)?;
+            log::info!("updated vault {}", &vault.vault_id);
             Ok(size)
         } else {
             Err(PassError::database(
@@ -158,7 +238,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
         let vault_entity = self.get_entity(ctx, id).await?;
         let user_crypto_key = self
             .user_repository
-            .get_crypto_key(ctx, &vault_entity.owner_user_id)
+            .get_crypto_key(ctx, &ctx.user_id)
             .await?;
         let vault_crypto_key = self.get_crypto_key(ctx, id).await?;
 
@@ -177,6 +257,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
         let size = if vault.owner_user_id == ctx.user_id {
             conn.transaction(|c| {
                 let _ = self.user_vault_repository.delete_by_vault_id(id, c)?;
+                let _ = self.crypto_key_repository.delete(&ctx.user_id, id, "Vault", c)?;
                 diesel::delete(vaults.filter(vault_id.eq(id.to_string()))).execute(c)
             })?
         } else {
@@ -185,6 +266,10 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
         };
 
         if size > 0 {
+            let _ = self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::DeletedVault, &vault.vault_id, "vault deleted"),
+                                                 &mut conn)?;
             Ok(size)
         } else {
             Err(PassError::database(
@@ -201,14 +286,13 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
         let crypto_key = self
             .crypto_key_repository
             .get(&ctx.user_id, id, "Vault", &mut conn)?;
-        ctx.validate_user_id(&crypto_key.user_id)?;
+        ctx.validate_user_id(&crypto_key.user_id, || false)?; // no acl check
         Ok(crypto_key)
     }
 
     // find vault_entity and crypto key by id
     async fn get_entity(&self, ctx: &UserContext, id: &str) -> PassResult<VaultEntity> {
         let mut conn = self.connection()?;
-
         let mut items = users::table
             .inner_join(users_vaults::table.inner_join(vaults::table))
             .filter(
@@ -231,7 +315,11 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 format!("vault not found for key {}", id).as_str(),
             ));
         }
-        let vault_entity = items.remove(0);
+        let mut vault_entity = items.remove(0);
+        if vault_entity.owner_user_id != ctx.user_id &&
+            !vault_entity.title.to_lowercase().contains("shared") {
+            vault_entity.title = format!("{} [Shared]", vault_entity.title);
+        }
         Ok(vault_entity)
     }
     // find one entity by predication -- must have only one record, i.e., it will throw error if 0 or 2+ records exist.
@@ -292,16 +380,20 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             .select(VaultEntity::as_select())
             .offset(offset)
             .limit(page_size.clone() as i64)
-            .order(vaults::title)
+            .order(vaults::created_at) //vaults::title
             .load::<VaultEntity>(&mut conn)?;
 
         let mut res = vec![];
         for entity in entities {
-            let mut vault = Vault::new(&entity.owner_user_id, &entity.title);
+            let mut vault = Vault::new(&entity.owner_user_id, &entity.title, VaultKind::from(entity.kind.as_str()));
             vault.vault_id = entity.vault_id.clone();
             vault.version = entity.version;
             vault.created_at = Some(entity.created_at);
             vault.updated_at = Some(entity.updated_at);
+            if entity.owner_user_id != ctx.user_id &&
+                !entity.title.to_lowercase().contains("shared") {
+                vault.title = format!("{} [Shared]", entity.title);
+            }
             res.push(vault);
         }
 
@@ -360,7 +452,7 @@ mod tests {
     use crate::crypto;
     use crate::dao::factory::{create_user_repository, create_vault_repository};
     use crate::dao::models::UserContext;
-    use crate::domain::models::{PassConfig, User, Vault};
+    use crate::domain::models::{PassConfig, User, Vault, VaultKind};
 
     #[tokio::test]
     async fn test_should_create_update_vault() {
@@ -380,7 +472,7 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a vault
-        let mut vault = Vault::new(&user.user_id, "title");
+        let mut vault = Vault::new(&user.user_id, "title", VaultKind::Logins);
         // THEN it should succeed
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
@@ -413,7 +505,7 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a vault
-        let vault = Vault::new(user.user_id.as_str(), "title");
+        let vault = Vault::new(user.user_id.as_str(), "title", VaultKind::Logins);
         // THEN it should succeed
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
@@ -442,7 +534,7 @@ mod tests {
 
         for i in 0..3 {
             // WHEN creating a vault
-            let vault = Vault::new(user.user_id.as_str(), format!("tile{}", i).as_str());
+            let vault = Vault::new(user.user_id.as_str(), format!("tile{}", i).as_str(), VaultKind::Logins);
             // THEN it should succeed
             assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
         }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use diesel::prelude::*;
 
-use crate::dao::models::LoginSessionEntity;
+use crate::dao::models::{LoginSessionEntity, UserContext};
 use crate::dao::schema::login_sessions;
 use crate::dao::schema::login_sessions::dsl::*;
 use crate::dao::{DbConnection, DbPool, LoginSessionRepository};
@@ -39,7 +39,6 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("created login_session {:?} {}", login_session, size);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -53,27 +52,27 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         }
     }
 
-    // get login_session by id
+    /// get login_session by id
+    // Note: compare id with only latest record in case user signs in again and invalidate older session.
     fn get(&self, id: &str) -> PassResult<LoginSession> {
         let mut conn = self.connection()?;
         let mut items = login_sessions
-            .filter(login_session_id.eq(id).and(signed_out_at.is_null()))
             .limit(2)
+            .order(login_sessions::created_at.desc())
             .load::<LoginSessionEntity>(&mut conn)?;
 
-        if items.len() > 1 {
-            return Err(PassError::database(
-                format!("too many login_sessions for {}", id).as_str(),
-                None,
-                false,
-            ));
-        } else if items.is_empty() {
+        if items.is_empty() {
             return Err(PassError::not_found(
                 format!("login_sessions not found for {}", id).as_str(),
             ));
         }
         let entity = items.remove(0);
-        Ok(entity.to_login_session())
+        if entity.login_session_id == id && entity.signed_out_at == None {
+            return Ok(entity.to_login_session())
+        }
+        return Err(PassError::not_found(
+            format!("login_sessions did not match for {}", id).as_str(),
+        ));
     }
 
     // delete an existing login_session.
@@ -82,16 +81,30 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         let size = diesel::update(
             login_sessions.filter(login_session_id.eq(id).and(signed_out_at.is_null())),
         )
-        .set((signed_out_at.eq(Utc::now().naive_utc()),))
-        .execute(&mut conn)?;
+            .set((signed_out_at.eq(Utc::now().naive_utc()), ))
+            .execute(&mut conn)?;
         if size > 0 {
             Ok(size)
         } else {
             Err(PassError::database(
-                format!("failed to update login session {}", id,).as_str(),
+                format!("failed to update login session {}", id, ).as_str(),
                 None,
                 false,
             ))
+        }
+    }
+
+    // delete_by_user_id delete all user sessions
+    fn delete_by_user_id(&self,
+                         ctx: &UserContext,
+                         other_user_id: &str,
+                         c: &mut DbConnection,
+    ) -> Result<usize, diesel::result::Error> {
+        // no acl check
+        if let Ok(()) = ctx.validate_user_id(other_user_id, || false) {
+            diesel::delete(login_sessions.filter(user_id.eq(other_user_id))).execute(c)
+        } else {
+            Ok(0)
         }
     }
 }
@@ -130,6 +143,21 @@ mod tests {
         // WHEN retrieving the login_session THEN it should return it
         let loaded = login_session_repo
             .get(&login_session.login_session_id)
+            .unwrap();
+        assert_eq!(loaded.user_id, user.user_id);
+
+        // Creating another session
+        // WHEN creating a login_session
+        let login_session2 = LoginSession::new(&user.user_id);
+        // THEN it should succeed
+        assert_eq!(1, login_session_repo.create(&login_session2).unwrap());
+
+        // WHEN retrieving older login_session THEN it should fail it
+        assert!(login_session_repo.get(&login_session.login_session_id).is_err());
+
+        // WHEN retrieving newer login_session THEN it should return it
+        let loaded = login_session_repo
+            .get(&login_session2.login_session_id)
             .unwrap();
         assert_eq!(loaded.user_id, user.user_id);
     }

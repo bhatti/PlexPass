@@ -5,17 +5,17 @@ use async_trait::async_trait;
 use chrono::Utc;
 use diesel::dsl::count;
 use diesel::prelude::*;
+use itertools::Itertools;
+use crate::crypto;
 
-use crate::dao::models::{AccountEntity, CryptoKeyEntity, UserContext};
+use crate::dao::models::{AccountEntity, AuditEntity, AuditKind, CryptoKeyEntity, UserContext};
 use crate::dao::schema::accounts;
 use crate::dao::schema::accounts::dsl::*;
 use crate::dao::schema::archived_accounts;
-use crate::dao::{
-    AccountRepository, CryptoKeyRepository, DbConnection, DbPool, Repository, UserRepository,
-    UserVaultRepository, VaultRepository,
-};
+use crate::dao::schema::archived_accounts::dsl as ac_dsl;
+use crate::dao::{AccountRepository, AuditRepository, CryptoKeyRepository, DbConnection, DbPool, Repository, UserRepository, UserVaultRepository, VaultRepository};
 use crate::domain::error::PassError;
-use crate::domain::models::{Account, PaginatedResult, PassResult};
+use crate::domain::models::{Account, PaginatedResult, PassResult, ShareAccountPayload};
 
 #[derive(Clone)]
 pub(crate) struct AccountRepositoryImpl {
@@ -26,6 +26,7 @@ pub(crate) struct AccountRepositoryImpl {
     vault_repository: Arc<dyn VaultRepository + Send + Sync>,
     user_repository: Arc<dyn UserRepository + Send + Sync>,
     crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+    audit_repository: Arc<dyn AuditRepository + Send + Sync>,
 }
 
 impl AccountRepositoryImpl {
@@ -37,6 +38,7 @@ impl AccountRepositoryImpl {
         vault_repository: Arc<dyn VaultRepository + Send + Sync>,
         user_repository: Arc<dyn UserRepository + Send + Sync>,
         crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+        audit_repository: Arc<dyn AuditRepository + Send + Sync>,
     ) -> Self {
         AccountRepositoryImpl {
             max_vaults_per_user,
@@ -46,6 +48,7 @@ impl AccountRepositoryImpl {
             vault_repository,
             user_repository,
             crypto_key_repository,
+            audit_repository,
         }
     }
 
@@ -104,7 +107,7 @@ impl AccountRepositoryImpl {
                     "vault {} not found for user {}",
                     other_vault_id, other_user_id
                 )
-                .as_str(),
+                    .as_str(),
             ));
         }
         Ok(())
@@ -117,9 +120,10 @@ impl AccountRepositoryImpl {
         account: &Account,
     ) -> PassResult<()> {
         let mut vault = self.vault_repository.get(ctx, &account.vault_id).await?;
-        vault
-            .entries
-            .insert(account.details.account_id.clone(), account.details.clone());
+        let mut entries = vault.entries.unwrap_or(HashMap::new());
+        entries.insert(account.details.account_id.clone(), account.details.clone());
+        vault.entries = Some(entries);
+        vault.analyzed_at = None;
         self.vault_repository.update(ctx, &vault).await?;
         Ok(())
     }
@@ -131,9 +135,39 @@ impl AccountRepositoryImpl {
         account: &Account,
     ) -> PassResult<()> {
         let mut vault = self.vault_repository.get(ctx, &account.vault_id).await?;
-        vault.entries.remove(&account.details.account_id);
+        let mut entries = vault.entries.unwrap_or(HashMap::new());
+        entries.remove(&account.details.account_id);
+        vault.entries = Some(entries);
+        vault.analyzed_at = None;
         self.vault_repository.update(ctx, &vault).await?;
         Ok(())
+    }
+
+    pub async fn shared_create(
+        ctx: &UserContext,
+        payload: &ShareAccountPayload,
+        user_repository: Arc<dyn UserRepository + Send + Sync>,
+        vault_repository: Arc<dyn VaultRepository + Send + Sync>,
+        account_repository: Arc<dyn AccountRepository + Send + Sync>,
+    ) -> PassResult<usize> {
+        let user_crypto_key = user_repository.get_crypto_key(&ctx, &ctx.user_id).await?;
+        let user_private_key = user_crypto_key.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
+
+        let decrypted_json_account = crypto::ec_decrypt_hex(&user_private_key, &payload.encrypted_account)?;
+        let mut account: Account = serde_json::from_str(&decrypted_json_account)?;
+        let vaults = vault_repository.find(
+            ctx,
+            HashMap::from([("user_id".into(), ctx.user_id.clone())]),
+            0,
+            100,
+        ).await?;
+        if vaults.records.len() == 0 {
+            return Err(PassError::validation("no vault found for user to import account", None));
+        }
+        let vault_kind = account.details.kind.to_vault_kind();
+        let vault = vaults.records.iter().find_or_first(|v| v.kind == vault_kind).unwrap();
+        account.vault_id = vault.vault_id.clone();
+        account_repository.create(ctx, &account).await
     }
 }
 
@@ -190,12 +224,17 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             let _ = diesel::insert_into(accounts::table)
                 .values(&account_entity)
                 .execute(c)?;
-            self.crypto_key_repository.create(&account_crypto_key, c)
+            let _ = self.crypto_key_repository.create(&account_crypto_key, c)?;
+            self.audit_repository.create(&AuditEntity::new(ctx,
+                                                           AuditKind::CreatedAccount,
+                                                           &account.details.account_id,
+                                                           "created account"),
+                                         c)
         })?;
 
         if size > 0 {
-            log::debug!("created account {:?} {}", account_entity, size);
             let _ = self.update_vault_account_entries(ctx, &account).await?;
+            log::info!("created account {} in vault {}", &account.details.account_id, &account.vault_id);
             Ok(size)
         } else {
             Err(PassError::database(
@@ -212,9 +251,6 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
         let _ = self
             .validate_vault_belong_to_user(ctx, &ctx.user_id, &account.vault_id)
             .await?;
-
-        let mut account = account.clone();
-        account.before_save();
 
         // finding user crypto
         let user_crypto_key = self
@@ -235,8 +271,22 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
 
         // checking version for concurrency control
         account_entity.match_version(account.details.version.clone())?;
+        let mut account = account.clone();
+        account.before_save();
 
-        // update account
+        // add old password
+        let credentials_updated = if let Some(other_credentials_updated_at) = account.details.credentials_updated_at {
+            other_credentials_updated_at.timestamp_millis() > account_entity.credentials_updated_at.timestamp_millis()
+        } else { false };
+
+        if credentials_updated {
+            let old_account = account_entity.to_account(ctx, &user_crypto_key, &vault_crypto_key, &account_crypto_key)?;
+            if let Some(password) = old_account.credentials.password {
+                account.credentials.past_passwords.insert(password);
+            }
+        }
+
+        // update account entity from account
         account_entity.update_from_context_vault_account(
             ctx,
             &user_crypto_key,
@@ -246,18 +296,15 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
         )?;
 
         let mut conn = self.connection()?;
-
+        let mut password_updated = false;
         let size = conn.transaction(|c| {
-            if let Some(other_credentials_updated_at) = account.details.credentials_updated_at {
-                if other_credentials_updated_at.timestamp_millis()
-                    > account_entity.credentials_updated_at.timestamp_millis()
-                {
-                    account_entity.credentials_updated_at = other_credentials_updated_at;
-                    let archived = account_entity.to_archived(&account_crypto_key);
-                    let _ = diesel::insert_into(archived_accounts::table)
-                        .values(archived)
-                        .execute(c)?;
-                }
+            if credentials_updated {
+                account_entity.credentials_updated_at = account.details.credentials_updated_at.unwrap_or(Utc::now().naive_utc());
+                let archived = account_entity.to_archived(&account_crypto_key);
+                let _ = diesel::insert_into(archived_accounts::table)
+                    .values(archived)
+                    .execute(c)?;
+                password_updated = true;
             }
 
             diesel::update(
@@ -267,22 +314,34 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                         .and(account_id.eq(&account.details.account_id)),
                 ),
             )
-            .set((
-                version.eq(account_entity.version.clone() + 1),
-                archived_version.eq(&account_entity.archived_version),
-                salt.eq(&account_entity.salt),
-                nonce.eq(&account_entity.nonce),
-                encrypted_value.eq(&account_entity.encrypted_value),
-                archived_version.eq(&account_entity.archived_version),
-                credentials_updated_at.eq(&account_entity.credentials_updated_at),
-                updated_at.eq(Utc::now().naive_utc()),
-            ))
-            .execute(c)
+                .set((
+                    version.eq(account_entity.version.clone() + 1),
+                    archived_version.eq(&account_entity.archived_version),
+                    salt.eq(&account_entity.salt),
+                    nonce.eq(&account_entity.nonce),
+                    encrypted_value.eq(&account_entity.encrypted_value),
+                    archived_version.eq(&account_entity.archived_version),
+                    value_hash.eq(&account_entity.value_hash),
+                    credentials_updated_at.eq(&account_entity.credentials_updated_at),
+                    updated_at.eq(Utc::now().naive_utc()),
+                ))
+                .execute(c)
         })?;
 
         if size > 0 {
-            log::debug!("updated account {:?} {}", account, size);
             let _ = self.update_vault_account_entries(ctx, &account).await?;
+            if password_updated {
+                let _ = self.audit_repository.create(&AuditEntity::new(
+                    ctx,
+                    AuditKind::UpdatedPassword, &account.details.account_id, "credentials updated"),
+                                                     &mut conn)?;
+            } else {
+                let _ = self.audit_repository.create(&AuditEntity::new(
+                    ctx,
+                    AuditKind::UpdatedAccount, &account.details.account_id, "updated account"),
+                                                     &mut conn)?;
+            }
+            log::info!("updated account {} in vault {}", &account.details.account_id, &account.vault_id);
             Ok(size)
         } else {
             Err(PassError::database(
@@ -290,7 +349,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                     "failed to update account {} version {:?}",
                     account.details.account_id, account.details.version
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ))
@@ -338,12 +397,19 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             .await?;
 
         let mut conn = self.connection()?;
-        let size = diesel::delete(accounts.filter(account_id.eq(id))).execute(&mut conn)?;
+        let size = conn.transaction(|c| {
+            let _ = self.crypto_key_repository.delete(&ctx.user_id, id, "Account", c)?;
+            let _ = diesel::delete(ac_dsl::archived_accounts.filter(ac_dsl::account_id.eq(id))).execute(c)?;
+            diesel::delete(accounts.filter(account_id.eq(id))).execute(c)
+        })?;
         if size > 0 {
-            log::debug!("deleted account {}", id);
             let _ = self
                 .delete_vault_account_from_entries(ctx, &account)
                 .await?;
+            let _ = self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::DeletedAccount, &account.details.account_id, "deleted account"),
+                                                 &mut conn)?;
             Ok(size)
         } else {
             Err(PassError::database(
@@ -357,10 +423,10 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
     // find crypto key by id
     async fn get_crypto_key(&self, ctx: &UserContext, id: &str) -> PassResult<CryptoKeyEntity> {
         let mut conn = self.connection()?;
+        // crypto repository already checks for ownership of user so need to check validation here.
         let crypto_key = self
             .crypto_key_repository
             .get(&ctx.user_id, id, "Account", &mut conn)?;
-        ctx.validate_user_id(&crypto_key.user_id)?;
         Ok(crypto_key)
     }
 
@@ -399,7 +465,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                     "could not find account with predicates - [{}]",
                     res.records.len()
                 )
-                .as_str(),
+                    .as_str(),
             ));
         }
 
@@ -456,7 +522,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                 &user_crypto_key,
                 &vault_crypto_key,
                 &account_crypto_key,
-            )?)
+            )?);
         }
 
         Ok(PaginatedResult::new(offset.clone(), limit.clone(), res))
@@ -504,7 +570,7 @@ mod tests {
         create_account_repository, create_user_repository, create_vault_repository,
     };
     use crate::dao::models::UserContext;
-    use crate::domain::models::{Account, PassConfig, User, Vault};
+    use crate::domain::models::{Account, AccountKind, PassConfig, User, Vault, VaultKind};
 
     #[tokio::test]
     async fn test_should_create_update_accounts() {
@@ -524,11 +590,11 @@ mod tests {
             UserContext::default_new(&username, &user.user_id, &salt, &pepper, "password").unwrap();
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
-        let vault = Vault::new(user.user_id.as_str(), "title");
+        let vault = Vault::new(user.user_id.as_str(), "title", VaultKind::Logins);
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
         // WHEN creating an account
-        let mut account = Account::new(&vault.vault_id);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
 
         // THEN it should succeed
         assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
@@ -571,11 +637,11 @@ mod tests {
 
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
-        let vault = Vault::new(user.user_id.as_str(), "title");
+        let vault = Vault::new(user.user_id.as_str(), "title", VaultKind::Logins);
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
         // WHEN creating an account
-        let account = Account::new(&vault.vault_id);
+        let account = Account::new(&vault.vault_id, AccountKind::Login);
 
         // THEN it should succeed
         assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
@@ -614,14 +680,21 @@ mod tests {
 
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
-        let vault = Vault::new(user.user_id.as_str(), "title");
+        let vault = Vault::new(user.user_id.as_str(), "title", VaultKind::Logins);
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
-        for _i in 0..3 {
+        for i in 0..3 {
             // WHEN creating an account
-            let account = Account::new(&vault.vault_id);
-            // THEN it should succeed
-            assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
+            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            // THEN it should succeed only if value has is distinct
+            if i == 0 {
+                assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
+            } else {
+                assert!(account_repo.create(&ctx, &account).await.is_err());
+                // But it should succeed if account is unique, e.g. username doesn't conflict.
+                account.details.username = Some(Uuid::new_v4().to_string());
+                assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
+            }
         }
 
         let res1 = account_repo

@@ -1,16 +1,18 @@
+use std::backtrace::Backtrace;
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 use crate::crypto;
 use crate::dao::schema::*;
 use crate::domain::error::PassError;
-use crate::domain::models::{
-    Account, CryptoAlgorithm, DecryptRequest, EncryptRequest, HashAlgorithm, LoginSession, Lookup,
-    LookupKind, Message, PassResult, Roles, Setting, SettingKind, User, UserKeyParams, Vault,
-    PBKDF2_HMAC_SHA256_ITERATIONS,
-};
+use crate::domain::models::{Account, CryptoAlgorithm, DecryptRequest, EncryptRequest, HashAlgorithm, LoginSession, Lookup, LookupKind, Message, PassResult, Roles, Setting, SettingKind, User, UserKeyParams, Vault, PBKDF2_HMAC_SHA256_ITERATIONS, VaultKind, EncodingScheme, AuditLog};
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
+
+pub const CONTEXT_IP_ADDRESS: &str = "ip_address";
 
 /// UserContext defines master key, pepper, hashing and crypto algorithms.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +29,7 @@ pub struct UserContext {
     pub secret_key: String,
     pub hash_algorithm: HashAlgorithm,
     pub crypto_algorithm: CryptoAlgorithm,
+    pub attributes: HashMap<String, String>,
 }
 
 impl UserContext {
@@ -47,6 +50,7 @@ impl UserContext {
             secret_key: secret_key.into(),
             hash_algorithm,
             crypto_algorithm,
+            attributes: HashMap::new(),
         }
     }
 
@@ -110,24 +114,34 @@ impl UserContext {
         )
     }
 
+    pub(crate) fn as_admin(&self) -> Self {
+        let mut copy = self.clone();
+        copy.roles.set_admin();
+        copy
+    }
+
     pub(crate) fn validate_username(&self, username: &str) -> PassResult<()> {
-        if &self.username != username && !self.is_admin() {
+        if &self.username == username || self.is_admin() {
+            return Ok(());
+        } else {
             Err(PassError::authorization(
                 "username in context didn't match target user entity",
             ))
-        } else {
-            return Ok(());
         }
     }
 
-    pub(crate) fn validate_user_id(&self, user_id: &str) -> PassResult<()> {
-        if &self.user_id != user_id && !self.is_admin() {
+    pub(crate) fn validate_user_id(&self,
+                                   user_id: &str,
+                                   acl_check: impl Fn() -> bool,
+    ) -> PassResult<()> {
+        if &self.user_id == user_id || self.is_admin() || acl_check() {
+            Ok(())
+        } else {
+            eprintln!("backtrace: {}", Backtrace::capture());
             Err(PassError::authorization(&format!(
-                "user_id in context ({}) didn't match user_id ({})in the request",
+                "user_id in context ({}) didn't match user_id ({}) in the request",
                 &self.user_id, user_id
             )))
-        } else {
-            Ok(())
         }
     }
 
@@ -146,6 +160,7 @@ impl UserContext {
         user_crypto_key.decrypted_private_key_with_symmetric_input(&self, &self.secret_key)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn decrypted_user_symmetric_key(
         &self,
         user_crypto_key: &CryptoKeyEntity,
@@ -204,10 +219,11 @@ impl UserEntity {
             &user.user_id,
             &user.user_id,
             "User",
+            "", // no parent key
         )?;
 
         // Encrypt user json using the symmetric key
-        let (nonce, encrypted_value) = encrypt_with(&ctx, &salt, &user_symmetric_key, user)?;
+        let (nonce, encrypted_value) = encrypt_with(&ctx, &salt, &ctx.pepper, &user_symmetric_key, user)?;
 
         Ok((
             UserEntity::new(&user, &salt, &nonce, &encrypted_value),
@@ -232,6 +248,7 @@ impl UserEntity {
         let decrypted_user_json = decrypt_with(
             ctx,
             self.salt.as_str(),
+            &ctx.pepper,
             self.nonce.as_str(),
             &decrypted_symmetric_key,
             self.encrypted_value.as_str(),
@@ -252,6 +269,9 @@ impl UserEntity {
         user: &User,
         user_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
+        let mut old_user = self.to_user(ctx, user_crypto_key)?;
+        old_user.update(user); // only allow update of certain attributes
+
         self.version = self.version.clone() + 1;
         // Derive symmetric key using symmetric secret key that was created from the master-password.
 
@@ -261,8 +281,9 @@ impl UserEntity {
         let decrypted_symmetric_key =
             user_crypto_key.decrypted_symmetric_key_with_private_key(&decrypted_private_ky)?;
 
+        // update old-users
         let (nonce, encrypted_value) =
-            encrypt_with(ctx, &self.salt, &decrypted_symmetric_key, user)?;
+            encrypt_with(ctx, &self.salt, &ctx.pepper, &decrypted_symmetric_key, &old_user)?;
 
         self.nonce = nonce;
         self.encrypted_value = encrypted_value;
@@ -276,7 +297,7 @@ impl UserEntity {
                     "user version {} didn't match {} for {}",
                     version, &self.version, &self.user_id
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ));
@@ -339,7 +360,7 @@ impl LoginSessionEntity {
 
 /// CryptoKeyEntity defines encryption keys both asymmetric and symmetric.
 #[derive(
-    Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
+Serialize, Deserialize, Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
 )]
 #[diesel(table_name = crypto_keys)]
 #[diesel(primary_key(crypto_key_id))]
@@ -347,6 +368,8 @@ impl LoginSessionEntity {
 pub struct CryptoKeyEntity {
     // id of the key
     pub crypto_key_id: String,
+    // id of the parent key -- empty means no parent -- need non-null due to comparison
+    pub parent_crypto_key_id: String,
     // The user associated with crypto key.
     pub user_id: String,
     // The keyable_id that is associated using polymorphic association.
@@ -386,6 +409,7 @@ impl CryptoKeyEntity {
         user_id: &str,
         keyable_id: &str,
         keyable_type: &str,
+        parent_id: &str,
     ) -> PassResult<(Self, String)> {
         // Create salt and pepper
         let salt = hex::encode(crypto::generate_nonce());
@@ -403,14 +427,15 @@ impl CryptoKeyEntity {
         let (private_key, public_key) = crypto::generate_private_public_keys();
 
         // Encrypt symmetric secret-key using public key based on Elliptic Curve
-        let encrypted_symmetric_key = crypto::ec_encrypt(&public_key, &symmetric_key)?;
+        let encrypted_symmetric_key = crypto::ec_encrypt_hex(&public_key, &symmetric_key)?;
 
         // Encrypt private secret key with input
-        let (nonce, encrypted_private_key) = encrypt_with(&ctx, &salt, input, &private_key)?;
+        let (nonce, encrypted_private_key) = encrypt_with(&ctx, &salt, &ctx.pepper, input, &private_key)?;
 
         Ok((
             Self {
                 crypto_key_id: Uuid::new_v4().to_string(),
+                parent_crypto_key_id: parent_id.to_string(),
                 user_id: user_id.into(),
                 keyable_id: keyable_id.into(),
                 keyable_type: keyable_type.into(),
@@ -425,6 +450,36 @@ impl CryptoKeyEntity {
         ))
     }
 
+    // Create crypto keys based on sharing crypto key
+    pub fn clone_from_sharing(
+        ctx: &UserContext,
+        parent_private_key: &str,
+        parent_public_key: &str,
+        encrypted_crypto_key: &str,
+    ) -> PassResult<Self> {
+        let json_crypto_key = crypto::ec_decrypt_hex(parent_private_key, encrypted_crypto_key)?;
+        let other_crypto_key: CryptoKeyEntity = serde_json::from_str(&json_crypto_key)?;
+
+        // The other key stores decrypted private key so we will encrypt it with user's public key.
+        let encrypted_private_key = crypto::ec_encrypt_hex(&parent_public_key, &other_crypto_key.encrypted_private_key)?;
+
+        Ok(
+            Self {
+                crypto_key_id: Uuid::new_v4().to_string(),
+                parent_crypto_key_id: other_crypto_key.parent_crypto_key_id.clone(),
+                user_id: ctx.user_id.clone(),
+                keyable_id: other_crypto_key.keyable_id.clone(),
+                keyable_type: other_crypto_key.keyable_type.clone(),
+                salt: other_crypto_key.salt.clone(),
+                nonce: other_crypto_key.nonce.clone(),
+                public_key: other_crypto_key.public_key.clone(),
+                encrypted_private_key,
+                encrypted_symmetric_key: other_crypto_key.encrypted_symmetric_key.clone(),
+                created_at: Utc::now().naive_utc(),
+            }
+        )
+    }
+
     // Create crypto keys based on parent's asymmetric public and private keys
     pub fn new_with_parent(
         ctx: &UserContext,
@@ -432,6 +487,7 @@ impl CryptoKeyEntity {
         parent_public_key: &str,
         keyable_id: &str,
         keyable_type: &str,
+        parent_id: &str,
     ) -> PassResult<(Self, String)> {
         // Create salt and pepper
         let salt = hex::encode(crypto::generate_nonce());
@@ -449,14 +505,15 @@ impl CryptoKeyEntity {
         let (private_key, public_key) = crypto::generate_private_public_keys();
 
         // Encrypt symmetric secret-key using self's public key based on Elliptic Curve
-        let encrypted_symmetric_key = crypto::ec_encrypt(&public_key, &symmetric_key)?;
+        let encrypted_symmetric_key = crypto::ec_encrypt_hex(&public_key, &symmetric_key)?;
 
         // Encrypt private key of based on parent's public using Elliptic Curve.
-        let encrypted_private_key = crypto::ec_encrypt(&parent_public_key, &private_key)?;
+        let encrypted_private_key = crypto::ec_encrypt_hex(&parent_public_key, &private_key)?;
 
         Ok((
             Self {
                 crypto_key_id: Uuid::new_v4().to_string(),
+                parent_crypto_key_id: parent_id.to_string(),
                 user_id: ctx.user_id.clone(),
                 keyable_id: keyable_id.into(),
                 keyable_type: keyable_type.into(),
@@ -470,6 +527,35 @@ impl CryptoKeyEntity {
             symmetric_key,
         ))
     }
+    pub fn encrypted_clone_for_sharing(&self,
+                                       ctx: &UserContext,
+                                       user_crypto_key: &CryptoKeyEntity,
+                                       target_user_id: &str,
+                                       target_user_crypto_key: &CryptoKeyEntity,
+                                       parent_id: &str,
+    ) -> PassResult<String> {
+        let decrypted_private_key = self
+            .decrypted_private_key_with_parent_private_key(
+                &ctx.decrypted_user_private_key(user_crypto_key)?,
+            )?;
+        let shared_crypto_key = CryptoKeyEntity {
+            crypto_key_id: Uuid::new_v4().to_string(),
+            parent_crypto_key_id: parent_id.to_string(),
+            user_id: target_user_id.into(),
+            keyable_id: self.keyable_id.clone(),
+            keyable_type: self.keyable_type.clone(),
+            salt: self.salt.clone(),
+            nonce: self.nonce.clone(),
+            public_key: self.public_key.clone(),
+            encrypted_private_key: decrypted_private_key, // decrypted
+            encrypted_symmetric_key: self.encrypted_symmetric_key.clone(),
+            created_at: Utc::now().naive_utc(),
+        };
+        let json_shared_crypto_key = serde_json::to_string(&shared_crypto_key)?;
+
+        // encrypt new_crypto_key key with target user's public key
+        crypto::ec_encrypt_hex(&target_user_crypto_key.public_key, &json_shared_crypto_key)
+    }
 
     pub fn decrypted_private_key_with_symmetric_input(
         &self,
@@ -480,6 +566,7 @@ impl CryptoKeyEntity {
         decrypt_with(
             ctx,
             self.salt.as_str(),
+            &ctx.pepper,
             self.nonce.as_str(),
             input,
             self.encrypted_private_key.as_str(),
@@ -491,7 +578,7 @@ impl CryptoKeyEntity {
         parent_private_key: &str,
     ) -> PassResult<String> {
         // Decrypt private key using parent private key
-        crypto::ec_decrypt(parent_private_key, &self.encrypted_private_key)
+        crypto::ec_decrypt_hex(parent_private_key, &self.encrypted_private_key)
     }
 
     pub fn decrypted_symmetric_key_with_parent_private_key(
@@ -506,7 +593,7 @@ impl CryptoKeyEntity {
         &self,
         decrypted_private_key: &str,
     ) -> PassResult<String> {
-        crypto::ec_decrypt(decrypted_private_key, &self.encrypted_symmetric_key)
+        crypto::ec_decrypt_hex(decrypted_private_key, &self.encrypted_symmetric_key)
     }
 }
 
@@ -524,6 +611,8 @@ pub struct VaultEntity {
     pub owner_user_id: String,
     // The name of vault.
     pub title: String,
+    // The kind of vault.
+    pub kind: String,
     // The salt for encryption.
     pub salt: String,
     // The nonce for encryption.
@@ -541,6 +630,7 @@ impl VaultEntity {
             version: vault.version.clone(),
             owner_user_id: vault.owner_user_id.clone(),
             title: vault.title.clone(),
+            kind: vault.kind.to_string(),
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -563,10 +653,11 @@ impl VaultEntity {
             &user_crypto_key.public_key,
             &vault.vault_id,
             "Vault",
+            &user_crypto_key.crypto_key_id, // parent id
         )?;
 
-        // 3. Encrypt json of vault using the vault secret key and master pepper key
-        let (nonce, enc_value) = encrypt_with(ctx, &salt, &decrypted_symmetric_key, vault)?;
+        // 3. Encrypt json of vault using the vault secret key and without pepper key so that we can share it
+        let (nonce, enc_value) = encrypt_with(ctx, &salt, "", &decrypted_symmetric_key, vault)?;
 
         // no key nonce for vault as we use Asymmetric encryption
         Ok((
@@ -592,10 +683,30 @@ impl VaultEntity {
                 &ctx.decrypted_user_private_key(user_crypto_key)?,
             )?;
 
+        let vault = if vault.entries == None {
+            // we will load entries from old vault
+            let vault_json = decrypt_with(
+                ctx,
+                &self.salt,
+                "", // no pepper so that we can share it
+                &self.nonce,
+                &decrypted_symmetric_key,
+                &self.encrypted_value,
+            )?;
+            let old_vault: Vault = serde_json::from_str(&vault_json)?;
+            let mut vault = vault.clone();
+            vault.entries = old_vault.entries;
+            vault
+        } else {
+            vault.clone()
+        };
+
+        // Using empty pepper so that we can share it with other users
         let (nonce, encrypted_value) =
-            encrypt_with(ctx, &self.salt, &decrypted_symmetric_key, &vault)?;
+            encrypt_with(ctx, &self.salt, "", &decrypted_symmetric_key, &vault)?;
         self.nonce = nonce;
         self.encrypted_value = encrypted_value;
+        self.kind = vault.kind.to_string();
         Ok(())
     }
 
@@ -615,6 +726,7 @@ impl VaultEntity {
         let vault_json = decrypt_with(
             ctx,
             &self.salt,
+            "", // no pepper so that we can share it
             &self.nonce,
             &decrypted_symmetric_key,
             &self.encrypted_value,
@@ -622,6 +734,8 @@ impl VaultEntity {
 
         let mut vault: Vault = serde_json::from_str(&vault_json)?;
         vault.version = self.version.clone();
+        vault.title = self.title.clone();
+        vault.kind = VaultKind::from(self.kind.as_str());
         vault.created_at = Some(self.created_at);
         vault.updated_at = Some(self.updated_at);
         Ok(vault)
@@ -634,7 +748,7 @@ impl VaultEntity {
                     "vault version {} didn't match {} for {}",
                     version, &self.version, &self.vault_id
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ));
@@ -685,7 +799,7 @@ impl UserVaultEntity {
 
 /// AccountEntity defines abstraction for user account that can be persistable
 #[derive(
-    Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
+Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
 )]
 #[diesel(table_name = accounts)]
 #[diesel(primary_key(account_id))]
@@ -768,10 +882,11 @@ impl AccountEntity {
             &vault_crypto_key.public_key,
             &account.details.account_id,
             "Account",
+            &vault_crypto_key.crypto_key_id, // vault crypto key as parent id
         )?;
 
-        // Encrypt json of account using the symmetric key and master pepper key
-        let (nonce, encrypted_value) = encrypt_with(ctx, &salt, &vault_symmetric_key, account)?;
+        // Encrypt json of account using the symmetric key and without pepper key so that we can share it
+        let (nonce, encrypted_value) = encrypt_with(ctx, &salt, "", &vault_symmetric_key, account)?;
 
         Ok((
             AccountEntity::new(&account, &salt, &nonce, &encrypted_value),
@@ -799,8 +914,9 @@ impl AccountEntity {
         let mut account = account.clone();
         account.details.version = self.version.clone();
 
+        // Encrypting without pepper key so that we can share it
         let (nonce, encrypted_value) =
-            encrypt_with(ctx, &self.salt, &decrypted_symmetric_key, &account)?;
+            encrypt_with(ctx, &self.salt, "", &decrypted_symmetric_key, &account)?;
         self.value_hash = account.value_hash.clone();
         self.nonce = nonce;
         self.encrypted_value = encrypted_value;
@@ -825,6 +941,7 @@ impl AccountEntity {
         let account_json = decrypt_with(
             ctx,
             &self.salt,
+            "", // no pepper so that we can share it
             &self.nonce,
             &decrypted_symmetric_key,
             &self.encrypted_value,
@@ -863,7 +980,7 @@ impl AccountEntity {
                     "account version {} didn't match {} for {}",
                     version, &self.version, &self.account_id
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ));
@@ -874,7 +991,7 @@ impl AccountEntity {
 
 /// ArchivedAccountEntity defines abstraction for an old user account that has been archived.
 #[derive(
-    Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
+Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset, Associations,
 )]
 #[diesel(table_name = archived_accounts)]
 #[diesel(primary_key(account_id, version))]
@@ -926,6 +1043,7 @@ impl ArchivedAccountEntity {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn to_account(
         &self,
         ctx: &UserContext,
@@ -943,6 +1061,7 @@ impl ArchivedAccountEntity {
         let account_json = decrypt_with(
             ctx,
             &self.salt,
+            "", // no pepper so that we can share it
             &self.nonce,
             &decrypted_symmetric_key,
             &self.encrypted_value,
@@ -1007,7 +1126,7 @@ impl LookupEntity {
                     "lookup version {} didn't match {} for {}",
                     version, &self.version, &self.lookup_id
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ));
@@ -1082,7 +1201,7 @@ impl SettingEntity {
                     "setting version {} didn't match {} for {}",
                     version, &self.version, &self.setting_id
                 )
-                .as_str(),
+                    .as_str(),
                 None,
                 false,
             ));
@@ -1117,8 +1236,8 @@ pub struct MessageEntity {
     pub specversion: String,
     // The source of message.
     pub source: String,
-    // The message_type of message.
-    pub message_type: String,
+    // The kind of message.
+    pub kind: String,
     // The flags of message.
     pub flags: i64,
     // The salt of encryption of message.
@@ -1138,7 +1257,7 @@ impl MessageEntity {
             user_id: message.user_id.clone(),
             specversion: message.specversion.clone(),
             source: message.source.clone(),
-            message_type: message.message_type.clone(),
+            kind: message.kind.to_string(),
             flags: message.flags.clone(),
             salt: salt.into(),
             nonce: nonce.into(),
@@ -1148,17 +1267,17 @@ impl MessageEntity {
         }
     }
     pub(crate) fn new_from_context_message(
-        ctx: &UserContext,
+        _ctx: &UserContext,
         user_crypto_key: &CryptoKeyEntity,
         message: &Message,
     ) -> PassResult<Self> {
-        let salt = hex::encode(crypto::generate_nonce());
+        let json_message = serde_json::to_string(message)?;
+        // Encrypt json of message using the user's public key
+        // Note: We are not using symmetric encryption so that anyone can send message but only user can read it otherwise
+        // Send will need to know the symmetric key.
+        let encrypted_value = crypto::ec_encrypt_hex(&user_crypto_key.public_key, &json_message)?;
 
-        // Encrypt json of message using the user's symmetric key
-        let user_symmetric_key = ctx.decrypted_user_symmetric_key(user_crypto_key)?;
-        let (nonce, encrypted_value) = encrypt_with(ctx, &salt, &user_symmetric_key, message)?;
-
-        Ok(MessageEntity::new(message, &salt, &nonce, &encrypted_value))
+        Ok(MessageEntity::new(message, "", "", &encrypted_value))
     }
 
     pub(crate) fn to_message(
@@ -1166,16 +1285,12 @@ impl MessageEntity {
         ctx: &UserContext,
         user_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<Message> {
-        // Decrypt json of message using the user's symmetric key
-        let user_symmetric_key = ctx.decrypted_user_symmetric_key(user_crypto_key)?;
-        let message_json = decrypt_with(
-            ctx,
-            &self.salt,
-            &self.nonce,
-            &user_symmetric_key,
-            &self.encrypted_value,
-        )?;
-        let mut message: Message = serde_json::from_str(&message_json)?;
+        // Decrypt json of message using the user's private key
+        // Note: We are not using symmetric encryption so that anyone can send message but only user can read it otherwise
+        // Send will need to know the symmetric key.
+        let decrypted_private_key = ctx.decrypted_user_private_key(user_crypto_key)?;
+        let decrypted_json_message = crypto::ec_decrypt_hex(&decrypted_private_key, &self.encrypted_value)?;
+        let mut message: Message = serde_json::from_str(&decrypted_json_message)?;
         message.flags = self.flags.clone();
         message.created_at = Some(self.created_at);
         message.updated_at = Some(self.updated_at);
@@ -1195,54 +1310,249 @@ impl Hash for MessageEntity {
     }
 }
 
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum AuditKind {
+    Signup,
+    Signin,
+    Signout,
+    UserUpdated,
+    UserDeleted,
+    CreatedVault,
+    UpdatedVault,
+    DeletedVault,
+    SharedVault,
+    SharedCreatedVault,
+    CreatedAccount,
+    UpdatedAccount,
+    UpdatedPassword,
+    DeletedAccount,
+    SharedAccount,
+    PasswordAnalysis,
+    Unknown,
+}
+
+impl Display for AuditKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AuditKind::Signup => { write!(f, "Signup") }
+            AuditKind::Signin => { write!(f, "Signin") }
+            AuditKind::Signout => { write!(f, "Signout") }
+            AuditKind::UserUpdated => { write!(f, "UserUpdated") }
+            AuditKind::UserDeleted => { write!(f, "UserDeleted") }
+            AuditKind::CreatedVault => { write!(f, "CreatedVault") }
+            AuditKind::UpdatedVault => { write!(f, "UpdatedVault") }
+            AuditKind::DeletedVault => { write!(f, "DeletedVault") }
+            AuditKind::SharedVault => { write!(f, "SharedVault") }
+            AuditKind::SharedCreatedVault => { write!(f, "SharedCreatedVault") }
+            AuditKind::CreatedAccount => { write!(f, "CreatedAccount") }
+            AuditKind::UpdatedAccount => { write!(f, "UpdatedAccount") }
+            AuditKind::UpdatedPassword => { write!(f, "UpdatedPassword") }
+            AuditKind::DeletedAccount => { write!(f, "DeletedAccount") }
+            AuditKind::SharedAccount => { write!(f, "SharedAccount") }
+            AuditKind::PasswordAnalysis => { write!(f, "PasswordAnalysis") }
+            AuditKind::Unknown => { write!(f, "Unknown") }
+        }
+    }
+}
+
+impl From<&str> for AuditKind {
+    fn from(s: &str) -> AuditKind {
+        match s {
+            "Signup" => AuditKind::Signup,
+            "Signin" => AuditKind::Signin,
+            "Signout" => AuditKind::Signout,
+            "UserUpdated" => AuditKind::UserUpdated,
+            "UserDeleted" => AuditKind::UserDeleted,
+            "CreatedVault" => AuditKind::CreatedVault,
+            "UpdatedVault" => AuditKind::UpdatedVault,
+            "DeletedVault" => AuditKind::DeletedVault,
+            "SharedVault" => AuditKind::SharedVault,
+            "SharedCreatedVault" => AuditKind::SharedCreatedVault,
+            "CreatedAccount" => AuditKind::CreatedAccount,
+            "UpdatedAccount" => AuditKind::UpdatedAccount,
+            "UpdatedPassword" => AuditKind::UpdatedPassword,
+            "DeletedAccount" => AuditKind::DeletedAccount,
+            "SharedAccount" => AuditKind::SharedAccount,
+            "PasswordAnalysis" => AuditKind::PasswordAnalysis,
+            _ => AuditKind::Unknown,
+        }
+    }
+}
+
+impl PartialEq for AuditKind {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+/// AuditEntity represents an audit record
+#[derive(Debug, Clone, Queryable, Selectable, Identifiable, Insertable, AsChangeset)]
+#[diesel(table_name = audit_records)]
+#[diesel(primary_key(audit_id))]
+#[diesel(belongs_to(UserEntity, foreign_key = user_id))]
+pub struct AuditEntity {
+    // id of the audit.
+    pub audit_id: String,
+    // user_id of the audit record.
+    pub user_id: String,
+    // kind of audit record.
+    pub kind: String,
+    // The ip-address of audit record.
+    pub ip_address: Option<String>,
+    // The context parameters.
+    pub context: String,
+    // The message of audit record.
+    pub message: String,
+    pub created_at: NaiveDateTime,
+}
+
+impl AuditEntity {
+    pub fn new(ctx: &UserContext, kind: AuditKind, context: &str, message: &str) -> Self {
+        Self {
+            audit_id: Uuid::new_v4().to_string(),
+            user_id: ctx.user_id.clone(),
+            kind: kind.to_string(),
+            ip_address: ctx.attributes.get(CONTEXT_IP_ADDRESS).cloned(),
+            context: context.into(),
+            message: message.to_string(),
+            created_at: Utc::now().naive_utc(),
+        }
+    }
+
+    pub fn to_log(&self) -> AuditLog {
+        AuditLog {
+            audit_id: self.audit_id.clone(),
+            user_id: self.user_id.clone(),
+            kind: AuditKind::from(self.kind.as_str()),
+            ip_address: self.ip_address.clone(),
+            context: self.context.clone(),
+            message: self.message.clone(),
+            created_at: self.created_at.clone(),
+        }
+    }
+}
+
+/// ACLEntity represents an access control list
+#[derive(Debug, Clone, Eq, Queryable, Selectable, Identifiable, Insertable, AsChangeset)]
+#[diesel(table_name = acls)]
+#[diesel(primary_key(acl_id))]
+#[diesel(belongs_to(UserEntity, foreign_key = user_id))]
+pub struct ACLEntity {
+    // id of the acl .
+    pub acl_id: String,
+    // version of the acl
+    pub version: i64,
+    // user_id of the ACL record.
+    pub acl_user_id: String,
+    // resource_type of ACL.
+    pub resource_type: String,
+    // resource_id of ACL.
+    pub resource_id: String,
+    // permissions mask
+    pub permissions: i64,
+    // The scope parameters.
+    pub scope: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+}
+
+pub const READ_PERMISSION: i64 = 2;
+pub const WRITE_PERMISSION: i64 = 4;
+
+impl ACLEntity {
+    pub fn for_crypto_key(user_id: &str, resource_id: &str) -> Self {
+        let mut acl = Self::new(user_id, "CryptoKeyEntity", resource_id);
+        acl.permissions = READ_PERMISSION;
+        acl
+    }
+
+    pub fn for_vault(user_id: &str, resource_id: &str, read_only: bool) -> Self {
+        let mut acl = Self::new(user_id, "Vault", resource_id);
+        acl.permissions = if read_only { READ_PERMISSION } else { WRITE_PERMISSION };
+        acl
+    }
+
+    pub fn new(user_id: &str, resource_type: &str, resource_id: &str) -> Self {
+        Self {
+            acl_id: Uuid::new_v4().to_string(),
+            version: 0,
+            acl_user_id: user_id.to_string(),
+            resource_type: resource_type.to_string(),
+            resource_id: resource_id.to_string(),
+            permissions: 0,
+            scope: "".to_string(),
+            created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
+        }
+    }
+}
+
+impl PartialEq for ACLEntity {
+    fn eq(&self, other: &Self) -> bool {
+        self.acl_id.to_string() == other.acl_id.to_string()
+    }
+}
+
+impl Hash for ACLEntity {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.acl_id.hash(hasher);
+    }
+}
+
+
 // Encrypt any object using the salt, secret key and pepper key
 fn encrypt_with<T>(
     ctx: &UserContext,
     salt: &str,
+    pepper: &str,
     secret_key: &str,
     value: &T,
 ) -> PassResult<(String, String)>
-where
-    T: ?Sized + Serialize,
+    where
+        T: ?Sized + Serialize,
 {
     let plain_json = serde_json::to_string(value)?;
-    let enc_val_resp = crypto::encrypt(EncryptRequest::new(
+    let enc_val_resp = crypto::encrypt(EncryptRequest::from_string(
         &salt,
-        &ctx.pepper,
+        pepper,
         &secret_key,
         ctx.hash_algorithm.clone(),
         ctx.crypto_algorithm.clone(),
         &plain_json,
+        EncodingScheme::Base64,
     ))?;
-    Ok((enc_val_resp.nonce, enc_val_resp.ciphertext))
+    Ok((enc_val_resp.nonce.clone(), enc_val_resp.encoded_payload()?))
 }
 
 // Decrypt ciphertext using the salt, nonce, secret key and pepper key
 fn decrypt_with(
     ctx: &UserContext,
     salt: &str,
+    pepper: &str,
     nonce: &str,
     secret_key: &str,
     ciphertext: &str,
 ) -> PassResult<String> {
-    let dec_res = crypto::decrypt(DecryptRequest::new(
+    let dec_res = crypto::decrypt(DecryptRequest::from_string(
         salt,
-        nonce,
-        &ctx.pepper,
+        pepper,
         secret_key,
         ctx.hash_algorithm.clone(),
         ctx.crypto_algorithm.clone(),
+        nonce,
         ciphertext,
-    ))?;
+        EncodingScheme::Base64,
+    )?)?;
 
     // serializing strings adds quotes so removing them here.
-    let plain_str = dec_res.plaintext.as_str();
+    let plain_str = dec_res.payload_string()?;
     if plain_str.starts_with("\"") && plain_str.ends_with("\"") {
         Ok(plain_str[1..plain_str.len() - 1].to_string())
     } else {
-        Ok(dec_res.plaintext)
+        dec_res.payload_string()
     }
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -1251,9 +1561,7 @@ mod tests {
         AccountEntity, CryptoKeyEntity, LookupEntity, MessageEntity, SettingEntity, UserContext,
         UserEntity, UserVaultEntity, VaultEntity,
     };
-    use crate::domain::models::{
-        Account, Lookup, LookupKind, Message, Setting, SettingKind, User, Vault,
-    };
+    use crate::domain::models::{Account, AccountKind, Lookup, LookupKind, Message, MessageKind, Setting, SettingKind, User, Vault, VaultKind};
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
     use uuid::Uuid;
@@ -1298,7 +1606,7 @@ mod tests {
 
     #[test]
     fn test_should_create_vault() {
-        let vault = Vault::new(Uuid::new_v4().to_string().as_str(), "title");
+        let vault = Vault::new(Uuid::new_v4().to_string().as_str(), "title", VaultKind::Logins);
         let vault_entity = VaultEntity::new(&vault, "salt", "knonce", "enc-value");
         assert_eq!("title", vault_entity.title);
         assert_ne!("", vault_entity.vault_id);
@@ -1312,9 +1620,9 @@ mod tests {
 
     #[test]
     fn test_should_equal_vault() {
-        let vault1 = Vault::new("user1", "title");
+        let vault1 = Vault::new("user1", "title", VaultKind::Logins);
         let vault_entity1 = VaultEntity::new(&vault1, "salt", "konce", "enc-value");
-        let vault2 = Vault::new("user1", "title");
+        let vault2 = Vault::new("user1", "title", VaultKind::Logins);
         let vault_entity2 = VaultEntity::new(&vault2, "salt", "knonce", "enc-value");
         assert_ne!(vault_entity1, vault_entity2);
         let mut hasher = DefaultHasher::new();
@@ -1333,7 +1641,7 @@ mod tests {
     fn test_should_encrypt_decrypt_vault() {
         let username = Uuid::new_v4().to_string();
         let user = User::new(username.as_str(), None, None);
-        let mut vault = Vault::new(&user.user_id, "title");
+        let mut vault = Vault::new(&user.user_id, "title", VaultKind::Logins);
         let salt = hex::encode(crypto::generate_nonce());
         let pepper = hex::encode(crypto::generate_secret_key());
         let ctx =
@@ -1344,8 +1652,9 @@ mod tests {
             &user.user_id,
             &user.user_id,
             "User",
+            "",
         )
-        .unwrap();
+            .unwrap();
         let (mut vault_entity, vault_crypto_key) =
             VaultEntity::new_from_context_vault(&ctx, &user_crypto_key, &vault).unwrap();
         vault.title = "new-title".into();
@@ -1360,7 +1669,7 @@ mod tests {
 
     #[test]
     fn test_should_create_account() {
-        let account = Account::new("vault0");
+        let account = Account::new("vault0", AccountKind::Login);
         let account_entity = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         assert_ne!("", account_entity.account_id.as_str());
         assert_eq!("vault0", account_entity.vault_id.as_str());
@@ -1375,7 +1684,7 @@ mod tests {
 
     #[test]
     fn test_should_equal_account() {
-        let account = Account::new("vault0");
+        let account = Account::new("vault0", AccountKind::Login);
         let account_entity1 = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         let account_entity2 = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         assert_eq!(account_entity1, account_entity2);
@@ -1392,10 +1701,10 @@ mod tests {
         let ctx =
             UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "password")
                 .unwrap();
-        let account = Account::new("vault0");
+        let account = Account::new("vault0", AccountKind::Login);
         let account_entity = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         let (crypto_key, _) =
-            CryptoKeyEntity::new_with_input(&ctx, "pass", &user.user_id, "id", "type").unwrap();
+            CryptoKeyEntity::new_with_input(&ctx, "pass", &user.user_id, "id", "type", "").unwrap();
         let archived = account_entity.to_archived(&crypto_key);
         assert_ne!("", archived.account_id.as_str());
         assert_eq!("vault0", archived.vault_id.as_str());
@@ -1419,9 +1728,10 @@ mod tests {
             &user.user_id,
             &user.user_id,
             "User",
+            "",
         )
-        .unwrap();
-        let vault = Vault::new(&user.user_id, "title");
+            .unwrap();
+        let vault = Vault::new(&user.user_id, "title", VaultKind::Logins);
         let (vault_crypto_key, _) = CryptoKeyEntity::new_with_parent(
             &ctx,
             &user_crypto_key
@@ -1430,17 +1740,18 @@ mod tests {
             &user_crypto_key.public_key,
             &vault.vault_id,
             "Vault",
+            &user_crypto_key.crypto_key_id,
         )
-        .unwrap();
+            .unwrap();
 
-        let mut account = Account::new("vault0");
+        let mut account = Account::new("vault0", AccountKind::Login);
         let (mut account_entity, account_crypto_key) = AccountEntity::from_context_vault_account(
             &ctx,
             &user_crypto_key,
             &vault_crypto_key,
             &account,
         )
-        .unwrap();
+            .unwrap();
 
         account.details.username = Some("user1".into());
         account.credentials.password = Some("pass1".into());
@@ -1454,6 +1765,18 @@ mod tests {
             )
             .unwrap();
         let loaded = account_entity
+            .to_account(
+                &ctx,
+                &user_crypto_key,
+                &vault_crypto_key,
+                &account_crypto_key,
+            )
+            .unwrap();
+        assert_eq!(loaded.details.username, Some("user1".into()));
+        assert_eq!(loaded.credentials.password, Some("pass1".into()));
+
+        let archived = account_entity.to_archived(&account_crypto_key);
+        let loaded = archived
             .to_account(
                 &ctx,
                 &user_crypto_key,
@@ -1498,10 +1821,10 @@ mod tests {
 
     #[test]
     fn test_should_create_message() {
-        let message = Message::new("user", "kind", "subject", "data");
+        let message = Message::new("user", MessageKind::Advisory, "subject", "data");
         let message_entity = MessageEntity::new(&message, "salt", "nonce", "data");
         assert_eq!("user", message_entity.user_id);
-        assert_eq!("kind", message_entity.message_type);
+        assert_eq!("kind", message_entity.kind);
         assert_eq!("data", message_entity.encrypted_value);
         assert!(message_entity.created_at.timestamp() > 0);
     }

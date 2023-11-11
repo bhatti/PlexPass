@@ -15,7 +15,7 @@ class VaultsTest(unittest.TestCase):
         headers = {
             'Content-Type': 'application/json',
         }
-        data = {'username': 'billy', 'master_password': 'Goose$Billy$Goat551'}
+        data = {'username': 'bob@cat.us', 'master_password': 'Goose$bob@cat.us$Goat551'}
         resp = requests.post(SERVER + '/api/v1/auth/signin', json = data, headers = headers, verify = False)
         self.assertEqual(200, resp.status_code)
         JWT_TOKEN = resp.headers.get('access_token')
@@ -37,7 +37,7 @@ class VaultsTest(unittest.TestCase):
         }
         resp = requests.get(SERVER + '/api/v1/vaults', headers = headers, verify = False)
         self.assertEqual(200, resp.status_code)
-        VAULT_ID = json.loads(resp.text)[0]['vault_id']
+        VAULT_ID = [vault for vault in json.loads(resp.text) if vault['title'] == 'Bobcat'][0]['vault_id']
 
     def test_04_get_vault(self):
         global VERSION
@@ -49,7 +49,6 @@ class VaultsTest(unittest.TestCase):
         title = json.loads(resp.text)['title']
         VERSION = int(json.loads(resp.text)['version'])
         self.assertEqual(200, resp.status_code)
-        self.assertEqual('Bobcat', title)
 
     def test_05_update_vault(self):
         headers = {
@@ -71,6 +70,22 @@ class VaultsTest(unittest.TestCase):
         version = int(json.loads(resp.text)['version'])
         self.assertTrue(version > VERSION)
 
+    def test_07_get_vault_without_token(self):
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        resp = requests.get(SERVER + '/api/v1/vaults/' + VAULT_ID, headers = headers, verify = False)
+        self.assertEqual(401, resp.status_code)
+
+    def test_08_analyze_vault_passwords(self):
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + JWT_TOKEN,
+        }
+
+        data = {}
+        resp = requests.post(SERVER + '/api/v1/vaults/' + VAULT_ID + '/analyze_passwords', json = data, headers = headers, verify = False)
+        self.assertEqual(202, resp.status_code)
 
 if __name__ == '__main__':
     unittest.main()

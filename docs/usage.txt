@@ -1,0 +1,99 @@
+PlexPass - a locally hostable secured password manager
+
+Usage: plexpass [OPTIONS] <COMMAND>
+
+Commands:
+  server
+          
+  get-user
+          
+  create-user
+          
+  update-user
+          
+  delete-user
+          
+  create-vault
+          
+  update-vault
+          
+  delete-vault
+          
+  get-vault
+          
+  get-vaults
+          
+  create-account
+          
+  update-account
+          
+  get-account
+          
+  get-accounts
+          
+  delete-account
+          
+  query-audit-logs
+          
+  create-category
+          
+  delete-category
+          
+  get-categories
+          
+  generate-private-public-keys
+          
+  asymmetric-encrypt
+          
+  asymmetric-decrypt
+          
+  symmetric-encrypt
+          
+  symmetric-decrypt
+          
+  import-accounts
+          
+  export-accounts
+          
+  generate-password
+          
+  password-compromised
+          
+  password-strength
+          
+  email-compromised
+          
+  analyze-vault-passwords
+          
+  analyze-all-vaults-passwords
+          
+  search-usernames
+          
+  share-vault
+          
+  share-account
+          
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+  -j, --json-output <JSON_OUTPUT>
+          json output of result from action [default: false] [possible values: true, false]
+  -d, --data-dir <DATA_DIR>
+          Sets a data directory
+      --device-pepper-key <DEVICE_PEPPER_KEY>
+          Device pepper key
+      --crypto-algorithm <CRYPTO_ALG>
+          Sets default crypto algorithm [possible values: aes256-gcm, cha-cha20-poly1305]
+      --hash-algorithm <HASH_ALG>
+          Sets default crypto hash algorithm [possible values: pbkdf2-hmac-sha256, argon2id]
+      --master-username <MASTER_USERNAME>
+          The username of local user
+      --master-password <MASTER_PASSWORD>
+          The master-password of user
+  -c, --config <FILE>
+          Sets a custom config file
+  -h, --help
+          Print help information
+  -V, --version
+          Print version information

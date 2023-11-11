@@ -3,8 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::num::ParseIntError;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
+use unic_langid::LanguageIdentifierError;
 
 //
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +17,9 @@ pub enum PassError {
         retryable: bool,
     },
     DuplicateKey {
+        message: String,
+    },
+    Constraints {
         message: String,
     },
     NotFound {
@@ -50,6 +55,10 @@ pub enum PassError {
         message: String,
         reason_code: Option<String>,
     },
+    Import {
+        message: String,
+        failed_accounts: Vec<String>,
+    },
 }
 
 impl PassError {
@@ -63,6 +72,12 @@ impl PassError {
 
     pub fn duplicate_key(message: &str) -> PassError {
         PassError::DuplicateKey {
+            message: message.into(),
+        }
+    }
+
+    pub fn constraints(message: &str) -> PassError {
+        PassError::Constraints {
             message: message.into(),
         }
     }
@@ -125,9 +140,17 @@ impl PassError {
         }
     }
 
+    pub fn import_failed(message: &str, failed_accounts: Vec<String>) -> PassError {
+        PassError::Import {
+            message: message.into(),
+            failed_accounts: failed_accounts.clone(),
+        }
+    }
+
     pub fn retryable(&self) -> bool {
         match self {
             PassError::Database { retryable, .. } => retryable.clone(),
+            PassError::Constraints { .. } => false,
             PassError::DuplicateKey { .. } => false,
             PassError::NotFound { .. } => false,
             PassError::CurrentlyUnavailable { retryable, .. } => retryable.clone(),
@@ -138,6 +161,7 @@ impl PassError {
             PassError::Authorization { .. } => false,
             PassError::WeakPassword { .. } => false,
             PassError::Runtime { .. } => false,
+            PassError::Import { .. } => false,
         }
     }
 }
@@ -184,6 +208,24 @@ impl From<reqwest::Error> for PassError {
     }
 }
 
+impl From<LanguageIdentifierError> for PassError {
+    fn from(err: LanguageIdentifierError) -> Self {
+        PassError::runtime(format!("unicode processing failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<csv::Error> for PassError {
+    fn from(err: csv::Error) -> Self {
+        PassError::runtime(format!("csv parsing failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<ParseIntError> for PassError {
+    fn from(err: ParseIntError) -> Self {
+        PassError::runtime(format!("int parsing failed {:?}", err).as_str(), None)
+    }
+}
+
 impl Display for PassError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
@@ -193,6 +235,9 @@ impl Display for PassError {
                 retryable,
             } => {
                 write!(f, "{} {:?} {}", message, reason_code, retryable)
+            }
+            PassError::Constraints { message } => {
+                write!(f, "{}", message)
             }
             PassError::DuplicateKey { message } => {
                 write!(f, "{}", message)
@@ -211,7 +256,11 @@ impl Display for PassError {
                 message,
                 reason_code,
             } => {
-                write!(f, "{} {:?}", message, reason_code)
+                if let Some(reason) = reason_code {
+                    write!(f, "{} {:?}", message, reason)
+                } else {
+                    write!(f, "{}", message)
+                }
             }
             PassError::Serialization { message } => {
                 write!(f, "{}", message)
@@ -233,6 +282,12 @@ impl Display for PassError {
                 reason_code,
             } => {
                 write!(f, "{} {:?}", message, reason_code)
+            }
+            PassError::Import {
+                message,
+                failed_accounts,
+            } => {
+                write!(f, "{} {:?}", message, failed_accounts)
             }
         }
     }

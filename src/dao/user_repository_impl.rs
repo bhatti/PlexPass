@@ -4,10 +4,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use diesel::prelude::*;
 
-use crate::dao::models::{CryptoKeyEntity, UserContext, UserEntity};
+use crate::dao::models::{AuditEntity, AuditKind, CryptoKeyEntity, UserContext, UserEntity};
 use crate::dao::schema::users;
 use crate::dao::schema::users::dsl::*;
-use crate::dao::{CryptoKeyRepository, DbConnection, Repository};
+use crate::dao::{AuditRepository, CryptoKeyRepository, DbConnection, LoginSessionRepository, Repository};
 use crate::dao::{DbPool, UserRepository};
 use crate::domain::error::PassError;
 use crate::domain::models::{PaginatedResult, PassResult, Roles, User};
@@ -16,16 +16,22 @@ use crate::domain::models::{PaginatedResult, PassResult, Roles, User};
 pub(crate) struct UserRepositoryImpl {
     pool: DbPool,
     crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+    session_repository: Arc<dyn LoginSessionRepository + Send + Sync>,
+    audit_repository: Arc<dyn AuditRepository + Send + Sync>,
 }
 
 impl UserRepositoryImpl {
     pub(crate) fn new(
         pool: DbPool,
         crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+        session_repository: Arc<dyn LoginSessionRepository + Send + Sync>,
+        audit_repository: Arc<dyn AuditRepository + Send + Sync>,
     ) -> Self {
         UserRepositoryImpl {
-            crypto_key_repository,
             pool,
+            crypto_key_repository,
+            session_repository,
+            audit_repository,
         }
     }
 
@@ -38,6 +44,34 @@ impl UserRepositoryImpl {
             )
         })
     }
+
+    pub fn lookup_usernames(
+                        q: &str,
+                        conn: &mut DbConnection,
+    ) -> PassResult<Vec<String>> {
+        let match_username = format!("%{}%",q);
+        let matched = users
+            .filter(username.like(match_username))
+            .limit(100)
+            .load::<UserEntity>(conn)?;
+        Ok(matched.into_iter().map(|u|u.username).collect::<Vec<String>>())
+    }
+
+    pub fn lookup_userid_by_username(
+            match_username: &str,
+            conn: &mut DbConnection,
+    ) -> PassResult<String> {
+        let mut matched = users
+            .filter(username.eq(match_username))
+            .limit(1)
+            .load::<UserEntity>(conn)?;
+        if matched.is_empty() {
+            return Err(PassError::not_found(
+                format!("user not found for username {}", match_username).as_str(),
+            ));
+        }
+        Ok(matched.remove(0).user_id)
+    }
 }
 
 #[async_trait]
@@ -47,7 +81,8 @@ impl UserRepository for UserRepositoryImpl {}
 impl Repository<User, UserEntity> for UserRepositoryImpl {
     // create user entity from key context and user object.
     async fn create(&self, ctx: &UserContext, user: &User) -> PassResult<usize> {
-        ctx.validate_user_id(&user.user_id)?;
+        // no acl check
+        ctx.validate_user_id(&user.user_id, || false)?;
         ctx.validate_username(&user.username)?;
 
         // checking existing usernamme
@@ -72,7 +107,11 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             let _ = diesel::insert_into(users::table)
                 .values(user_entity)
                 .execute(c)?;
-            self.crypto_key_repository.create(&user_crypto_key, c)
+            let _ = self.crypto_key_repository.create(&user_crypto_key, c)?;
+            self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::Signup, &user.user_id, "user signup"),
+                                                 c)
         })?;
 
         if size > 0 {
@@ -115,6 +154,10 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         .execute(&mut conn)?;
 
         if size > 0 {
+            let _ = self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::UserUpdated, &user.user_id, "user updated"),
+                                         &mut conn)?;
             Ok(size)
         } else {
             Err(PassError::database(
@@ -141,8 +184,10 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         let _ = self.get_entity(ctx, id).await?; // validate user exists and context can access it
 
         let mut conn = self.connection()?;
-        let size = conn.transaction(|c| {
+        let size: usize = conn.transaction(|c| {
             let _ = self.crypto_key_repository.delete(id, id, "User", c)?;
+            let _ = self.session_repository.delete_by_user_id(ctx, id, c)?;
+            let _ = self.audit_repository.delete_by_user_id(ctx, id, c)?;
             diesel::delete(users.filter(user_id.eq(id))).execute(c)
         })?;
 
@@ -163,7 +208,8 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         let crypto_key = self.crypto_key_repository.get(id, id, "User", &mut conn)?;
 
         // username in context must match user-id unless context is admin
-        let _ = ctx.validate_user_id(&crypto_key.user_id)?;
+        // no acl check
+        let _ = ctx.validate_user_id(&crypto_key.user_id, || false)?;
         Ok(crypto_key)
     }
 
@@ -188,8 +234,8 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         }
 
         let user_entity = items.remove(0);
-        // username in context must match user-id unless context is admin
-        let _ = ctx.validate_user_id(&user_entity.user_id)?;
+        // username in context must match user-id unless context is admin -- no acl check
+        let _ = ctx.validate_user_id(&user_entity.user_id, || false)?;
         Ok(user_entity)
     }
     // find one entity by predication -- must have only one record, i.e., it will throw error if 0 or 2+ records exist.
@@ -252,7 +298,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
 
         let mut res = vec![];
         for entity in entities {
-            ctx.validate_user_id(&entity.user_id)?;
+            ctx.validate_user_id(&entity.user_id, || false)?; // no acl check
             let user_crypto_key = self.get_crypto_key(ctx, &entity.user_id).await?;
             let mut user = entity.to_user(ctx, &user_crypto_key)?;
             user.roles = Roles::new(entity.roles);

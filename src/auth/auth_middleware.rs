@@ -2,7 +2,6 @@ use crate::controller;
 use crate::domain::error::PassError;
 use crate::service::locator::ServiceLocator;
 use actix_service::forward_ready;
-use actix_session::SessionExt;
 use actix_web::body::EitherBody;
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::http::{
@@ -10,15 +9,22 @@ use actix_web::http::{
     Method,
 };
 use actix_web::web::Data;
-use actix_web::Error;
+use actix_web::{Error, http};
 use actix_web::HttpResponse;
-use futures::future::{ok, LocalBoxFuture, Ready};
+use futures::future::{LocalBoxFuture, ok, Ready};
+
+const API_PREFIX: &str = "/api";
+
+const UI_SIGN_URL : &str = "/ui/signin";
 
 // ignore routes
-const IGNORE_ROUTES: [&str; 5] = [
+const IGNORE_ROUTES: [&str; 8] = [
+    "/assets",
     "/metrics",
     "/ping",
     "/health",
+    "/ui/signup",
+    "/ui/signin",
     "/api/v1/auth/signup",
     "/api/v1/auth/signin",
 ];
@@ -59,46 +65,73 @@ where
 
     forward_ready!(service);
 
-    fn call(&self, req: ServiceRequest) -> Self::Future {
+    fn call(&self, request: ServiceRequest) -> Self::Future {
         let mut authenticate_pass: bool = false;
 
         // Bypass some account routes
-        let mut headers = req.headers().clone();
+        let mut headers = request.headers().clone();
         headers.append(
-            HeaderName::from_static("content-length"),
+            HeaderName::from_static(http::header::CONTENT_TYPE.as_ref()),
             HeaderValue::from_static("true"),
         );
 
-        if let Some(service_locator) = req.app_data::<Data<ServiceLocator>>() {
-            if let Ok(res) =
-                controller::verify_token_header(&req, service_locator, &req.get_session())
-            {
-                authenticate_pass = res;
-            }
-        }
-
-        if Method::OPTIONS == *req.method() {
+        if Method::OPTIONS == *request.method() {
             authenticate_pass = true;
         } else {
             for ignore_route in IGNORE_ROUTES.iter() {
-                if req.path().starts_with(ignore_route) {
+                if request.path().starts_with(ignore_route) {
                     authenticate_pass = true;
                     break;
                 }
             }
         }
 
-        if !&authenticate_pass {
-            let (request, _pl) = req.into_parts();
+        authenticate_pass = authenticate_pass || if request.path().starts_with(API_PREFIX) {
+            Self::validate_api_token(&request) } else {Self::validate_ui_session(&request)};
+
+        if authenticate_pass {
+            let res = self.service.call(request);
+            Box::pin(async move { res.await.map(ServiceResponse::map_into_left_body) })
+        } else if request.path().starts_with(API_PREFIX) {
+            let (request, _pl) = request.into_parts();
             let response = HttpResponse::Unauthorized()
-                .json(PassError::authentication(MESSAGE_INVALID_TOKEN))
+                    .json(PassError::authentication(MESSAGE_INVALID_TOKEN))
+                    .map_into_right_body();
+
+            Box::pin(async { Ok(ServiceResponse::new(request, response)) })
+        } else { // UI
+            let (request, _pl) = request.into_parts();
+
+            let response = HttpResponse::Found()
+                .insert_header((http::header::LOCATION, UI_SIGN_URL))
+                .finish()
+                // constructed responses map to "right" body
                 .map_into_right_body();
 
             return Box::pin(async { Ok(ServiceResponse::new(request, response)) });
         }
+    }
+}
 
-        let res = self.service.call(req);
-
-        Box::pin(async move { res.await.map(ServiceResponse::map_into_left_body) })
+impl<S, B> AuthenticationMiddleware<S> where B: 'static, S: Service<ServiceRequest, Response=ServiceResponse<B>, Error=Error>, S::Future: 'static {
+    fn validate_api_token(req: &ServiceRequest) -> bool {
+        if let Some(service_locator) = req.app_data::<Data<ServiceLocator>>() {
+            if let Ok(res) =
+            controller::verify_token_header(&req, service_locator)
+            {
+                return res;
+            }
+        }
+        false
+    }
+    fn validate_ui_session(req: &ServiceRequest) -> bool {
+        if let Some(service_locator) = req.app_data::<Data<ServiceLocator>>() {
+            if let Ok(res) =
+            controller::verify_session_cookie(&req, service_locator)
+            {
+                return res;
+            }
+        }
+        false
     }
 }

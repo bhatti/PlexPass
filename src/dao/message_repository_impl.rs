@@ -10,7 +10,7 @@ use crate::dao::schema::messages;
 use crate::dao::schema::messages::dsl::*;
 use crate::dao::{DbConnection, DbPool, MessageRepository, Repository, UserRepository};
 use crate::domain::error::PassError;
-use crate::domain::models::{Message, PaginatedResult, PassResult};
+use crate::domain::models::{Message, PaginatedResult, PassResult, READ_FLAG};
 
 #[derive(Clone)]
 pub(crate) struct MessageRepositoryImpl {
@@ -46,8 +46,8 @@ impl MessageRepository for MessageRepositoryImpl {}
 impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
     // create message.
     async fn create(&self, ctx: &UserContext, message: &Message) -> PassResult<usize> {
-        // ensure user-context and message user-id matches
-        ctx.validate_user_id(&message.user_id)?;
+        // ensure user-context and message user-id matches -- no acl check
+        ctx.validate_user_id(&message.user_id, || false)?;
 
         let user_crypto_key = self
             .user_repository
@@ -63,6 +63,7 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
                 .execute(c)
         })?;
         if size > 0 {
+            log::info!("created message {} for user {}", &message.message_id, &message.user_id);
             Ok(size)
         } else {
             Err(PassError::database("failed to insert message", None, false))
@@ -71,8 +72,8 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
 
     // updates existing message.
     async fn update(&self, ctx: &UserContext, message: &Message) -> PassResult<usize> {
-        // ensure message belongs to user
-        ctx.validate_user_id(&message.user_id)?;
+        // ensure message belongs to user -- no acl check
+        ctx.validate_user_id(&message.user_id, || false)?;
 
         let mut conn = self.connection()?;
         match diesel::update(
@@ -90,7 +91,6 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
         {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("updated message {:?} {}", message, size);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -124,7 +124,6 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
         let size = diesel::delete(messages.filter(user_id.eq(&ctx.user_id).and(message_id.eq(id))))
             .execute(&mut conn)?;
         if size > 0 {
-            log::debug!("deleted message message {}", id);
             Ok(size)
         } else {
             Err(PassError::database(
@@ -157,8 +156,8 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
             ));
         }
         let entity = items.remove(0);
-        // ensure message belongs to user
-        ctx.validate_user_id(&entity.user_id)?;
+        // ensure message belongs to user -- no acl check
+        ctx.validate_user_id(&entity.user_id, || false)?;
         Ok(entity)
     }
 
@@ -195,16 +194,17 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
         let match_type = format!(
             "%{}%",
             predicates
-                .get("message_type")
+                .get("kind")
                 .cloned()
                 .unwrap_or(String::from(""))
         );
+        let match_flags = predicates.get("flags").unwrap_or(&String::from("0")).parse::<i64>().unwrap_or(READ_FLAG*10);
         let match_user_id = predicates
             .get("user_id")
             .cloned()
             .unwrap_or(String::from(""));
         let entities = messages
-            .filter(user_id.eq(match_user_id).and(message_type.like(match_type)))
+            .filter(user_id.eq(match_user_id).and(kind.like(match_type)).and(flags.le(match_flags)))
             .offset(offset)
             .limit(limit as i64)
             .order(messages::created_at.desc())
@@ -237,16 +237,17 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
         let match_type = format!(
             "%{}%",
             predicates
-                .get("message_type")
+                .get("kind")
                 .cloned()
                 .unwrap_or(String::from(""))
         );
+        let match_flags = predicates.get("flags").unwrap_or(&String::from("0")).parse::<i64>().unwrap_or(READ_FLAG*10);
         let match_user_id = predicates
             .get("user_id")
             .cloned()
             .unwrap_or(String::from(""));
         match messages
-            .filter(user_id.eq(match_user_id).and(message_type.like(match_type)))
+            .filter(user_id.eq(match_user_id).and(kind.like(match_type)).and(flags.le(match_flags)))
             .count()
             .get_result::<i64>(&mut conn)
         {
@@ -265,7 +266,7 @@ mod tests {
     use crate::crypto;
     use crate::dao::factory::{create_message_repository, create_user_repository};
     use crate::dao::models::UserContext;
-    use crate::domain::models::{Message, PassConfig, User};
+    use crate::domain::models::{Message, MessageKind, PassConfig, User};
 
     #[tokio::test]
     async fn test_should_create_update_messages() {
@@ -284,12 +285,12 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a message
-        let mut message = Message::new(&user.user_id, "kind", "subject", "data");
+        let mut message = Message::new(&user.user_id, MessageKind::Broadcast, "subject", "data");
         // THEN it should succeed
         assert_eq!(1, message_repo.create(&ctx, &message).await.unwrap());
 
         // WHEN updating the message
-        message.message_type = "new-type".into();
+        message.kind = MessageKind::Advisory;
         message.flags = 32;
         // THEN we should only be able to update flags and updated_at date - nothing else
         assert_eq!(1, message_repo.update(&ctx, &message).await.unwrap());
@@ -298,7 +299,7 @@ mod tests {
         let loaded = message_repo.get(&ctx, &message.message_id).await.unwrap();
         // THEN we should find updated data
         assert_eq!(32, loaded.flags);
-        assert_eq!("kind", loaded.message_type);
+        assert_eq!(MessageKind::Broadcast, loaded.kind);
         assert_eq!(user.user_id, loaded.user_id);
     }
 
@@ -319,7 +320,7 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a message
-        let message = Message::new(&user.user_id, "kind", "subject", "data");
+        let message = Message::new(&user.user_id, MessageKind::DM, "subject", "data");
         // THEN it should succeed
         assert_eq!(1, message_repo.create(&ctx, &message).await.unwrap());
 
@@ -355,7 +356,7 @@ mod tests {
         for i in 0..3 {
             // WHEN creating a message with the same user_id
             let data = format!("{}_{}", username, i);
-            let message = Message::new(&user.user_id, "kind", "subject", &data);
+            let message = Message::new(&user.user_id, MessageKind::Advisory, "subject", &data);
             // THEN it should succeed
             assert_eq!(1, message_repo.create(&ctx, &message).await.unwrap());
         }

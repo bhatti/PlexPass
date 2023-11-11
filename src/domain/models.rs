@@ -1,27 +1,32 @@
 extern crate regex;
+
+use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
-use std::path::Path;
-use std::{fmt, fs};
+use std::path::{Path, PathBuf};
 
-use crate::crypto;
+use base64::Engine;
+use base64::engine::general_purpose;
 use chrono::{NaiveDateTime, Utc};
+use clap::{ValueEnum};
 use hex::FromHexError;
-use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-use crate::domain::error::PassError;
-use crate::utils::words::WORDS;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation};
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
+use rand::seq::SliceRandom;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-pub(crate) const DEFAULT_VAULT_KEY: &str = "DEFAULT";
+use crate::crypto;
+use crate::dao::models::AuditKind;
+use crate::domain::error::PassError;
+use crate::utils::words::WORDS;
 
 const SPECIAL_CHARS: &str = "!@#$%^&*()-_=+[]{}|;:,.<>?";
+pub const PBKDF2_HMAC_SHA256_ITERATIONS: u32 = 650_000;
+const DEVICE_PEPPER_KEY: &str = "DEVICE_PEPPER_KEY";
 
 /// A specialized Result type for Password Manager Result.
 pub type PassResult<T> = Result<T, PassError>;
@@ -49,7 +54,82 @@ impl<T> PaginatedResult<T> {
     }
 }
 
+/// An enum for progress callback
+pub enum ProgressStatus {
+    Started { total: usize },
+    Updated { current: usize, total: usize },
+    Completed,
+    Failed(PassError),
+}
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum EncodingScheme {
+    None,
+    Hex,
+    Base64,
+}
+
+impl EncodingScheme {
+    pub(crate) fn encode(&self, data: Vec<u8>) -> PassResult<String> {
+        match self {
+            EncodingScheme::None => {
+                String::from_utf8(data).map_err(
+                    |_e| PassError::serialization("could not encode utf8"))
+            }
+            EncodingScheme::Hex => {
+                Ok(hex::encode(data))
+            }
+            EncodingScheme::Base64 => {
+                Ok(general_purpose::STANDARD_NO_PAD.encode(data))
+            }
+        }
+    }
+    pub(crate) fn decode(&self, data: &str) -> PassResult<Vec<u8>> {
+        match self {
+            EncodingScheme::None => {
+                Ok(data.as_bytes().to_vec())
+            }
+            EncodingScheme::Hex => {
+                hex::decode(data).map_err(
+                    |_e| PassError::serialization("could  not decode hex"))
+            }
+            EncodingScheme::Base64 => {
+                general_purpose::STANDARD_NO_PAD.decode(data).map_err(
+                    |_e| PassError::serialization("could  not decode base64"))
+            }
+        }
+    }
+}
+
+impl Display for EncodingScheme {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            EncodingScheme::None => write!(f, "None"),
+            EncodingScheme::Hex => write!(f, "Hex"),
+            EncodingScheme::Base64 => write!(f, "Base64"),
+        }
+    }
+}
+
+impl PartialEq for EncodingScheme {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl From<&str> for EncodingScheme {
+    fn from(s: &str) -> EncodingScheme {
+        match s {
+            "None" => EncodingScheme::None,
+            "Hex" => EncodingScheme::Hex,
+            _ => EncodingScheme::Base64,
+        }
+    }
+}
+
 pub const ADMIN_USER: i64 = 2048;
+
+pub const READ_FLAG: i64 = 8192;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Roles {
@@ -74,6 +154,24 @@ impl Roles {
 impl PartialEq for Roles {
     fn eq(&self, other: &Self) -> bool {
         self.mask == other.mask
+    }
+}
+
+/// ImportResult defines response for data import
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImportResult {
+    pub imported: usize,
+    pub failed: usize,
+    pub duplicate: usize,
+}
+
+impl ImportResult {
+    pub fn new() -> Self {
+        Self {
+            imported: 0,
+            failed: 0,
+            duplicate: 0,
+        }
     }
 }
 
@@ -153,7 +251,7 @@ impl UserToken {
         let now = Utc::now().timestamp_nanos() / 1_000_000_000; // nanosecond -> second
         Self {
             iat: now.clone(),
-            exp: now + config.jwt_max_age_secs.clone(),
+            exp: now + (config.jwt_max_age_minutes.clone() * 60),
             user_id: user.user_id.clone(),
             username: user.username.clone(),
             roles: user.roles.mask.clone(),
@@ -204,6 +302,10 @@ pub struct User {
     pub name: Option<String>,
     // The email of user.
     pub email: Option<String>,
+    // The locale of user.
+    pub locale: Option<String>,
+    // The light-mode of user.
+    pub light_mode: Option<bool>,
     // The icon of user.
     pub icon: Option<String>,
     // The attributes of user.
@@ -221,11 +323,35 @@ impl User {
             roles: Roles::new(0),
             name: name.clone(),
             email: email.clone(),
+            locale: None,
+            light_mode: None,
             icon: None,
             attributes: vec![],
             created_at: Some(Utc::now().naive_utc()),
             updated_at: Some(Utc::now().naive_utc()),
         }
+    }
+
+    pub fn update(&mut self, other: &User) {
+        self.version = other.version.clone();
+        self.roles = other.roles.clone();
+        if other.name != None {
+            self.name = other.name.clone();
+        }
+        if other.email != None {
+            self.email = other.email.clone();
+        }
+        if other.locale != None {
+            self.locale = other.locale.clone();
+        }
+        if other.light_mode != None {
+            self.light_mode = other.light_mode.clone();
+        }
+        if other.icon != None {
+            self.icon = other.icon.clone();
+        }
+        self.attributes = other.attributes.clone();
+        self.updated_at = Some(Utc::now().naive_utc());
     }
 
     pub fn key_params_name(&self) -> String {
@@ -259,6 +385,45 @@ impl PartialEq for User {
 impl Hash for User {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.username.hash(hasher);
+    }
+}
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum AccountRisk {
+    High,
+    Medium,
+    Low,
+    None,
+    Unknown,
+}
+
+impl Display for AccountRisk {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AccountRisk::High => { write!(f, "High") }
+            AccountRisk::Medium => { write!(f, "Medium") }
+            AccountRisk::Low => { write!(f, "Low") }
+            AccountRisk::None => { write!(f, "None") }
+            AccountRisk::Unknown => { write!(f, "Unknown") }
+        }
+    }
+}
+
+impl PartialEq for AccountRisk {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl From<&str> for AccountRisk {
+    fn from(s: &str) -> AccountRisk {
+        match s {
+            "High" => AccountRisk::High,
+            "Medium" => AccountRisk::Medium,
+            "Low" => AccountRisk::Low,
+            "None" => AccountRisk::None,
+            _ => AccountRisk::Unknown,
+        }
     }
 }
 
@@ -331,6 +496,72 @@ impl From<&str> for SettingKind {
     }
 }
 
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum AccountKind {
+    Login,
+    Custom,
+    Notes,
+}
+
+impl AccountKind {
+    pub fn to_vault_kind(&self) -> VaultKind {
+        match self {
+            AccountKind::Login => VaultKind::Logins,
+            AccountKind::Custom => VaultKind::FormData,
+            AccountKind::Notes => VaultKind::SecureNotes,
+        }
+    }
+}
+
+impl Display for AccountKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AccountKind::Login => write!(f, "Login"),
+            AccountKind::Custom => write!(f, "Custom"),
+            AccountKind::Notes => write!(f, "Notes"),
+        }
+    }
+}
+
+impl PartialEq for AccountKind {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl From<&str> for AccountKind {
+    fn from(s: &str) -> AccountKind {
+        match s {
+            "Login" => AccountKind::Login,
+            "Custom" => AccountKind::Custom,
+            "Notes" => AccountKind::Notes,
+            _ => {
+                let s = s.to_lowercase();
+                if s.contains("note") {
+                    AccountKind::Notes
+                } else if s.contains("data") || s.contains("custom") || s.contains("form") {
+                    AccountKind::Custom
+                } else {
+                    AccountKind::Login
+                }
+            }
+        }
+    }
+}
+
+/// AccountSummary defines summary of user-accounts that are used for listing accounts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordSimilarity {
+    // levenshtein distance
+    pub levenshtein_distance: usize,
+    // jaccard similarity
+    pub jaccard_similarity: f64,
+    // cosine similarity
+    pub cosine_similarity: f64,
+    // jaro_winkler similarit
+    pub jaro_winkler_similarity: f64,
+}
+
 /// AccountSummary defines summary of user-accounts that are used for listing accounts.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct AccountSummary {
@@ -338,12 +569,14 @@ pub struct AccountSummary {
     pub account_id: String,
     // The version of the account in database.
     pub version: i64,
-    // The title of the account.
-    pub title: Option<String>,
-    // favorite flag.
+    // kind of account
+    pub kind: AccountKind,
+    // The label of the account.
+    pub label: Option<String>,
+    // favorite flag. - should be transient
     pub favorite: bool,
-    // risk mask.
-    pub risk_mask: i64,
+    // risk of password and account
+    pub risk: AccountRisk,
     // The description of the account.
     pub description: Option<String>,
     // The username of the account.
@@ -352,16 +585,22 @@ pub struct AccountSummary {
     pub email: Option<String>,
     // The url of the account.
     pub url: Option<String>,
-    // The categories of the account.
-    pub categories: Vec<String>,
+    // The category of the account.
+    pub category: Option<String>,
     // The tags of the account.
     pub tags: Vec<String>,
-    // otp
-    pub otp: Option<String>,
     // icon
+    pub favicon: Option<String>,
     pub icon: Option<String>,
-    // The metadata for dates of the account.
+    pub advisories: HashMap<Advisory, String>,
+    // renew interval
+    pub renew_interval_days: Option<i32>,
+    // expiration
+    pub expires_at: Option<NaiveDateTime>,
+    // The metadata for date when password was changed.
     pub credentials_updated_at: Option<NaiveDateTime>,
+    // The metadata for date when password was analyzed.
+    pub analyzed_at: Option<NaiveDateTime>,
 }
 
 impl PartialEq for AccountSummary {
@@ -377,23 +616,204 @@ impl Hash for AccountSummary {
 }
 
 impl AccountSummary {
-    pub fn new() -> Self {
+    pub fn new(kind: AccountKind) -> Self {
         Self {
             account_id: Uuid::new_v4().to_string(),
             version: 0,
-            title: None,
+            kind,
+            label: None,
             favorite: false,
-            risk_mask: 0,
+            risk: AccountRisk::Unknown,
             description: None,
             username: None,
             email: None,
             url: None,
-            categories: Default::default(),
+            category: None,
             tags: Default::default(),
-            otp: None,
+            favicon: None,
             icon: None,
+            advisories: HashMap::new(),
+            renew_interval_days: None,
+            expires_at: None,
             credentials_updated_at: None,
+            analyzed_at: None,
         }
+    }
+
+    pub fn matches(&self, q: &str) -> bool {
+        let lq = q.to_lowercase();
+        if lq.contains(&self.account_id) {
+            return true;
+        }
+        if lq.contains("favorite") && self.favorite {
+            return true;
+        }
+        if lq.contains("high_risk") &&
+            (self.risk == AccountRisk::High || self.risk == AccountRisk::Medium) {
+            return true;
+        }
+        if self.label_description().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.all_cat_tags().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.username().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.email().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.url().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if format!("{:?}", &self.advisories).to_lowercase().contains(&lq) {
+            return true;
+        }
+        false
+    }
+
+    pub fn all_cat_tags(&self) -> String {
+        let mut all_cat_tags = Vec::new();
+        if let Some(category) = &self.category {
+            all_cat_tags.push(category.clone());
+        }
+        all_cat_tags.extend(Account::filter_list(&self.tags));
+        all_cat_tags.join(",")
+    }
+
+    pub fn label_description(&self) -> String {
+        self.label.clone().unwrap_or(self.description.clone().unwrap_or("".into()))
+    }
+    pub fn username(&self) -> String {
+        self.username.clone().unwrap_or("".into())
+    }
+
+    pub fn has_favicon(&self) -> bool {
+        self.favicon() != ""
+    }
+
+    pub fn has_url(&self) -> bool {
+        self.url != None
+    }
+
+    pub fn risk_bg_color(&self) -> String {
+        match self.risk {
+            AccountRisk::High => { "background-color: #ff9999;".into() }
+            AccountRisk::Medium => { "background-color: #ff9933;".into() }
+            AccountRisk::Low => { "background-color: #ffcc00;".into() }
+            AccountRisk::None => { "background-color: #99ff99;".into() }
+            AccountRisk::Unknown => { "".into() }
+        }
+    }
+
+    pub fn favicon(&self) -> String {
+        if let Some(u) = &self.url {
+            if let Ok(mut u) = url::Url::parse(u) {
+                if let Ok(mut path) = u.path_segments_mut() {
+                    path.clear();
+                }
+                u.set_query(None);
+                return format!("{}/favicon.ico", u);
+            }
+        }
+
+        if self.kind == AccountKind::Notes {
+            return "/assets/images/note.svg".into();
+        }
+        String::new()
+    }
+
+    pub fn email(&self) -> String {
+        self.email.clone().unwrap_or("".into())
+    }
+
+    pub fn url(&self) -> String {
+        self.url.clone().unwrap_or("".into())
+    }
+}
+
+impl Display for AccountSummary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buf = String::with_capacity(128);
+        if let Some(label) = &self.label {
+            buf.push_str(&label);
+        }
+        if let Some(des) = &self.description {
+            buf.push_str(&des);
+        }
+        if let Some(username) = &self.username {
+            buf.push_str(&username);
+        }
+        if let Some(email) = &self.email {
+            buf.push_str(&email);
+        }
+        if let Some(url) = &self.url {
+            buf.push_str(&url);
+        }
+        write!(f, "{}", buf)
+    }
+}
+
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum Advisory {
+    WeakPassword,
+    PasswordReused,
+    SimilarOtherPassword,
+    SimilarPastPassword,
+    CompromisedPassword,
+    CompromisedWebsite,
+    CompromisedEmail,
+}
+
+impl Display for Advisory {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Advisory::WeakPassword => write!(f, "WeakPassword"),
+            Advisory::PasswordReused => write!(f, "PasswordReused"),
+            Advisory::SimilarOtherPassword => write!(f, "SimilarOtherPassword"),
+            Advisory::SimilarPastPassword => write!(f, "SimilarPastPassword"),
+            Advisory::CompromisedPassword => write!(f, "CompromisedPassword"),
+            Advisory::CompromisedWebsite => write!(f, "CompromisedWebsite"),
+            Advisory::CompromisedEmail => write!(f, "CompromisedEmail"),
+        }
+    }
+}
+
+impl PartialEq for Advisory {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Hash for Advisory {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.to_string().hash(hasher);
+    }
+}
+
+/// AuditLog represents an audit record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLog {
+    // id of the audit.
+    pub audit_id: String,
+    // user_id of the audit record.
+    pub user_id: String,
+    // kind of audit record.
+    pub kind: AuditKind,
+    // The ip-address of audit record.
+    pub ip_address: Option<String>,
+    // The context parameters.
+    pub context: String,
+    // The message of audit record.
+    pub message: String,
+    pub created_at: NaiveDateTime,
+}
+
+impl AuditLog {
+    pub fn safe_ip_address(&self) -> String {
+        self.ip_address.clone().unwrap_or("".to_string())
     }
 }
 
@@ -407,6 +827,9 @@ pub struct AccountCredentials {
     // The form-fields of the account.
     pub form_fields: HashMap<String, String>,
     pub notes: Option<String>,
+    // otp
+    pub otp: Option<String>,
+    pub past_passwords: HashSet<String>,
     pub password_policy: PasswordPolicy,
 }
 
@@ -417,6 +840,8 @@ impl AccountCredentials {
             password_sha1: None,
             form_fields: Default::default(),
             notes: None,
+            otp: None,
+            past_passwords: HashSet::new(),
             password_policy: PasswordPolicy::new(),
         }
     }
@@ -440,9 +865,9 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(vault_id: &str) -> Self {
+    pub fn new(vault_id: &str, kind: AccountKind) -> Self {
         Self {
-            details: AccountSummary::new(),
+            details: AccountSummary::new(kind),
             vault_id: vault_id.into(),
             archived_version: None,
             credentials: AccountCredentials::new(),
@@ -450,6 +875,22 @@ impl Account {
             created_at: Some(Utc::now().naive_utc()),
             updated_at: Some(Utc::now().naive_utc()),
         }
+    }
+
+    pub fn clone_for_sharing(&self) -> Self {
+        let mut copy = self.clone();
+        copy.details.account_id = Uuid::new_v4().to_string();
+        copy.details.version = 0;
+        copy.archived_version = None;
+        copy.details.credentials_updated_at = None;
+        copy.details.analyzed_at = None;
+        copy.details.favorite = false;
+        copy.value_hash = "".into();
+        copy.created_at = Some(Utc::now().naive_utc());
+        copy.updated_at = Some(Utc::now().naive_utc());
+
+        copy.before_save();
+        copy
     }
 
     fn filter_list(v: &Vec<String>) -> Vec<String> {
@@ -467,49 +908,15 @@ impl Account {
         Ok(())
     }
 
-    pub fn all_cat_tags(&self) -> String {
-        let mut all_cat_tags = Vec::new();
-        all_cat_tags.extend(Account::filter_list(&self.details.categories));
-        all_cat_tags.extend(Account::filter_list(&self.details.tags));
-        all_cat_tags.join(",")
-    }
-
     pub fn compute_primary_attributes_hash(&self) -> String {
-        let mut buf = String::with_capacity(128);
-        if let Some(username) = &self.details.username {
-            buf.push_str(&username);
-        }
-        if let Some(email) = &self.details.email {
-            buf.push_str(&email);
-        }
-        if let Some(url) = &self.details.url {
-            buf.push_str(&url);
-        }
-        if buf.len() == 0 {
-            if let Some(notes) = &self.credentials.notes {
-                buf.push_str(&notes);
-            }
-            for (k, v) in &self.credentials.form_fields {
-                buf.push_str(k.as_str());
-                buf.push_str(v.as_str());
-            }
-        }
-        if buf.len() == 0 {
-            if let Some(title) = &self.details.title {
-                buf.push_str(&title);
-            }
-            if let Some(des) = &self.details.description {
-                buf.push_str(&des);
-            }
-        }
-        println!("hhhhhhhhhhhh {}", buf);
-        crypto::compute_sha256(&buf)
+        let str = self.to_string();
+        crypto::compute_sha256_hex(&str)
     }
 
     pub fn before_save(&mut self) {
         // calculating sha1 of password
         if let Some(password) = self.credentials.password.clone() {
-            let sha1 = crypto::compute_sha1(password.as_ref());
+            let sha1 = crypto::compute_sha1_hex(password.as_ref());
             if let Some(old_sha1) = self.credentials.password_sha1.clone() {
                 if sha1 != old_sha1 {
                     self.details.credentials_updated_at = None;
@@ -527,21 +934,192 @@ impl Account {
         self.value_hash = self.compute_primary_attributes_hash();
         self.updated_at = Some(Utc::now().naive_utc());
     }
+
+    pub fn update_analysis(&mut self, analysis: &AccountPasswordSummary) -> bool {
+        if self.details.advisories.len() != analysis.advisories.len() ||
+            self.details.advisories != analysis.advisories {
+            self.details.advisories = analysis.advisories.clone();
+            self.details.analyzed_at = Some(Utc::now().naive_utc());
+            self.details.risk = AccountRisk::Unknown;
+            if analysis.advisories.get(&Advisory::CompromisedPassword) != None ||
+                analysis.advisories.get(&Advisory::CompromisedEmail) != None ||
+                analysis.advisories.get(&Advisory::CompromisedWebsite) != None ||
+                analysis.password_analysis.strength == PasswordStrength::WEAK {
+                self.details.risk = AccountRisk::High;
+            } else if analysis.password_analysis.strength == PasswordStrength::MODERATE &&
+                (analysis.password_analysis.count_similar_to_other_passwords > 0 ||
+                    analysis.password_analysis.count_similar_to_past_passwords > 0) {
+                self.details.risk = AccountRisk::Medium;
+            } else if analysis.password_analysis.strength == PasswordStrength::MODERATE ||
+                analysis.password_analysis.count_similar_to_other_passwords > 0 ||
+                analysis.password_analysis.count_similar_to_past_passwords > 0 {
+                self.details.risk = AccountRisk::Low;
+            } else {
+                self.details.risk = AccountRisk::None;
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    // convert to password summary
+    pub fn to_password_summary(&self) -> AccountPasswordSummary {
+        return AccountPasswordSummary {
+            account_id: self.details.account_id.clone(),
+            label: self.details.label.clone(),
+            username: self.details.username.clone(),
+            email: self.details.email.clone(),
+            url: self.details.url.clone(),
+            advisories: self.details.advisories.clone(),
+            credentials_updated_at: self.details.credentials_updated_at.clone(),
+            analyzed_at: self.details.analyzed_at.clone(),
+            password: self.credentials.password.clone(),
+            past_passwords: self.credentials.past_passwords.clone(),
+            password_policy: self.credentials.password_policy.clone(),
+            password_analysis: PasswordAnalysis::new(),
+        };
+    }
 }
 
-const DEFAULT_VAULT_NAMES: [&str; 4] = ["Personal", "Work", "Family & Shared", "Secure Notes"];
-const DEFAULT_CATEGORIES: [&str; 10] = [
-    "Login",
-    "Bank",
-    "Credit Card",
+impl Display for Account {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buf = String::with_capacity(128);
+        // First we try to identify each account by url, username, email and password
+        if let Some(username) = &self.details.username {
+            buf.push_str(&username);
+        }
+        if let Some(email) = &self.details.email {
+            buf.push_str(&email);
+        }
+        if let Some(url) = &self.details.url {
+            buf.push_str(&url);
+        }
+
+        // Second if we url, username, email and password are not available, identify by secure notes
+        // and form fields.
+        if buf.len() == 0 {
+            if let Some(notes) = &self.credentials.notes {
+                buf.push_str(&notes);
+            }
+            for (k, v) in &self.credentials.form_fields {
+                buf.push_str(k.as_str());
+                buf.push_str(v.as_str());
+            }
+        }
+
+        // Finally identify by label and description
+        if buf.len() == 0 {
+            if let Some(label) = &self.details.label {
+                buf.push_str(&label);
+            }
+            if let Some(des) = &self.details.description {
+                buf.push_str(&des);
+            }
+        }
+        write!(f, "{}", buf)
+    }
+}
+
+/// AccountPasswordSummary is used to analyze passwords
+#[derive(Debug, Clone)]
+pub struct AccountPasswordSummary {
+    // id of the account.
+    pub account_id: String,
+    // The label of the account.
+    pub label: Option<String>,
+    // The username of the account.
+    pub username: Option<String>,
+    // The email of the account.
+    pub email: Option<String>,
+    // The url of the account.
+    pub url: Option<String>,
+    pub advisories: HashMap<Advisory, String>,
+    // The metadata for date when password was changed.
+    pub credentials_updated_at: Option<NaiveDateTime>,
+    // The metadata for date when password was analyzed.
+    pub analyzed_at: Option<NaiveDateTime>,
+    // The password of the account.
+    pub password: Option<String>,
+    pub past_passwords: HashSet<String>,
+    pub password_policy: PasswordPolicy,
+    pub password_analysis: PasswordAnalysis,
+}
+
+
+pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
+pub const DEFAULT_CATEGORIES: [&str; 10] = [
+    "Logins",
     "Finance",
-    "Identity",
-    "Note",
     "Social",
     "Shopping",
     "Travel",
+    "Gaming",
+    "Chat",
+    "Notes",
+    "Credit Cards",
     "Miscellaneous",
 ];
+
+pub fn top_categories() -> Vec<String> {
+    DEFAULT_CATEGORIES[0..5].to_vec().iter().map(|s| s.to_string()).collect()
+}
+
+pub fn all_categories() -> Vec<String> {
+    let mut categories = DEFAULT_CATEGORIES.to_vec().iter().map(|s| s.to_string()).collect::<Vec<String>>();
+    categories.sort();
+    categories
+}
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum VaultKind {
+    Logins,
+    FormData,
+    SecureNotes,
+}
+
+impl From<&str> for VaultKind {
+    fn from(s: &str) -> VaultKind {
+        match s {
+            "Logins" => VaultKind::Logins,
+            "FormData" => VaultKind::FormData,
+            "SecureNotes" => VaultKind::SecureNotes,
+            _ => {
+                let s = s.to_lowercase();
+                if s.contains("note") {
+                    VaultKind::SecureNotes
+                } else if s.contains("data") || s.contains("custom") {
+                    VaultKind::FormData
+                } else {
+                    VaultKind::Logins
+                }
+            }
+        }
+    }
+}
+
+impl Display for VaultKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VaultKind::Logins => write!(f, "Logins"),
+            VaultKind::FormData => write!(f, "FormData"),
+            VaultKind::SecureNotes => write!(f, "SecureNotes"),
+        }
+    }
+}
+
+impl PartialEq for VaultKind {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Hash for VaultKind {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.to_string().hash(hasher);
+    }
+}
+
 
 /// Vault represents a folder or bucket for storing passwords.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
@@ -554,24 +1132,45 @@ pub struct Vault {
     pub owner_user_id: String,
     // The name of vault.
     pub title: String,
+    pub kind: VaultKind,
     pub icon: Option<String>,
-    pub entries: HashMap<String, AccountSummary>,
+    pub entries: Option<HashMap<String, AccountSummary>>,
+    pub analysis: Option<VaultAnalysis>,
+    // The metadata for date when passwords for the vault were analyzed.
+    pub analyzed_at: Option<NaiveDateTime>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
 
 impl Vault {
-    pub fn new(owner_user_id: &str, title: &str) -> Self {
+    pub fn new(owner_user_id: &str, title: &str, kind: VaultKind) -> Self {
         Self {
             vault_id: Uuid::new_v4().to_string(),
             version: 0,
             owner_user_id: owner_user_id.into(),
             title: title.to_string(),
-            entries: HashMap::new(),
+            kind,
+            entries: None,
+            analysis: None,
             icon: None,
+            analyzed_at: None,
             created_at: Some(Utc::now().naive_utc()),
             updated_at: Some(Utc::now().naive_utc()),
         }
+    }
+
+    pub fn total_accounts(&self) -> usize {
+        if let Some(entries) = &self.entries {
+            entries.len()
+        } else {
+            0
+        }
+    }
+
+    pub fn account_summaries(&self) -> Vec<AccountSummary> {
+        let mut accounts: Vec<AccountSummary> = self.entries.clone().unwrap_or(HashMap::new()).values().cloned().collect();
+        accounts.sort_by(|a, b| a.to_string().to_lowercase().cmp(&b.to_string().to_lowercase()));
+        accounts
     }
 }
 
@@ -598,7 +1197,7 @@ impl Display for Vault {
 pub struct PassConfig {
     // The default constraints for password generation.
     pub default_constraints: Option<PasswordPolicy>,
-    pub data_dir: String,
+    pub data_dir: PathBuf,
     pub http_port: String,
     pub https_port: String,
     pub max_pool_size: u32,
@@ -611,13 +1210,22 @@ pub struct PassConfig {
     pub hash_algorithm: String,
     pub crypto_algorithm: String,
     pub hsm_provider: String,
+    pub domain: String,
     pub session_key: [u8; crypto::SECRET_LEN],
-    pub api_secret: String, // master api secret
+    // master device pepper key
+    pub device_pepper_key: String,
+    // master api secret
     pub jwt_key: String,
-    pub jwt_max_age_secs: i64,
-    pub cert_file: Option<String>,    // path to PEM file
-    pub key_file: Option<String>,     // path to PEM file
-    pub key_password: Option<String>, // password for encrypted private PEM file
+    pub session_timeout_minutes: i64,
+    pub jwt_max_age_minutes: i64,
+    // path to cert PEM file
+    pub cert_file: Option<PathBuf>,
+    // path to key PEM file
+    pub key_file: Option<PathBuf>,
+    // password for PEM file
+    pub key_password: Option<String>,
+    // password for encrypted private PEM file
+    pub hibp_api_key: Option<String>, // API key for HIBP
 }
 
 const CHANGEME_SECRET: &str = "e68505475f740b2748024c7d140a5ffea037ff4dfde143a1549d7583c93b32b0";
@@ -626,17 +1234,26 @@ impl PassConfig {
     pub fn new() -> Self {
         let _ = dotenv::dotenv(); // ignore errors
         let data_dir = std::env::var("DATA_DIR").unwrap_or("PlexPassData".into());
-        fs::create_dir_all(Path::new(&data_dir)).expect("failed to create data dir");
 
-        let hsm_provider = std::env::var("HSM_PROVIDER").unwrap_or("Keychain".into());
+        let domain = std::env::var("DOMAIN").unwrap_or("plexpass-server".into());
+        let hsm_provider = Self::get_default_hsm();
         let http_port = std::env::var("HTTP_PORT").unwrap_or("8080".into());
         let https_port = std::env::var("HTTPS_PORT").unwrap_or("8443".into());
-        let api_secret = std::env::var("API_SECRET").unwrap_or(CHANGEME_SECRET.into());
-        let jwt_key = std::env::var("JWT_KEY").unwrap_or(api_secret.clone());
-        let jwt_max_age_secs: i64 = std::env::var("JWT_MAX_AGE")
+        let device_pepper_key = std::env::var("DEVICE_PEPPER_KEY").unwrap_or(CHANGEME_SECRET.into());
+        let jwt_key = std::env::var("JWT_KEY").unwrap_or(device_pepper_key.clone());
+        let hibp_api_key: Option<String> = if let Ok(val) = std::env::var("HIBP_API_KEY") { Some(val) } else { None };
+        let session_timeout_minutes: i64 = std::env::var("SESSION_TIMEOUT_MINUTES")
             .unwrap_or("86400".into())
             .parse()
             .unwrap();
+        let jwt_max_age_minutes: i64 = std::env::var("JWT_MAX_AGE_MINUTES")
+            .unwrap_or("1440".into())
+            .parse()
+            .unwrap();
+        let session_key = if let Ok((_, session_key)) = crypto::generate_private_key_from_secret(&device_pepper_key) {
+            session_key
+        } else { crypto::generate_secret_key() };
+
         let cert_file: Option<String> = if let Ok(val) = std::env::var("CERT_FILE") {
             Some(val)
         } else {
@@ -655,7 +1272,7 @@ impl PassConfig {
 
         PassConfig {
             default_constraints: None,
-            data_dir,
+            data_dir: PathBuf::from(&data_dir),
             http_port,
             https_port,
             max_pool_size: 10,
@@ -665,28 +1282,117 @@ impl PassConfig {
             max_accounts_per_vault: 1000,
             max_lookup_entries: 1000,
             max_setting_entries: 1000,
-            hash_algorithm: "ARGON2id".into(),
-            crypto_algorithm: "Aes256Gcm".into(),
+            hash_algorithm: HashAlgorithmTypes::ARGON2id.to_string(),
+            crypto_algorithm: CryptoAlgorithm::Aes256Gcm.to_string(),
             hsm_provider,
-            session_key: crypto::generate_secret_key(),
-            api_secret,
+            domain,
+            session_key,
+            device_pepper_key: device_pepper_key,
             jwt_key,
-            jwt_max_age_secs,
-            cert_file,
-            key_file,
+            session_timeout_minutes,
+            jwt_max_age_minutes,
+            cert_file: cert_file.map(PathBuf::from),
+            key_file: key_file.map(PathBuf::from),
             key_password,
+            hibp_api_key,
         }
     }
 
-    pub fn validate(&self) -> PassResult<()> {
-        if self.api_secret == CHANGEME_SECRET {
+    pub fn override_data_dir(&mut self, data_dir: &PathBuf) {
+        self.data_dir = data_dir.clone();
+
+        if let Ok(data_dir) = data_dir.clone().into_os_string().into_string() {
+            std::env::set_var("DATA_DIR", data_dir);
+        }
+    }
+
+    pub fn override_server_args(&mut self,
+                                http_port: &Option<String>,
+                                https_port: &Option<String>,
+                                hsm_provider: &Option<String>,
+                                domain: &Option<String>,
+                                jwt_key: &Option<String>,
+                                session_timeout_minutes: &i64,
+                                cert_file: &Option<PathBuf>,
+                                key_file: &Option<PathBuf>,
+                                key_password: &Option<String>,
+                                device_pepper_key: &Option<String>,
+    ) {
+        if let Some(http_port) = http_port {
+            self.http_port = http_port.clone();
+        }
+        if let Some(https_port) = https_port {
+            self.https_port = https_port.clone();
+        }
+        if let Some(hsm_provider) = hsm_provider {
+            self.hsm_provider = hsm_provider.clone();
+        }
+        if let Some(domain) = domain {
+            self.domain = domain.clone();
+        }
+        if let Some(jwt_key) = jwt_key {
+            self.jwt_key = jwt_key.clone();
+        }
+        self.session_timeout_minutes = session_timeout_minutes.clone();
+
+        if let Some(cert_file) = cert_file {
+            self.cert_file = Some(cert_file.clone());
+        }
+        if let Some(key_file) = key_file {
+            self.key_file = Some(key_file.clone());
+        }
+        if let Some(key_password) = key_password {
+            self.key_password = Some(key_password.clone());
+        }
+        if let Some(device_pepper_key) = device_pepper_key {
+            self.device_pepper_key = device_pepper_key.clone();
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn get_default_hsm() -> String {
+        std::env::var("HSM_PROVIDER").unwrap_or("Keychain".into())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn get_default_hsm() -> String {
+        std::env::var("HSM_PROVIDER").unwrap_or("EncryptedFile".into())
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn validate(&mut self) -> PassResult<()> {
+        if self.device_pepper_key == CHANGEME_SECRET {
             return Err(PassError::validation(
-                "Please specify api-secret via API_SECRET environment variable",
+                "Please specify device-secret via DEVICE_PEPPER_KEY environment variable",
                 None,
             ));
         }
         Ok(())
     }
+
+    #[cfg(target_os = "macos")]
+    pub fn validate(&mut self) -> PassResult<()> {
+        use crate::store::hsm_store_keychain::KeychainHSMStore;
+        use crate::store::HSMStore;
+        if self.device_pepper_key == CHANGEME_SECRET {
+            // auto create device pepper key and store it in keychain
+            let hsm = KeychainHSMStore::new();
+            if let Err(_) = hsm.get_property("", DEVICE_PEPPER_KEY) {
+                let device_pepper_key = hex::encode(crypto::generate_secret_key());
+                hsm.set_property("", DEVICE_PEPPER_KEY, &device_pepper_key)?;
+            }
+            self.device_pepper_key = hsm.get_property("", DEVICE_PEPPER_KEY)?;
+        }
+
+        log::info!(
+            "configuration using data-dir {:?}, hsm {}, cwd {:?}",
+            &self.data_dir,
+            &self.hsm_provider,
+            std::env::current_dir()?,
+        );
+        Ok(())
+    }
+
     pub fn http_port(&self) -> u16 {
         self.http_port.parse().unwrap()
     }
@@ -726,6 +1432,12 @@ pub enum PasswordStrength {
     STRONG,
 }
 
+impl Hash for PasswordStrength {
+    fn hash<H: Hasher>(&self, hasher: &mut H) {
+        self.to_string().hash(hasher);
+    }
+}
+
 impl PartialEq for PasswordStrength {
     fn eq(&self, other: &Self) -> bool {
         self.to_string() == other.to_string()
@@ -742,7 +1454,7 @@ impl Display for PasswordStrength {
     }
 }
 
-impl PasswordStrength {
+impl From<&str> for PasswordStrength {
     fn from(s: &str) -> PasswordStrength {
         match s {
             "WEAK" => PasswordStrength::WEAK,
@@ -756,6 +1468,8 @@ impl PasswordStrength {
 // PasswordPolicy represents configuration for password generation.
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct PasswordPolicy {
+    // random or memorable password
+    pub random: bool,
     // minimum number of upper_case letters should be included.
     pub min_uppercase: usize,
     // minimum number of lower_case letters should be included.
@@ -770,21 +1484,19 @@ pub struct PasswordPolicy {
     pub max_length: usize,
     // exclude_ambiguous to remove ambiguous letters
     pub exclude_ambiguous: bool,
-    // renew interval
-    pub renew_interval_days: Option<i32>,
 }
 
 impl PasswordPolicy {
     pub fn new() -> Self {
         PasswordPolicy {
-            min_uppercase: 2,
-            min_lowercase: 2,
-            min_digits: 2,
-            min_special_chars: 2,
+            random: false,
+            min_uppercase: 1,
+            min_lowercase: 1,
+            min_digits: 1,
+            min_special_chars: 1,
             min_length: 12,
             max_length: 16,
             exclude_ambiguous: true,
-            renew_interval_days: None,
         }
     }
 
@@ -796,8 +1508,8 @@ impl PasswordPolicy {
     pub fn generate_strong_memorable_password(&self, number_of_words: usize) -> Option<String> {
         for _ in 0..10 {
             if let Some(password) = self.generate_memorable_password(number_of_words.clone()) {
-                let analysis = PasswordPolicy::analyze_password(&password);
-                if PasswordStrength::STRONG == analysis.strength {
+                let info = PasswordPolicy::password_info(&password);
+                if PasswordStrength::STRONG == info.strength {
                     return Some(password);
                 }
             }
@@ -812,17 +1524,19 @@ impl PasswordPolicy {
 
         let mut password = String::with_capacity(32);
         let special_chars: Vec<char> = SPECIAL_CHARS.chars().collect();
-        for _ in 0..number_of_words {
+        for i in 0..number_of_words {
             password.push_str(WORDS[die.sample(&mut rng)]);
-            if let Some(ch) = special_chars.choose(&mut rand::thread_rng()) {
-                password.push(*ch);
+            if i != &number_of_words - 1 {
+                if let Some(ch) = special_chars.choose(&mut rand::thread_rng()) {
+                    password.push(*ch);
+                }
             }
         }
 
         //let mut password = rand_words.join("");
 
         // Convert some characters to uppercase
-        for _ in 0..self.min_uppercase.clone() {
+        for _ in 0..self.min_uppercase.clone() + 1 {
             let index = rng.gen_range(0..password.len());
             password = password
                 .chars()
@@ -884,8 +1598,8 @@ impl PasswordPolicy {
     pub fn generate_strong_random_password(&self) -> Option<String> {
         for _ in 0..10 {
             if let Some(password) = self.generate_random_password() {
-                let analysis = PasswordPolicy::analyze_password(&password);
-                if PasswordStrength::STRONG == analysis.strength {
+                let info = PasswordPolicy::password_info(&password);
+                if PasswordStrength::STRONG == info.strength {
                     return Some(password);
                 }
             }
@@ -941,8 +1655,8 @@ impl PasswordPolicy {
         Some(password.iter().collect())
     }
 
-    pub fn analyze_password(password: &str) -> PasswordAnalysis {
-        let mut analysis = PasswordAnalysis {
+    pub fn password_info(password: &str) -> PasswordInfo {
+        let mut info = PasswordInfo {
             strength: PasswordStrength::WEAK,
             entropy: 0.0,
             uppercase: 0,
@@ -954,13 +1668,13 @@ impl PasswordPolicy {
         let mut charset_size = 0;
         for c in password.chars() {
             if c.is_lowercase() {
-                analysis.lowercase += 1;
+                info.lowercase += 1;
             } else if c.is_uppercase() {
-                analysis.uppercase += 1;
+                info.uppercase += 1;
             } else if c.is_numeric() {
-                analysis.digits += 1;
+                info.digits += 1;
             } else if SPECIAL_CHARS.contains(c) {
-                analysis.special_chars += 1;
+                info.special_chars += 1;
             }
         }
 
@@ -980,11 +1694,11 @@ impl PasswordPolicy {
         let unique_chars: HashSet<char> = password.chars().collect();
         let length_bonus = unique_chars.len() as f64 / password.len() as f64;
 
-        analysis.entropy = (charset_size as f64).log2() * password.len() as f64 * length_bonus;
+        info.entropy = (charset_size as f64).log2() * password.len() as f64 * length_bonus;
 
-        analysis.strength = if analysis.entropy < 40.0 {
+        info.strength = if info.entropy < 40.0 {
             PasswordStrength::WEAK
-        } else if analysis.entropy < 80.0 {
+        } else if info.entropy < 80.0 {
             PasswordStrength::MODERATE
         } else {
             PasswordStrength::STRONG
@@ -994,7 +1708,7 @@ impl PasswordPolicy {
         // let l = password.len() as f64;
         // l * n.log2()
 
-        analysis
+        info
     }
 }
 
@@ -1088,6 +1802,49 @@ impl Hash for Setting {
     }
 }
 
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum MessageKind {
+    Advisory,
+    Broadcast,
+    DM,
+    ShareVault,
+    ShareAccount,
+    Toast,
+}
+
+impl Display for MessageKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MessageKind::Advisory => { write!(f, "Advisory") }
+            MessageKind::Broadcast => { write!(f, "Broadcast") }
+            MessageKind::DM => { write!(f, "DM") }
+            MessageKind::ShareVault => { write!(f, "ShareVault") }
+            MessageKind::ShareAccount => { write!(f, "ShareAccount") }
+            MessageKind::Toast => { write!(f, "Toast") }
+        }
+    }
+}
+
+impl PartialEq for MessageKind {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl From<&str> for MessageKind {
+    fn from(s: &str) -> MessageKind {
+        match s {
+            "Advisory" => MessageKind::Advisory,
+            "Broadcast" => MessageKind::Broadcast,
+            "DM" => MessageKind::DM,
+            "ShareVault" => MessageKind::ShareVault,
+            "ShareAccount" => MessageKind::ShareAccount,
+            "Toast" => MessageKind::Toast,
+            _ => MessageKind::Advisory,
+        }
+    }
+}
+
 /// Message represents a message, notification or alter.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -1099,8 +1856,8 @@ pub struct Message {
     pub specversion: String,
     // The source of message.
     pub source: String,
-    // The message_type of message.
-    pub message_type: String,
+    // The kind of message.
+    pub kind: MessageKind,
     // The flags of message.
     pub flags: i64,
     // The subject of message.
@@ -1112,13 +1869,13 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn new(user_id: &str, message_type: &str, subject: &str, data: &str) -> Self {
+    pub fn new(user_id: &str, kind: MessageKind, subject: &str, data: &str) -> Self {
         Message {
             message_id: Uuid::new_v4().to_string(),
             user_id: user_id.into(),
             specversion: "1.0".into(),
             source: "".into(),
-            message_type: message_type.to_string(),
+            kind,
             flags: 0,
             subject: subject.to_string(),
             data: data.to_string(),
@@ -1140,7 +1897,69 @@ impl Hash for Message {
     }
 }
 
-pub const PBKDF2_HMAC_SHA256_ITERATIONS: u32 = 650_000;
+/// ShareVaultMessage represents a message for sharing vault
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShareVaultPayload {
+    pub vault_id: String,
+    pub vault_title: String,
+    pub encrypted_crypto_key: String,
+    pub from_user_id: String,
+    pub from_username: String,
+    pub target_user_id: String,
+    pub read_only: bool,
+}
+
+impl ShareVaultPayload {
+    pub fn new(
+        vault_id: &str,
+        vault_title: &str,
+        encrypted_crypto_key: &str,
+        from_user_id: &str,
+        from_username: &str,
+        target_user_id: &str,
+        read_only: bool,
+    ) -> Self {
+        Self {
+            vault_id: vault_id.to_string(),
+            vault_title: vault_title.to_string(),
+            encrypted_crypto_key: encrypted_crypto_key.to_string(),
+            from_user_id: from_user_id.to_string(),
+            from_username: from_username.to_string(),
+            target_user_id: target_user_id.to_string(),
+            read_only,
+        }
+    }
+}
+
+/// ShareAccountMessage represents a message for sharing account
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShareAccountPayload {
+    pub vault_id: String,
+    pub vault_title: String,
+    pub encrypted_account: String,
+    pub from_user_id: String,
+    pub from_username: String,
+    pub target_user_id: String,
+}
+
+impl ShareAccountPayload {
+    pub fn new(
+        vault_id: &str,
+        vault_title: &str,
+        encrypted_account: &str,
+        from_user_id: &str,
+        from_username: &str,
+        target_user_id: &str) -> Self {
+        Self {
+            vault_id: vault_id.to_string(),
+            vault_title: vault_title.to_string(),
+            encrypted_account: encrypted_account.to_string(),
+            from_user_id: from_user_id.to_string(),
+            from_username: from_username.to_string(),
+            target_user_id: target_user_id.to_string(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Eq)]
 pub enum HSMProvider {
@@ -1230,7 +2049,39 @@ impl From<&str> for HashAlgorithm {
     }
 }
 
-#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
+#[derive(ValueEnum, Debug, Clone, Eq, Serialize, Deserialize)]
+pub enum HashAlgorithmTypes {
+    Pbkdf2HmacSha256,
+    ARGON2id,
+}
+
+impl Display for HashAlgorithmTypes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HashAlgorithmTypes::Pbkdf2HmacSha256 => write!(f, "Pbkdf2HmacSha256"),
+            HashAlgorithmTypes::ARGON2id => write!(f, "ARGON2id"),
+        }
+    }
+}
+
+impl PartialEq for HashAlgorithmTypes {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
+    }
+}
+
+impl From<&str> for HashAlgorithmTypes {
+    fn from(s: &str) -> HashAlgorithmTypes {
+        match s {
+            "Pbkdf2HmacSha256" => HashAlgorithmTypes::Pbkdf2HmacSha256,
+            "ARGON2id" => HashAlgorithmTypes::ARGON2id,
+            _ => HashAlgorithmTypes::ARGON2id,
+        }
+    }
+}
+
+
+#[derive(ValueEnum, Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum CryptoAlgorithm {
     Aes256Gcm,
     ChaCha20Poly1305,
@@ -1270,7 +2121,8 @@ pub struct EncryptRequest {
     pub hash_algorithm: HashAlgorithm,
     pub crypto_algorithm: CryptoAlgorithm,
     pub aad: String,
-    pub plaintext: String,
+    pub payload: Vec<u8>,
+    pub encoding: EncodingScheme,
 }
 
 impl EncryptRequest {
@@ -1280,7 +2132,8 @@ impl EncryptRequest {
         master_secret: &str,
         hash_algorithm: HashAlgorithm,
         crypto_algorithm: CryptoAlgorithm,
-        plaintext: &str,
+        payload: Vec<u8>,
+        encoding: EncodingScheme,
     ) -> Self {
         EncryptRequest {
             salt: salt.into(),
@@ -1289,12 +2142,33 @@ impl EncryptRequest {
             hash_algorithm,
             crypto_algorithm,
             aad: master_secret.into(),
-            plaintext: plaintext.to_string(),
+            payload: payload.clone(),
+            encoding,
         }
     }
 
-    pub(crate) fn salt_bytes(&self) -> Result<Vec<u8>, FromHexError> {
-        hex::decode(self.salt.clone())
+    pub fn from_string(
+        salt: &str,
+        device_pepper: &str,
+        master_secret: &str,
+        hash_algorithm: HashAlgorithm,
+        crypto_algorithm: CryptoAlgorithm,
+        plaintext: &str,
+        encoding: EncodingScheme,
+    ) -> Self {
+        Self::new(
+            salt,
+            device_pepper,
+            master_secret,
+            hash_algorithm,
+            crypto_algorithm,
+            plaintext.as_bytes().to_vec(),
+            encoding,
+        )
+    }
+
+    pub(crate) fn salt_bytes(&self) -> Vec<u8> {
+        self.salt.as_bytes().to_vec().clone()
     }
 }
 
@@ -1302,15 +2176,21 @@ impl EncryptRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EncryptResponse {
     pub nonce: String,
-    pub ciphertext: String,
+    pub cipher_payload: Vec<u8>,
+    pub encoding: EncodingScheme,
 }
 
 impl EncryptResponse {
-    pub fn new(nonce: Vec<u8>, ciphertext: Vec<u8>) -> PassResult<Self> {
-        Ok(EncryptResponse {
+    pub fn new(nonce: Vec<u8>, cipher_payload: Vec<u8>, encoding: EncodingScheme) -> Self {
+        EncryptResponse {
             nonce: hex::encode(nonce),
-            ciphertext: hex::encode(ciphertext),
-        })
+            cipher_payload,
+            encoding,
+        }
+    }
+
+    pub fn encoded_payload(&self) -> PassResult<String> {
+        self.encoding.encode(self.cipher_payload.clone())
     }
 }
 
@@ -1318,42 +2198,66 @@ impl EncryptResponse {
 #[derive(Debug, Clone)]
 pub struct DecryptRequest {
     pub salt: String,
-    pub nonce: String,
     pub device_pepper: String,
     pub master_secret: String,
     pub hash_algorithm: HashAlgorithm,
     pub crypto_algorithm: CryptoAlgorithm,
     pub aad: String,
-    pub ciphertext: String,
+    pub nonce: String,
+    pub cipher_payload: Vec<u8>,
+    pub encoding: EncodingScheme,
 }
 
 impl DecryptRequest {
     pub fn new(
         salt: &str,
-        nonce: &str,
         device_pepper: &str,
         master_secret: &str,
         hash_algorithm: HashAlgorithm,
         crypto_algorithm: CryptoAlgorithm,
-        ciphertext: &str,
+        nonce: &str,
+        cipher_payload: Vec<u8>,
+        encoding: EncodingScheme,
     ) -> Self {
         DecryptRequest {
             salt: salt.into(),
-            nonce: nonce.into(),
             device_pepper: device_pepper.into(),
             master_secret: master_secret.into(),
             hash_algorithm,
             crypto_algorithm,
             aad: master_secret.into(),
-            ciphertext: ciphertext.to_string(),
+            nonce: nonce.into(),
+            cipher_payload,
+            encoding,
         }
     }
-    pub(crate) fn ciphertext_bytes(&self) -> Result<Vec<u8>, FromHexError> {
-        hex::decode(self.ciphertext.clone())
+
+    pub fn from_string(
+        salt: &str,
+        device_pepper: &str,
+        master_secret: &str,
+        hash_algorithm: HashAlgorithm,
+        crypto_algorithm: CryptoAlgorithm,
+        nonce: &str,
+        ciphertext: &str,
+        encoding: EncodingScheme,
+    ) -> PassResult<Self> {
+        Ok(Self::new(
+            salt,
+            device_pepper,
+            master_secret,
+            hash_algorithm,
+            crypto_algorithm,
+            nonce,
+            encoding.decode(ciphertext)?,
+            encoding,
+        ))
     }
-    pub(crate) fn salt_bytes(&self) -> Result<Vec<u8>, FromHexError> {
-        hex::decode(self.salt.clone())
+
+    pub(crate) fn salt_bytes(&self) -> Vec<u8> {
+        self.salt.as_bytes().to_vec().clone()
     }
+
     pub(crate) fn nonce_bytes(&self) -> Result<Vec<u8>, FromHexError> {
         hex::decode(self.nonce.clone())
     }
@@ -1362,19 +2266,22 @@ impl DecryptRequest {
 // DecryptResponse response for encrypting data.
 #[derive(Debug, Clone)]
 pub struct DecryptResponse {
-    pub plaintext: String,
+    pub payload: Vec<u8>,
 }
 
 impl DecryptResponse {
-    pub fn new(plaintext: Vec<u8>) -> PassResult<Self> {
+    pub fn new(payload: Vec<u8>) -> PassResult<Self> {
         Ok(DecryptResponse {
-            plaintext: String::from_utf8(plaintext)?,
+            payload,
         })
+    }
+    pub fn payload_string(&self) -> PassResult<String> {
+        Ok(String::from_utf8(self.payload.clone())?)
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PasswordAnalysis {
+pub struct PasswordInfo {
     // strength of password.
     pub strength: PasswordStrength,
     // entropy of password.
@@ -1391,16 +2298,175 @@ pub struct PasswordAnalysis {
     pub length: usize,
 }
 
+impl Display for PasswordInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "length of {}, {} uppercase, {} lowercase, {} digits, {} special-letters has {} strength",
+               self.length, self.uppercase, self.lowercase, self.digits, self.special_chars, self.strength)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasswordAnalysis {
+    // strength of password.
+    pub strength: PasswordStrength,
+    // if password is pwned by hibp.
+    pub compromised: bool,
+    // similar to other passwords
+    pub count_similar_to_other_passwords: usize,
+    // similar to past passwords
+    pub count_similar_to_past_passwords: usize,
+    // passwords reused
+    pub count_reused: usize,
+    // entropy of password.
+    pub entropy: f64,
+    // number of upper_case letters should be included.
+    pub uppercase: usize,
+    // number of lower_case letters should be included.
+    pub lowercase: usize,
+    // number of digits should be included.
+    pub digits: usize,
+    // number of symbols should be included.
+    pub special_chars: usize,
+    // length of password.
+    pub length: usize,
+    // compromised account analysis
+    pub compromised_account_analysis: String,
+}
+
+impl PasswordAnalysis {
+    pub fn new() -> Self {
+        Self {
+            strength: PasswordStrength::WEAK,
+            compromised: false,
+            count_similar_to_other_passwords: 0,
+            count_similar_to_past_passwords: 0,
+            count_reused: 0,
+            entropy: 0.0,
+            uppercase: 0,
+            lowercase: 0,
+            digits: 0,
+            special_chars: 0,
+            length: 0,
+            compromised_account_analysis: "".to_string(),
+        }
+    }
+
+    pub fn copy_from(&mut self, info: &PasswordInfo) {
+        self.strength = info.strength.clone();
+        self.entropy = info.entropy.clone();
+        self.uppercase = info.uppercase.clone();
+        self.lowercase = info.lowercase.clone();
+        self.digits = info.digits.clone();
+        self.special_chars = info.special_chars.clone();
+        self.length = info.length.clone();
+    }
+
+    pub fn is_healthy(&self) -> bool {
+        return self.strength == PasswordStrength::STRONG &&
+            self.compromised == false &&
+            self.count_similar_to_other_passwords == 0 &&
+            self.count_similar_to_past_passwords == 0 &&
+            self.count_reused == 0;
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
+pub struct VaultAnalysis {
+    pub total_accounts: usize,
+    pub count_strong_passwords: usize,
+    pub count_moderate_passwords: usize,
+    pub count_weak_passwords: usize,
+    pub count_healthy_passwords: usize,
+    pub count_compromised: usize,
+    pub count_reused: usize,
+    pub count_similar_to_other_passwords: usize,
+    pub count_similar_to_past_passwords: usize,
+}
+
+impl VaultAnalysis {
+    pub fn new() -> Self {
+        Self {
+            total_accounts: 0,
+            count_strong_passwords: 0,
+            count_moderate_passwords: 0,
+            count_weak_passwords: 0,
+            count_healthy_passwords: 0,
+            count_compromised: 0,
+            count_reused: 0,
+            count_similar_to_other_passwords: 0,
+            count_similar_to_past_passwords: 0,
+        }
+    }
+
+    pub fn risk_score(&self) -> usize {
+        if self.total_accounts > 0 {
+            self.count_healthy_passwords.clone() * 100 / self.total_accounts.clone()
+        } else {
+            0
+        }
+    }
+
+    pub fn add(&mut self, other: Option<VaultAnalysis>) {
+        if let Some(other) = other {
+            self.total_accounts += other.total_accounts.clone();
+            self.count_strong_passwords += other.count_strong_passwords.clone();
+            self.count_moderate_passwords += other.count_moderate_passwords.clone();
+            self.count_weak_passwords += other.count_weak_passwords.clone();
+            self.count_healthy_passwords += other.count_healthy_passwords.clone();
+            self.count_compromised += other.count_compromised.clone();
+            self.count_reused += other.count_reused.clone();
+            self.count_similar_to_other_passwords += other.count_similar_to_other_passwords.clone();
+            self.count_similar_to_past_passwords += other.count_similar_to_past_passwords.clone();
+        }
+    }
+
+    pub fn update(&mut self, password_summary: &AccountPasswordSummary) {
+        self.total_accounts += 1;
+        match password_summary.password_analysis.strength {
+            PasswordStrength::WEAK => { self.count_weak_passwords += 1; }
+            PasswordStrength::MODERATE => { self.count_moderate_passwords += 1; }
+            PasswordStrength::STRONG => { self.count_strong_passwords += 1; }
+        }
+
+        if password_summary.password_analysis.is_healthy() {
+            self.count_healthy_passwords += 1;
+        }
+        if password_summary.password_analysis.compromised {
+            self.count_compromised += 1;
+        }
+        if password_summary.password_analysis.count_reused > 0 {
+            self.count_reused += 1;
+        }
+        if password_summary.password_analysis.count_similar_to_other_passwords > 0 {
+            self.count_similar_to_other_passwords += 1;
+        }
+        if password_summary.password_analysis.count_similar_to_past_passwords > 0 {
+            self.count_similar_to_past_passwords += 1;
+        }
+    }
+}
+
+impl PartialEq for VaultAnalysis {
+    fn eq(&self, other: &Self) -> bool {
+        return self.total_accounts == other.total_accounts &&
+            self.count_strong_passwords == other.count_strong_passwords &&
+            self.count_moderate_passwords == other.count_moderate_passwords &&
+            self.count_weak_passwords == other.count_weak_passwords &&
+            self.count_healthy_passwords == other.count_healthy_passwords &&
+            self.count_compromised == other.count_compromised &&
+            self.count_reused == other.count_reused &&
+            self.count_similar_to_other_passwords == other.count_similar_to_other_passwords &&
+            self.count_similar_to_past_passwords == other.count_similar_to_past_passwords;
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
-    use crate::domain::models::{
-        Account, CryptoAlgorithm, DecryptRequest, DecryptResponse, EncryptRequest, EncryptResponse,
-        HSMProvider, HashAlgorithm, Lookup, LookupKind, Message, NameValue, PassConfig,
-        PasswordPolicy, PasswordStrength, Roles, Setting, SettingKind, User, UserKeyParams, Vault,
-        PBKDF2_HMAC_SHA256_ITERATIONS,
-    };
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
+
+    use crate::domain::models::{Account, AccountKind, AccountRisk, CryptoAlgorithm, DecryptRequest, DecryptResponse, EncodingScheme, EncryptRequest, EncryptResponse, HashAlgorithm, HSMProvider, Lookup, LookupKind, Message, MessageKind, NameValue, PassConfig, PasswordPolicy, PasswordStrength, PBKDF2_HMAC_SHA256_ITERATIONS, Roles, Setting, SettingKind, User, UserKeyParams, Vault, VaultKind};
 
     #[test]
     fn test_should_create_roles() {
@@ -1463,13 +2529,13 @@ mod tests {
 
     #[test]
     fn test_should_create_account() {
-        let account = Account::new("vault0");
+        let account = Account::new("vault0", AccountKind::Login);
         assert_ne!("", &account.details.account_id);
         assert_eq!("vault0", &account.vault_id);
         assert_eq!(0, account.details.version);
         assert_eq!(None, account.archived_version);
         assert!(!account.details.favorite);
-        assert_eq!(0, account.details.risk_mask);
+        assert_eq!(AccountRisk::Unknown, account.details.risk);
         assert_eq!(None, account.details.description);
         assert_eq!(None, account.details.username);
         assert_eq!(None, account.details.email);
@@ -1477,18 +2543,18 @@ mod tests {
         assert_eq!(None, account.credentials.password);
         assert_eq!(None, account.credentials.password_sha1);
         assert_eq!(None, account.credentials.notes);
-        assert_eq!(2, account.credentials.password_policy.min_digits);
+        assert_eq!(1, account.credentials.password_policy.min_digits);
         assert!(account.credentials.form_fields.is_empty());
         assert_eq!(None, account.details.credentials_updated_at);
         assert_ne!(None, account.created_at);
         assert_ne!(None, account.updated_at);
-        assert!(account.details.categories.is_empty());
+        assert!(account.details.category == None);
         assert!(account.details.tags.is_empty());
     }
 
     #[test]
     fn test_should_validate_account() {
-        let mut account = Account::new("vault");
+        let mut account = Account::new("vault", AccountKind::Login);
         account.details.username = Some("user".into());
         account.details.url = Some("url".into());
         account.credentials.password = Some("pass".into());
@@ -1499,17 +2565,17 @@ mod tests {
 
     #[test]
     fn test_should_before_save_account() {
-        let mut account = Account::new("vault");
-        account.details.categories = vec!["login".into(), "bank".into(), ", ".into()];
+        let mut account = Account::new("vault", AccountKind::Login);
+        account.details.category = Some("login".into());
         account.details.tags = vec!["personal".into(), "work".into()];
         account.before_save();
     }
 
     #[test]
     fn test_should_equal_account() {
-        let account1 = Account::new("vault1");
-        let account2 = Account::new("vault1");
-        let account3 = Account::new("vault1");
+        let account1 = Account::new("vault1", AccountKind::Login);
+        let account2 = Account::new("vault1", AccountKind::Login);
+        let account3 = Account::new("vault1", AccountKind::Login);
         assert_ne!(account1.details, account2.details);
         assert_ne!(account1.details, account3.details);
         let mut hasher = DefaultHasher::new();
@@ -1519,7 +2585,7 @@ mod tests {
 
     #[test]
     fn test_should_create_vault() {
-        let vault = Vault::new("user", "title");
+        let vault = Vault::new("user", "title", VaultKind::Logins);
         assert_eq!("title", vault.title);
         assert_ne!("", vault.vault_id);
         assert_eq!(0, vault.version);
@@ -1529,8 +2595,8 @@ mod tests {
 
     #[test]
     fn test_should_equal_vault() {
-        let vault1 = Vault::new("user", "title");
-        let vault2 = Vault::new("user", "title");
+        let vault1 = Vault::new("user", "title", VaultKind::Logins);
+        let vault2 = Vault::new("user", "title", VaultKind::Logins);
         assert_ne!(vault1, vault2);
         assert_eq!("title", vault1.to_string());
         let mut hasher = DefaultHasher::new();
@@ -1550,7 +2616,7 @@ mod tests {
             HashAlgorithm::ARGON2id {
                 memory_mi_b: 64,
                 iterations: 3,
-                parallelism: 1
+                parallelism: 1,
             },
             config.hash_algorithm()
         );
@@ -1560,13 +2626,13 @@ mod tests {
     fn test_generate_strong_memorable_password() {
         let pwc = PasswordPolicy::new();
         let password = pwc.generate_strong_memorable_password(3).unwrap();
-        let analysis = PasswordPolicy::analyze_password(&password);
-        assert_eq!(PasswordStrength::STRONG, analysis.strength);
-        assert!(analysis.lowercase >= pwc.min_lowercase);
-        assert!(analysis.uppercase >= pwc.min_uppercase);
-        assert!(analysis.digits >= pwc.min_digits);
-        assert!(analysis.special_chars >= pwc.min_special_chars);
-        assert!(analysis.entropy > 80.0);
+        let info = PasswordPolicy::password_info(&password);
+        assert_eq!(PasswordStrength::STRONG, info.strength, "{}", password);
+        assert!(info.lowercase >= pwc.min_lowercase, "{}", password);
+        assert!(info.uppercase >= pwc.min_uppercase, "{}", password);
+        assert!(info.digits >= pwc.min_digits, "{}", password);
+        assert!(info.special_chars >= pwc.min_special_chars, "{}", password);
+        assert!(info.entropy > 80.0, "{}", password);
     }
 
     #[test]
@@ -1574,26 +2640,26 @@ mod tests {
         let mut pwc = PasswordPolicy::new();
         pwc.min_special_chars = 4;
         let password = pwc.generate_memorable_password(3).unwrap();
-        let analysis = PasswordPolicy::analyze_password(&password);
-        assert_eq!(PasswordStrength::STRONG, analysis.strength);
-        assert!(analysis.lowercase >= pwc.min_lowercase);
-        assert!(analysis.uppercase >= pwc.min_uppercase);
-        assert!(analysis.digits >= pwc.min_digits);
-        assert!(analysis.special_chars >= pwc.min_special_chars);
-        assert!(analysis.entropy > 80.0);
+        let info = PasswordPolicy::password_info(&password);
+        assert_eq!(PasswordStrength::STRONG, info.strength, "{}", password);
+        assert!(info.lowercase >= pwc.min_lowercase, "{}", password);
+        assert!(info.uppercase >= pwc.min_uppercase, "{}", password);
+        assert!(info.digits >= pwc.min_digits, "{}", password);
+        assert!(info.special_chars >= pwc.min_special_chars, "{}", password);
+        assert!(info.entropy > 80.0, "{}", password);
     }
 
     #[test]
     fn test_should_random_generate_password() {
         let pwc = PasswordPolicy::new();
         let password = pwc.generate_strong_random_password().unwrap();
-        let analysis = PasswordPolicy::analyze_password(&password);
-        assert_eq!(PasswordStrength::STRONG, analysis.strength);
-        assert!(analysis.lowercase >= pwc.min_lowercase);
-        assert!(analysis.uppercase >= pwc.min_uppercase);
-        assert!(analysis.digits >= pwc.min_digits);
-        assert!(analysis.special_chars >= pwc.min_special_chars);
-        assert!(analysis.entropy > 80.0);
+        let info = PasswordPolicy::password_info(&password);
+        assert_eq!(PasswordStrength::STRONG, info.strength);
+        assert!(info.lowercase >= pwc.min_lowercase);
+        assert!(info.uppercase >= pwc.min_uppercase);
+        assert!(info.digits >= pwc.min_digits);
+        assert!(info.special_chars >= pwc.min_special_chars);
+        assert!(info.entropy > 80.0);
     }
 
     #[test]
@@ -1635,9 +2701,9 @@ mod tests {
 
     #[test]
     fn test_should_create_message() {
-        let msg = Message::new("user", "type", "subject", "data");
+        let msg = Message::new("user", MessageKind::Broadcast, "subject", "data");
         assert_eq!("user", msg.user_id);
-        assert_eq!("type", msg.message_type);
+        assert_eq!(MessageKind::Broadcast, msg.kind);
         assert_eq!("subject", msg.subject);
         assert_eq!("data", msg.data);
         assert!(msg.created_at.expect("created time").timestamp() > 0);
@@ -1684,7 +2750,7 @@ mod tests {
             HashAlgorithm::ARGON2id {
                 memory_mi_b: 64,
                 iterations: 3,
-                parallelism: 1
+                parallelism: 1,
             },
             HashAlgorithm::from("ARGON2id")
         );
@@ -1692,7 +2758,7 @@ mod tests {
             HashAlgorithm::ARGON2id {
                 memory_mi_b: 64,
                 iterations: 3,
-                parallelism: 1
+                parallelism: 1,
             },
             HashAlgorithm::from("unknown")
         );
@@ -1700,7 +2766,7 @@ mod tests {
 
     #[test]
     fn test_should_build_encrypt_request_response() {
-        let req = EncryptRequest::new(
+        let req = EncryptRequest::from_string(
             "salt",
             "pepper",
             "master",
@@ -1709,11 +2775,12 @@ mod tests {
             },
             CryptoAlgorithm::Aes256Gcm,
             "text",
+            EncodingScheme::Base64,
         );
         assert_eq!("master", req.master_secret);
         assert_eq!("salt", req.salt);
         assert_eq!("pepper", req.device_pepper);
-        assert_eq!("text", req.plaintext);
+        assert_eq!("text".as_bytes(), req.payload);
         assert_eq!(
             HashAlgorithm::Pbkdf2HmacSha256 {
                 iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
@@ -1721,30 +2788,40 @@ mod tests {
             req.hash_algorithm
         );
         assert_eq!(CryptoAlgorithm::Aes256Gcm, req.crypto_algorithm);
-        let res = EncryptResponse::new("nonce".as_bytes().to_vec(), "cipher".as_bytes().to_vec())
-            .unwrap();
+        let res = EncryptResponse::new(
+            "nonce".as_bytes().to_vec(),
+            "cipher".as_bytes().to_vec(),
+            EncodingScheme::Hex);
         assert_eq!("6e6f6e6365", res.nonce); // hex encoded `nonce`
-        assert_eq!("636970686572", res.ciphertext); // hex encoded `cipher`
+        assert_eq!("636970686572", res.encoded_payload().unwrap()); // hex encoded `cipher`
+
+        let res = EncryptResponse::new(
+            "nonce".as_bytes().to_vec(),
+            "cipher".as_bytes().to_vec(),
+            EncodingScheme::Base64);
+        assert_eq!("6e6f6e6365", res.nonce); // hex encoded `nonce`
+        assert_eq!("636970686572", hex::encode(res.cipher_payload)); // hex base64 `cipher`
     }
 
     #[test]
     fn test_should_build_decrypt_request_response() {
-        let req = DecryptRequest::new(
+        let req = DecryptRequest::from_string(
             "salt",
-            "nonce",
             "pepper",
             "master",
             HashAlgorithm::Pbkdf2HmacSha256 {
                 iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
             },
             CryptoAlgorithm::Aes256Gcm,
+            "nonce",
             "cipher",
-        );
+            EncodingScheme::None,
+        ).unwrap();
         assert_eq!("master", req.master_secret);
         assert_eq!("salt", req.salt);
         assert_eq!("nonce", req.nonce);
         assert_eq!("pepper", req.device_pepper);
-        assert_eq!("cipher", req.ciphertext);
+        assert_eq!("cipher".as_bytes(), req.cipher_payload);
         assert_eq!(
             HashAlgorithm::Pbkdf2HmacSha256 {
                 iterations: PBKDF2_HMAC_SHA256_ITERATIONS,
@@ -1753,6 +2830,6 @@ mod tests {
         );
         assert_eq!(CryptoAlgorithm::Aes256Gcm, req.crypto_algorithm);
         let res = DecryptResponse::new("plain".as_bytes().to_vec()).unwrap();
-        assert_eq!("plain", res.plaintext);
+        assert_eq!("plain".as_bytes(), res.payload);
     }
 }

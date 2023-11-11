@@ -1,23 +1,22 @@
 use crate::domain::error::PassError;
 use crate::domain::models::PassResult;
 use crate::store::HSMStore;
-use security_framework::os::macos::keychain::SecKeychain;
 
 const KEY_CHAIN_SERVICE_NAME: &str = "PlexPass";
 
-pub(crate) struct KeychainHSMStore {}
+pub struct KeychainHSMStore {}
 
 impl KeychainHSMStore {
-    pub(crate) fn new() -> KeychainHSMStore {
+    pub fn new() -> KeychainHSMStore {
         Self {}
     }
 }
 
 impl HSMStore for KeychainHSMStore {
+    #[cfg(target_os = "macos")]
     fn get_property(&self, username: &str, name: &str) -> PassResult<String> {
         let full_name = format!("{}_{}", username, name);
-
-        let keychain = SecKeychain::default()?;
+        let keychain = security_framework::os::macos::keychain::SecKeychain::default()?;
 
         // Retrieve key data from the keychain.
         match keychain.find_generic_password(KEY_CHAIN_SERVICE_NAME, &full_name) {
@@ -28,15 +27,33 @@ impl HSMStore for KeychainHSMStore {
         }
     }
 
+    #[cfg(not(target_os = "macos"))]
+    fn get_property(&self, _username: &str, _name: &str) -> PassResult<String> {
+        Err(PassError::runtime("Keychain is only supported on macos", None))
+    }
+
+    #[cfg(target_os = "macos")]
     fn set_property(&self, username: &str, name: &str, value: &str) -> PassResult<()> {
         let full_name = format!("{}_{}", username, name);
-
-        let keychain = SecKeychain::default()?;
+        let keychain = security_framework::os::macos::keychain::SecKeychain::default()?;
         // Store key data in the keychain.
         keychain.set_generic_password(KEY_CHAIN_SERVICE_NAME, &full_name, value.as_bytes())?;
         Ok(())
     }
+
+    #[cfg(not(target_os = "macos"))]
+    fn set_property(&self, _username: &str, _name: &str, _value: &str) -> PassResult<()> {
+        Err(PassError::runtime("Keychain is only supported on macos", None))
+    }
 }
+
+#[cfg(target_os = "macos")]
+impl From<security_framework::base::Error> for PassError {
+    fn from(err: security_framework::base::Error) -> Self {
+        PassError::crypto(format!("keychain failed {:?}", err).as_str())
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS archived_accounts
     account_id        VARCHAR(36) NOT NULL,
     version           BIGINT      NOT NULL DEFAULT 0,
     vault_id          VARCHAR(36) NOT NULL REFERENCES vaults(vault_id),
-    crypto_key_id     VARCHAR(36) NOT NULL REFERENCES crypto_keys(crypto_key_id),
+    crypto_key_id     VARCHAR(36) NOT NULL,
     salt              VARCHAR(32) NOT NULL,
     nonce             VARCHAR(32) NOT NULL,
     encrypted_value   TEXT        NOT NULL,

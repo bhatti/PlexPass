@@ -1,24 +1,27 @@
+use actix_multipart::MultipartError;
 use crate::domain::error::PassError;
 use actix_session::{SessionGetError, SessionInsertError};
 use actix_web::error::InternalError;
-use actix_web::http::StatusCode;
-use actix_web::ResponseError;
+use actix_web::http::{StatusCode};
+use actix_web::{ResponseError};
 use openssl::error::ErrorStack;
 
 impl ResponseError for PassError {
     fn status_code(&self) -> StatusCode {
         match self {
             PassError::Database { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            PassError::Constraints { .. } => StatusCode::CONFLICT,
             PassError::DuplicateKey { .. } => StatusCode::CONFLICT,
             PassError::NotFound { .. } => StatusCode::NOT_FOUND,
             PassError::CurrentlyUnavailable { .. } => StatusCode::INTERNAL_SERVER_ERROR,
             PassError::Validation { .. } => StatusCode::BAD_REQUEST,
             PassError::Serialization { .. } => StatusCode::INTERNAL_SERVER_ERROR,
-            PassError::Crypto { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            PassError::Crypto { .. } => StatusCode::BAD_REQUEST,
             PassError::Authentication { .. } => StatusCode::UNAUTHORIZED,
             PassError::Authorization { .. } => StatusCode::FORBIDDEN,
             PassError::WeakPassword { .. } => StatusCode::BAD_REQUEST,
             PassError::Runtime { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            PassError::Import { .. } => StatusCode::CONFLICT,
         }
     }
 }
@@ -30,6 +33,7 @@ impl From<PassError> for InternalError<PassError> {
                 InternalError::new(err.clone(), StatusCode::INTERNAL_SERVER_ERROR)
             }
             PassError::DuplicateKey { .. } => InternalError::new(err.clone(), StatusCode::CONFLICT),
+            PassError::Constraints { .. } => InternalError::new(err.clone(), StatusCode::CONFLICT),
             PassError::NotFound { .. } => InternalError::new(err.clone(), StatusCode::NOT_FOUND),
             PassError::CurrentlyUnavailable { .. } => {
                 InternalError::new(err.clone(), StatusCode::INTERNAL_SERVER_ERROR)
@@ -41,7 +45,7 @@ impl From<PassError> for InternalError<PassError> {
                 InternalError::new(err.clone(), StatusCode::INTERNAL_SERVER_ERROR)
             }
             PassError::Crypto { .. } => {
-                InternalError::new(err.clone(), StatusCode::INTERNAL_SERVER_ERROR)
+                InternalError::new(err.clone(), StatusCode::BAD_REQUEST)
             }
             PassError::Authentication { .. } => {
                 InternalError::new(err.clone(), StatusCode::UNAUTHORIZED)
@@ -54,6 +58,9 @@ impl From<PassError> for InternalError<PassError> {
             }
             PassError::Runtime { .. } => {
                 InternalError::new(err.clone(), StatusCode::INTERNAL_SERVER_ERROR)
+            }
+            PassError::Import { .. } => {
+                InternalError::new(err.clone(), StatusCode::CONFLICT)
             }
         }
     }
@@ -86,5 +93,11 @@ impl From<rustls::Error> for PassError {
 impl From<ErrorStack> for PassError {
     fn from(err: ErrorStack) -> Self {
         PassError::runtime(format!("SSL failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<MultipartError> for PassError {
+    fn from(err: MultipartError) -> Self {
+        PassError::runtime(format!("Multipart failed {:?}", err).as_str(), None)
     }
 }

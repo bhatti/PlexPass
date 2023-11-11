@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %} Security Dashboard {% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Top Section -->
+    <h2 class="text-center">PlexPass - Security Dashboard</h2>
+    <div class="row mb-4">
+        <!-- Left Gauge for Risk Score -->
+        <div class="col-md-4">
+            <canvas id="riskGauge"></canvas>
+            <div id="riskScoreLabel" class="position-absolute top-50 start-50 translate-middle">
+                {% if summary.risk_score() > 99 %}
+                <p>Risk Score</p>
+                <h3>{{summary.risk_score()}}</h3>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Right Metrics -->
+        <div class="col-md-8">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Total Vaults</h6>
+                        <p id="totalVaults">{{total_vaults}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Compromised Passwords</h6>
+                        <p id="totalCompromised">{{summary.count_compromised}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Weak Passwords</h6>
+                        <p id="totalWeakPasswords">{{summary.count_weak_passwords}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Moderate Passwords</h6>
+                        <p id="totalModeratePasswords">{{summary.count_moderate_passwords}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Strong Passwords</h6>
+                        <p id="totalStrongPasswords">{{summary.count_strong_passwords}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Healthy Passwords</h6>
+                        <p id="totalHealthyPasswords">{{summary.count_healthy_passwords}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Reused Passwords</h6>
+                        <p id="totalReusedPasswords">{{summary.count_reused}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Accounts with Similar to Other Passwords</h6>
+                        <p id="totalSimilarToOtherPasswords">{{summary.count_similar_to_other_passwords}}</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="p-3 border bg-light">
+                        <h6>Accounts with Similar to Past Passwords</h6>
+                        <p id="totalSimilarToPastPasswords">{{summary.count_similar_to_past_passwords}}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12 bg-light text-right float-right">
+            <button type="button" class="btn btn-primary" onclick="scheduleAnalysis()">Schedule Password Analysis</button>
+        </div>
+    </div>
+
+    <!-- Bottom Section: Gauges and Metrics for Each Vault -->
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for vault in vaults %}
+        <!-- Vault -->
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    {{vault.title}} Vault
+                </div>
+                <div class="card-body">
+                    <canvas id="{{vault.vault_id}}_Gauge"></canvas>
+                    <div id="{{vault.vault_id}}_ScoreLabel" class="position-absolute top-50 start-50 translate-middle">
+                        {% if summary.risk_score() > 99 %}
+                        <p>Risk Score</p>
+                        <h4>{{vault.analysis.risk_score()}}</h4>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Metrics -->
+                <div class="col-md-8">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Compromised Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalCompromised">{{vault.analysis.count_compromised}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Weak Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalWeakPasswords">{{vault.analysis.count_weak_passwords}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Moderate Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalModeratePasswords">{{vault.analysis.count_moderate_passwords}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Strong Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalStrongPasswords">{{vault.analysis.count_strong_passwords}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Healthy Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalHealthyPasswords">{{vault.analysis.count_healthy_passwords}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Reused Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalReusedPasswords">{{vault.analysis.count_reused}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Accounts with Similar to Other Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalSimilarToOtherPasswords">{{vault.analysis.count_similar_to_other_passwords}}</p>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="p-3 border bg-light">
+                                <h6>Accounts with Similar to Past Passwords</h6>
+                                <p id="{{vault.vault_id}}_totalSimilarToPastPasswords">{{vault.analysis.count_similar_to_past_passwords}}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_content %}
+{% endblock extra_content %}
+
+{% block footer %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Risk Gauge for the dashboard
+        buildGauge(document.getElementById('riskGauge').getContext('2d'), [{{summary.count_compromised}}, {{summary.count_weak_passwords}}, {{summary.count_moderate_passwords}}, {{summary.count_strong_passwords}}, {{summary.count_healthy_passwords}}], '{{summary.risk_score()}}%');
+
+        {% for vault in vaults %}
+        // Gauge context for {{vault.title}}
+        buildGauge(document.getElementById('{{vault.vault_id}}_Gauge').getContext('2d'), [{{vault.analysis.count_compromised}}, {{vault.analysis.count_weak_passwords}}, {{vault.analysis.count_moderate_passwords}}, {{vault.analysis.count_strong_passwords}}, {{vault.analysis.count_healthy_passwords}}], '{{summary.risk_score()}}%', 'polarArea');
+        {% endfor %}
+    });
+</script>
+{% endblock footer %}

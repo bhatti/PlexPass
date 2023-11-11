@@ -37,8 +37,8 @@ impl LookupRepository for LookupRepositoryImpl {}
 impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
     // create lookup.
     async fn create(&self, ctx: &UserContext, lookup: &Lookup) -> PassResult<usize> {
-        // ensure user-context and lookup user-id matches
-        ctx.validate_user_id(&lookup.user_id)?;
+        // ensure user-context and lookup user-id matches -- no acl-check
+        ctx.validate_user_id(&lookup.user_id, || false)?;
         let lookup_entity = LookupEntity::new(lookup);
         let mut conn = self.connection()?;
         match diesel::insert_into(lookups::table)
@@ -47,7 +47,6 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
         {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("created lookup {:?} {}", lookup, size);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -63,7 +62,8 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
 
     // updates existing lookup.
     async fn update(&self, ctx: &UserContext, lookup: &Lookup) -> PassResult<usize> {
-        ctx.validate_user_id(&lookup.user_id)?;
+        // no acl-check
+        ctx.validate_user_id(&lookup.user_id, || false)?;
 
         let existing_lookup_entity = self.get_entity(ctx, &lookup.lookup_id).await?;
 
@@ -75,20 +75,19 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
                     .and(lookup_id.eq(&lookup.lookup_id)),
             ),
         )
-        .set((
-            kind.eq(lookup.kind.to_string()),
-            name.eq(&lookup.name),
-            updated_at.eq(Utc::now().naive_utc()),
-        ))
-        .execute(&mut conn)
+            .set((
+                kind.eq(lookup.kind.to_string()),
+                name.eq(&lookup.name),
+                updated_at.eq(Utc::now().naive_utc()),
+            ))
+            .execute(&mut conn)
         {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("updated lookup {:?} {}", lookup, size);
                     Ok(size)
                 } else {
                     Err(PassError::database(
-                        format!("failed to update lookup {}", lookup.lookup_id,).as_str(),
+                        format!("failed to update lookup {}", lookup.lookup_id, ).as_str(),
                         None,
                         false,
                     ))
@@ -102,8 +101,8 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
     async fn get(&self, ctx: &UserContext, id: &str) -> PassResult<Lookup> {
         let lookup_entity = self.get_entity(ctx, id).await?;
 
-        // ensure lookup belongs to user
-        ctx.validate_user_id(&lookup_entity.user_id)?;
+        // ensure lookup belongs to user - no acl check
+        ctx.validate_user_id(&lookup_entity.user_id, || false)?;
 
         Ok(lookup_entity.to_lookup())
     }
@@ -112,14 +111,13 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
     async fn delete(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {
         let lookup_entity = self.get_entity(ctx, id).await?;
 
-        // ensure lookup belongs to user
-        ctx.validate_user_id(&lookup_entity.user_id)?;
+        // ensure lookup belongs to user -- no acl check
+        ctx.validate_user_id(&lookup_entity.user_id, || false)?;
 
         let mut conn = self.connection()?;
         match diesel::delete(lookups.filter(lookup_id.eq(id))).execute(&mut conn) {
             Ok(size) => {
                 if size > 0 {
-                    log::debug!("deleted lookup lookup {}", id);
                     Ok(size)
                 } else {
                     Err(PassError::database(
@@ -157,8 +155,8 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
             ));
         }
         let entity = items.remove(0);
-        // ensure lookup belongs to user
-        ctx.validate_user_id(&entity.user_id)?;
+        // ensure lookup belongs to user -- no acl check
+        ctx.validate_user_id(&entity.user_id, ||false)?;
         Ok(entity)
     }
 

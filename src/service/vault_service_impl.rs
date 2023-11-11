@@ -6,7 +6,8 @@ use prometheus::Registry;
 
 use crate::dao::models::UserContext;
 use crate::dao::VaultRepository;
-use crate::domain::models::{PassConfig, PassResult, Vault};
+use crate::domain::error::PassError;
+use crate::domain::models::{AccountSummary, PassConfig, PassResult, Vault};
 use crate::service::VaultService;
 use crate::utils::metrics::PassMetrics;
 
@@ -35,7 +36,17 @@ impl VaultServiceImpl {
 impl VaultService for VaultServiceImpl {
     async fn create_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize> {
         let _ = self.metrics.new_metric("create_vault");
-        self.vault_repository.create(ctx, vault).await
+        match self.vault_repository.create(ctx, vault).await {
+            Ok(size) => {
+                Ok(size)
+            }
+            Err(err) => {
+                if let PassError::DuplicateKey { .. } = err {
+                    return Err(PassError::duplicate_key("duplicate vault name"));
+                }
+                Err(err)
+            }
+        }
     }
 
     async fn update_vault(&self, ctx: &UserContext, vault: &Vault) -> PassResult<usize> {
@@ -67,13 +78,30 @@ impl VaultService for VaultServiceImpl {
             .await?;
         Ok(res.records)
     }
+
+    // account summaries.
+    async fn account_summaries_by_vault(
+        &self,
+        ctx: &UserContext,
+        vault_id: &str,
+        q: Option<String>,
+    ) -> PassResult<Vec<AccountSummary>> {
+        let _ = self.metrics.new_metric("account_summaries_by_vault");
+        let vault = self.vault_repository.get(ctx, vault_id).await?;
+        let mut summaries = vault.account_summaries();
+        if let Some(q) = q {
+            summaries = summaries.into_iter().filter(|a| a.matches(&q)).collect::<Vec<AccountSummary>>();
+        }
+        Ok(summaries)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use uuid::Uuid;
 
-    use crate::domain::models::{HSMProvider, PassConfig, User, Vault};
+    use crate::domain::models::{DEFAULT_VAULT_NAMES, HSMProvider, PassConfig, User, Vault, VaultKind};
     use crate::service::factory::{create_user_service, create_vault_service};
 
     #[tokio::test]
@@ -86,10 +114,10 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating a new vault
-        let mut vault = Vault::new(&user.user_id, "title1");
+        let mut vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
         // THEN it should succeed
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
@@ -107,6 +135,9 @@ mod tests {
         // THEN it should have updated values
         assert_eq!("new-value", loaded.title);
         assert_eq!(2, loaded.version);
+
+        let summaries = vault_service.account_summaries_by_vault(&ctx, &vault.vault_id, None).await.unwrap();
+        assert_eq!(0, summaries.len());
     }
 
     #[tokio::test]
@@ -119,10 +150,10 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating a new vault
-        let vault = Vault::new(&user.user_id, "title1");
+        let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
         // THEN it should succeed
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
@@ -151,17 +182,17 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         for i in 0..5 {
             // WHEN creating a new vault
-            let vault = Vault::new(&user.user_id, format!("title {}", i).as_str());
+            let vault = Vault::new(&user.user_id, format!("title {}", i).as_str(), VaultKind::Logins);
             // THEN it should succeed
             assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
         }
         // WHEN finding vaults for the user
         let all = vault_service.get_user_vaults(&ctx).await.unwrap();
         // THEN it should return all vaults
-        assert_eq!(5, all.len());
+        assert_eq!(5 + DEFAULT_VAULT_NAMES.len(), all.len());
     }
 }

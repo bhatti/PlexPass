@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -6,7 +6,7 @@ use prometheus::Registry;
 
 use crate::dao::models::UserContext;
 use crate::dao::LookupRepository;
-use crate::domain::models::{Lookup, LookupKind, PassConfig, PassResult};
+use crate::domain::models::{all_categories, Lookup, LookupKind, PassConfig, PassResult};
 use crate::service::LookupService;
 use crate::utils::metrics::PassMetrics;
 
@@ -94,6 +94,21 @@ impl LookupService for LookupServiceImpl {
         self.get_lookups_by_kind(ctx, kind).await
     }
 
+    // get default and user categories combined
+    async fn get_categories(&self, ctx: &UserContext) -> PassResult<Vec<String>> {
+        let user_categories = self.get_lookups_by_kind(ctx, LookupKind::CATEGORY).await?;
+        let mut categories = HashSet::new();
+        for cat in user_categories {
+            categories.insert(cat.name);
+        }
+        for cat in all_categories() {
+            categories.insert(cat);
+        }
+        let mut categories: Vec<_> = categories.into_iter().collect();
+        categories.sort();
+        Ok(categories)
+    }
+
     async fn get_lookup(
         &self,
         ctx: &UserContext,
@@ -107,9 +122,10 @@ impl LookupService for LookupServiceImpl {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use uuid::Uuid;
 
-    use crate::domain::models::{Lookup, LookupKind, PassConfig, User};
+    use crate::domain::models::{all_categories, Lookup, LookupKind, PassConfig, User};
     use crate::service::factory::{create_lookup_service, create_user_service};
 
     #[tokio::test]
@@ -121,7 +137,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
 
         // WHEN creating a lookup
         let lookup = Lookup::new(&user.user_id, LookupKind::TAG, "name");
@@ -150,7 +166,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating an lookup
         let lookup = Lookup::new(&user.user_id, LookupKind::CATEGORY, "name1");
@@ -185,7 +201,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
 
         let kinds = [LookupKind::CATEGORY, LookupKind::TAG];
         for i in 0..10 {
@@ -211,5 +227,8 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(5, res2.len());
+
+        let res3 = lookup_service.get_categories(&ctx).await.unwrap();
+        assert_eq!(5 + all_categories().len(), res3.len());
     }
 }

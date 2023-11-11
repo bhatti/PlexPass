@@ -1,10 +1,10 @@
-use crate::crypto::compute_sha1;
+use crate::crypto::compute_sha1_hex;
 use crate::domain::error::PassError;
 use crate::domain::models::PassResult;
 use log::info;
 
 /// email_compromised checks if an account with given email has been compromised  
-pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<bool> {
+pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<String> {
     // Set the HIBP API endpoint and the user-agent header
     let url = format!(
         "https://haveibeenpwned.com/api/v3/breachedaccount/{}",
@@ -32,24 +32,22 @@ pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<
                             None,
                         ));
                     }
+                    Ok(text)
                 }
-                _ => {}
+                Err(err) => {
+                    Err(PassError::from(err))
+                }
             }
-            Ok(true)
         }
         Err(err) => {
-            if err.status() == Some(reqwest::StatusCode::NOT_FOUND) {
-                Ok(false)
-            } else {
-                Err(PassError::from(err))
-            }
+            Err(PassError::from(err))
         }
     }
 }
 
 /// password_compromised checks if an account with given password has been compromised  
 pub(crate) async fn password_compromised(password: &str) -> PassResult<bool> {
-    let hash_str = compute_sha1(password).to_uppercase();
+    let hash_str = compute_sha1_hex(password).to_uppercase();
 
     // Split the hash
     let prefix = &hash_str[0..5];

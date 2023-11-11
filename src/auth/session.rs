@@ -28,6 +28,7 @@ Implementation of the [SessionStore] trait of [actix_session].
 pub(crate) struct MemorySession;
 
 impl MemorySession {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {}
     }

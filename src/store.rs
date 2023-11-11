@@ -2,7 +2,7 @@ use crate::domain::models::PassResult;
 
 pub(crate) mod factory;
 pub(crate) mod hsm_store_file;
-mod hsm_store_keychain;
+pub(crate) mod hsm_store_keychain;
 
 pub trait HSMStore {
     // get_property finds a secured property of user by name from the keychain.

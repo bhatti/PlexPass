@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS vaults
     version           BIGINT      NOT NULL DEFAULT 0,
     owner_user_id     VARCHAR(36) NOT NULL REFERENCES users(user_id),
     title             VARCHAR(50) NOT NULL,
+    kind              VARCHAR(32) NOT NULL,
     salt              VARCHAR(32) NOT NULL,
     nonce             VARCHAR(32) NOT NULL,
     encrypted_value   TEXT        NOT NULL,

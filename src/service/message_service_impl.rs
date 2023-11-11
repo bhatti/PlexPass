@@ -6,25 +6,23 @@ use prometheus::Registry;
 
 use crate::dao::models::UserContext;
 use crate::dao::MessageRepository;
-use crate::domain::models::{Message, PaginatedResult, PassConfig, PassResult};
+use crate::domain::models::{Message, MessageKind, PaginatedResult, PassConfig, PassResult};
 use crate::service::MessageService;
 use crate::utils::metrics::PassMetrics;
 
 #[derive(Clone)]
 pub(crate) struct MessageServiceImpl {
-    config: PassConfig,
     message_repository: Arc<dyn MessageRepository + Send + Sync>,
     metrics: PassMetrics,
 }
 
 impl MessageServiceImpl {
     pub(crate) fn new(
-        config: &PassConfig,
+        _config: &PassConfig,
         message_repository: Arc<dyn MessageRepository + Send + Sync>,
         registry: &Registry,
     ) -> PassResult<Self> {
         Ok(Self {
-            config: config.clone(),
             message_repository,
             metrics: PassMetrics::new("message_service", registry)?,
         })
@@ -52,18 +50,21 @@ impl MessageService for MessageServiceImpl {
     async fn find_messages_by_user(
         &self,
         ctx: &UserContext,
-        message_type: &str,
+        kind: Option<MessageKind>,
         offset: i64,
         limit: usize,
     ) -> PassResult<PaginatedResult<Message>> {
         let _ = self.metrics.new_metric("find_messages_by_user");
+        let mut predicates: HashMap<String, String> = HashMap::from([
+            ("user_id".into(), ctx.user_id.clone()),
+        ]);
+        if let Some(kind) = kind {
+            predicates.insert("kind".into(), kind.to_string());
+        }
         self.message_repository
             .find(
                 ctx,
-                HashMap::from([
-                    ("user_id".into(), ctx.user_id.clone()),
-                    ("message_type".into(), message_type.to_string()),
-                ]),
+                predicates,
                 offset,
                 limit,
             )
@@ -73,9 +74,10 @@ impl MessageService for MessageServiceImpl {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use uuid::Uuid;
 
-    use crate::domain::models::{HSMProvider, Message, PassConfig, User};
+    use crate::domain::models::{HSMProvider, Message, MessageKind, PassConfig, User};
     use crate::service::factory::{create_message_service, create_user_service};
 
     #[tokio::test]
@@ -88,11 +90,10 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
-        let message_type = Uuid::new_v4().to_string();
         // WHEN creating a message
-        let mut message = Message::new(&user.user_id, &message_type, "subject", "data");
+        let mut message = Message::new(&user.user_id, MessageKind::DM, "subject", "data");
 
         // THEN it should succeed
         assert_eq!(
@@ -116,7 +117,7 @@ mod tests {
 
         // WHEN retrieving the message
         let find_res = message_service
-            .find_messages_by_user(&ctx, message_type.as_str(), 0, 1000)
+            .find_messages_by_user(&ctx, Some(MessageKind::DM), 0, 1000)
             .await
             .unwrap();
         // THEN message should have updated attributes.
@@ -136,11 +137,10 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx = user_service.signup_user(&user, "password").await.unwrap();
+        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
-        let message_type = Uuid::new_v4().to_string();
         // WHEN creating an message
-        let message = Message::new(&user.user_id, &message_type, "subject", "data");
+        let message = Message::new(&user.user_id, MessageKind::ShareAccount, "subject", "data");
 
         // THEN it should succeed
         assert_eq!(
@@ -161,7 +161,7 @@ mod tests {
 
         // WHEN retrieving the message after deleting it THEN it should not find it.
         let res = message_service
-            .find_messages_by_user(&ctx, &message_type, 0, 500)
+            .find_messages_by_user(&ctx, Some(MessageKind::ShareAccount), 0, 500)
             .await
             .unwrap();
         assert_eq!(0, res.records.len());
@@ -177,13 +177,13 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user1 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx1 = user_service.signup_user(&user1, "password").await.unwrap();
+        let (ctx1, _) = user_service.signup_user(&user1, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
         let user2 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let ctx2 = user_service.signup_user(&user2, "password").await.unwrap();
+        let (ctx2, _) = user_service.signup_user(&user2, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         for _i in 0..5 {
             // WHEN creating an message
-            let message = Message::new(&user1.user_id, "kind", "subject", "data");
+            let message = Message::new(&user1.user_id, MessageKind::Advisory, "subject", "data");
             assert_eq!(
                 1,
                 message_service
@@ -194,13 +194,13 @@ mod tests {
         }
 
         let res1 = message_service
-            .find_messages_by_user(&ctx1, "", 0, 500)
+            .find_messages_by_user(&ctx1, Some(MessageKind::Advisory), 0, 500)
             .await
             .unwrap();
         assert_eq!(5, res1.records.len());
         // try changing user-id in context to non-existing
         let res2 = message_service
-            .find_messages_by_user(&ctx2, "", 0, 500)
+            .find_messages_by_user(&ctx2, Some(MessageKind::Advisory), 0, 500)
             .await
             .unwrap();
         assert_eq!(0, res2.records.len());
