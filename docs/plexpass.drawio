@@ -1,0 +1,161 @@
+<mxfile host="app.diagrams.net" modified="2023-11-11T17:12:34.906Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/118.0" etag="BtuVc3cjFXJII9fY8-Bf" version="21.7.5" type="device">
+  <diagram name="Encryption" id="UZZ5lY_kn1dZRoULjmNy">
+    <mxGraphModel dx="1102" dy="745" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-44" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="10" width="720" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-1" target="VuewE_ZMrkV_7XgpeJRc-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-23" value="Encrypts User Key" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="VuewE_ZMrkV_7XgpeJRc-14">
+          <mxGeometry x="0.2286" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-39" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="410" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-1" value="Master Secret Key" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;fontColor=#4277BB;labelBackgroundColor=default;fontSize=12;spacingTop=3;image=img/lib/ibm/vpc/Key.svg;" vertex="1" parent="1">
+          <mxGeometry x="290" y="270" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-4" target="VuewE_ZMrkV_7XgpeJRc-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="159" />
+              <mxPoint x="420" y="230" />
+              <mxPoint x="320" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-37" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-4" target="VuewE_ZMrkV_7XgpeJRc-36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-4" value="&lt;div&gt;Master Password&lt;/div&gt;" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.security.lock_with_key_security_ghosted;" vertex="1" parent="1">
+          <mxGeometry x="402" y="130" width="47" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-6" target="VuewE_ZMrkV_7XgpeJRc-1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="213" y="230" />
+              <mxPoint x="320" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-6" target="VuewE_ZMrkV_7XgpeJRc-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-6" value="Device Pepper Key" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.security.key_permissions;" vertex="1" parent="1">
+          <mxGeometry x="200" y="130" width="25" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-9" target="VuewE_ZMrkV_7XgpeJRc-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-9" value="User" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="305" y="60" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-11" value="HSM" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.aws_backup_vault_lock;" vertex="1" parent="1">
+          <mxGeometry x="40" y="117.5" width="78" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-13" target="VuewE_ZMrkV_7XgpeJRc-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.01;entryY=0.583;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-13" target="VuewE_ZMrkV_7XgpeJRc-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-13" target="VuewE_ZMrkV_7XgpeJRc-19">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-24" value="Encrypts Vault Key" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="VuewE_ZMrkV_7XgpeJRc-22">
+          <mxGeometry x="0.078" y="4" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1.017;entryY=0.6;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-13" target="VuewE_ZMrkV_7XgpeJRc-32">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-13" value="User Key" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.file_key;" vertex="1" parent="1">
+          <mxGeometry x="296" y="400" width="48" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-15" value="&lt;div&gt;Encrypted&lt;/div&gt;&lt;div&gt;User Data&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="340" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-17" target="VuewE_ZMrkV_7XgpeJRc-40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-17" value="&lt;div&gt;Symmetric&lt;/div&gt;&lt;div&gt;Asymmetric Keys&lt;/div&gt;&lt;div&gt;Nonce&lt;/div&gt;&lt;div&gt;Salt&lt;/div&gt;&lt;div&gt;Pepper&lt;br&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;" vertex="1" parent="1">
+          <mxGeometry x="390" y="367" width="98" height="103" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.606;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-19" target="VuewE_ZMrkV_7XgpeJRc-20">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-19" target="VuewE_ZMrkV_7XgpeJRc-25">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-19" target="VuewE_ZMrkV_7XgpeJRc-27">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-29" value="Encrypt Account Key" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="VuewE_ZMrkV_7XgpeJRc-28">
+          <mxGeometry x="0.2441" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-19" value="Vault Key" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.file_key;" vertex="1" parent="1">
+          <mxGeometry x="296" y="523.5" width="48" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-20" value="&lt;div&gt;Encrypted&lt;/div&gt;&lt;div&gt;Vault Data&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="501" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-42" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.6;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-25" target="VuewE_ZMrkV_7XgpeJRc-40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-25" value="&lt;div&gt;Symmetric&lt;/div&gt;&lt;div&gt;Asymmetric Keys&lt;/div&gt;&lt;div&gt;Nonce&lt;/div&gt;&lt;div&gt;Salt&lt;/div&gt;&lt;div&gt;Pepper&lt;br&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;" vertex="1" parent="1">
+          <mxGeometry x="400" y="498" width="98" height="103" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-27" target="VuewE_ZMrkV_7XgpeJRc-30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-35" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-27" target="VuewE_ZMrkV_7XgpeJRc-34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-27" value="Account Key" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.file_key;" vertex="1" parent="1">
+          <mxGeometry x="296" y="653.5" width="48" height="53" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-30" value="&lt;div&gt;Encrypted&lt;/div&gt;&lt;div&gt;Account Data&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;" vertex="1" parent="1">
+          <mxGeometry x="150" y="640" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-32" value="&lt;div&gt;Encrypted&lt;/div&gt;&lt;div&gt;User Messages&lt;/div&gt;" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;" vertex="1" parent="1">
+          <mxGeometry x="58" y="410" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.633;entryY=1.063;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="VuewE_ZMrkV_7XgpeJRc-34" target="VuewE_ZMrkV_7XgpeJRc-40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-34" value="&lt;div&gt;Symmetric&lt;/div&gt;&lt;div&gt;Asymmetric Keys&lt;/div&gt;&lt;div&gt;Nonce&lt;/div&gt;&lt;div&gt;Salt&lt;/div&gt;&lt;div&gt;Pepper&lt;br&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;" vertex="1" parent="1">
+          <mxGeometry x="402" y="628.5" width="98" height="103" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-36" value="Not Stored" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;" vertex="1" parent="1">
+          <mxGeometry x="488" y="125" width="80" height="69" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-38" value="Not Stored" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;" vertex="1" parent="1">
+          <mxGeometry x="411" y="260" width="80" height="69" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-40" value="Encrypted Keys" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="470" width="60" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-45" value="&lt;h1&gt;Envelop Encryption&lt;/h1&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="199" y="20" width="250" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-46" value="&lt;div align=&quot;left&quot;&gt;Hashing Algorithms:&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;- Pbkdf2HmacSha256&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;- ARGON2id&lt;br&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="498" y="220" width="140" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="VuewE_ZMrkV_7XgpeJRc-48" value="Encryption Algorithms:&lt;div align=&quot;left&quot;&gt;- Aes256Gcm&lt;/div&gt;&lt;div align=&quot;left&quot;&gt;- ChaCha20Poly1305&lt;br&gt;&lt;/div&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="60" y="249" width="140" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

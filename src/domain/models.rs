@@ -2610,7 +2610,7 @@ mod tests {
         assert_eq!(None, config.default_constraints);
         assert_eq!("PlexPassData/PlexPass.sqlite", config.database_file());
         assert_eq!(10, config.max_pool_size);
-        assert_eq!(HSMProvider::Keychain, config.hsm_provider());
+        assert_eq!(HSMProvider::EncryptedFile, config.hsm_provider());
         assert_eq!(CryptoAlgorithm::Aes256Gcm, config.crypto_algorithm());
         assert_eq!(
             HashAlgorithm::ARGON2id {

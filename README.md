@@ -1,5 +1,5 @@
 # PlexPass
-Secured Family-friendly Password Manager (WIP)
+A Secured Family-friendly Password Manager
 
 ## Background
 With the proliferation of online services and accounts, it has become almost impossible for users to remember unique and strong passwords for each of them. Some users use the same password across multiple accounts, which is risky because if one account is compromised, all other accounts are at risk. With increase of cyber threats such as [2022-Morgan-Stanley](https://techcrunch.com/2022/09/21/morgan-stanley-hard-drives-data-breach/), [2019-Facebook](https://www.wired.com/story/facebook-passwords-plaintext-change-yours/), [2018-MyFitnessPal](https://www.aafp.org/news/practice-professional-issues/20180403myfitnesspal.html), [2019-CapitalOne](https://www.capitalone.com/digital/facts2019/), more services demand stronger and more complex passwords, which are harder to remember. Standards like [FIDO](https://fidoalliance.org/what-is-fido/) (Fast IDentity Online), [WebAuthn](https://webauthn.guide/) (Web Authentication), and [Passkeys](https://fidoalliance.org/passkeys/) aim to address the problems associated with traditional passwords by introducing stronger, simpler, and more phishing-resistant user authentication methods. These standards mitigate Man-in-the-Middle attacks by using decentralized on-device authentication. Yet, their universal adoption remains a work in progress. Until then, a popular alternative for dealing with the password complexity is a Password manager such as [LessPass](https://www.lesspass.com/#/), [1Password](https://1password.com/), and [Bitwarden](https://bitwarden.com/), which offer enhanced security, convenience, and cross-platform access. However, these password managers are also prone to security and privacy risks especially and become a single point of failure when they store user passwords in the cloud. As password managers may also store other sensitive information such as credit card details and secured notes, the Cloud-based password managers with centralized storage become high value target hackers. Many cloud-based password managers implement additional security measures such as end-to-end encryption, zero-knowledge architecture, and multifactor authentication but once hackers get access to the encrypted password vaults, they become vulnerable to sophisticated encryption attacks. For example, In 2022, LastPass, serving 25 million users, experienced [significant security breaches](https://blog.lastpass.com/2023/03/security-incident-update-recommended-actions/). Attackers accessed a range of user data, including billing and email addresses, names, telephone numbers, and IP addresses. More alarmingly, the breach compromised customer vault data, revealing unencrypted website URLs alongside encrypted usernames, passwords, secure notes, and form-filled information. The access to the encrypted vaults allow [“offline attacks” for password cracking](https://krebsonsecurity.com/2023/09/lastpass-horse-gone-barn-bolted-is-strong-password/) attempts that may use powerful computers for trying millions of password guesses per second. In another incident, LastPass users were [locked out of their accounts due to MFA reset](https://www.bleepingcomputer.com/news/security/lastpass-users-furious-after-being-locked-out-due-to-mfa-resets/) after a security upgrade. In order to address these risks with cloud-based password managers, we are building a secured family-friendly password manager named “PlexPass” with an enhanced security and ease of use including multi-device support for family members but without relying on storing data in cloud.
@@ -1012,206 +1012,6 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY
     get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
 ```
 
-### 11.7 Quering Vaults
-
-#### 11.7.1 Command Line
-
-You can query all Vaults using CLI as follows:
-```bash
-./target/release/plexpass -j true --master-username eddie 
-	--master-password ** get-vaults
-```
-
-Which will show list of vaults such as:
-
-```json
-[
-  {
-    "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
-    "version": 0,
-    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-    "title": "Identity",
-    "kind": "Logins",
-    "created_at": "2023-11-08T03:45:44.163762",
-    "updated_at": "2023-11-08T03:45:44.163762"
-  },
-  {
-    "vault_id": "070ba646-192b-47df-8134-c6ed40056575",
-    "version": 0,
-    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-    "title": "Personal",
-    "kind": "Logins",
-    "created_at": "2023-11-08T03:45:44.165378",
-    "updated_at": "2023-11-08T03:45:44.165378"
-  },
-  ..
-]
-```
-
-#### 11.7.2 REST API
-
-You can query Vaults using REST API as follows:
-```bash
-curl -v -k https://localhost:8443/api/v1/vaults 
-	--header "Content-Type: application/json; charset=UTF-8" 
-    --header "Authorization: Bearer $AUTH_TOKEN"
-```
-
-#### 11.7.3 Docker CLI
-
-You can create new Vault using Docker CLI as follows:
-```bash
-docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
-    plexpass -j true --master-username frank 
-    --master-password ** get-vaults
-```
-
-### 11.8 Show Specific Vault Data
-
-#### 11.8.1 Command Line
-
-You can query specific Vault using CLI as follows:
-```bash
-./target/release/plexpass -j true --master-username eddie 
-	--master-password ** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
-```
-
-Which will show list of vaults such as:
-```json
-{
-  "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
-  "version": 0,
-  "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-  "title": "Identity",
-  "kind": "Logins",
-  "icon": null,
-  "entries": null,
-  "analysis": null,
-  "analyzed_at": null,
-  "created_at": "2023-11-08T03:45:44.163762",
-  "updated_at": "2023-11-08T03:45:44.163762"
-}
-```
-
-#### 11.8.2 REST API
-
-You can show a specific Vault using REST API as follows where ’44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa’ is the vault-id:
-```bash
-curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
-	--header "Content-Type: application/json; charset=UTF-8" 
-    --header "Authorization: Bearer $AUTH_TOKEN"
-```
-
-#### 11.8.3 Docker CLI
-
-You can create new Vault using Docker CLI as follows:
-```bash
-docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
-    -j true --master-username frank --master-password * 
-    get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
-```
-
-### 11.7 Quering Vaults
-
-#### 11.7.1 Command Line
-
-You can query all Vaults using CLI as follows:
-```bash
-./target/release/plexpass -j true --master-username eddie 
-	--master-password ** get-vaults
-```
-
-Which will show list of vaults such as:
-```json
-[
-  {
-    "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
-    "version": 0,
-    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-    "title": "Identity",
-    "kind": "Logins",
-    "created_at": "2023-11-08T03:45:44.163762",
-    "updated_at": "2023-11-08T03:45:44.163762"
-  },
-  {
-    "vault_id": "070ba646-192b-47df-8134-c6ed40056575",
-    "version": 0,
-    "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-    "title": "Personal",
-    "kind": "Logins",
-    "created_at": "2023-11-08T03:45:44.165378",
-    "updated_at": "2023-11-08T03:45:44.165378"
-  },
-  ..
-]
-```
-
-#### 11.7.2 REST API
-
-You can query Vaults using REST API as follows:
-```bash
-curl -v -k https://localhost:8443/api/v1/vaults 
-	--header "Content-Type: application/json; charset=UTF-8" 
-    --header "Authorization: Bearer $AUTH_TOKEN"
-```
-#### 11.7.3 Docker CLI
-
-You can create new Vault using Docker CLI as follows:
-```bash
-docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
-    plexpass -j true --master-username frank 
-    --master-password ** get-vaults
-```
-
-### 11.8 Show Specific Vault Data
-
-#### 11.8.1 Command Line
-
-You can query specific Vault using CLI as follows:
-```bash
-./target/release/plexpass -j true --master-username eddie 
-	--master-password ** --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
-```
-
-Which will show list of vaults such as:
-```json
-{
-  "vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa",
-  "version": 0,
-  "owner_user_id": "c81446b7-8de4-41d7-b5a7-36d4075777bc",
-  "title": "Identity",
-  "kind": "Logins",
-  "icon": null,
-  "entries": null,
-  "analysis": null,
-  "analyzed_at": null,
-  "created_at": "2023-11-08T03:45:44.163762",
-  "updated_at": "2023-11-08T03:45:44.163762"
-}
-```
-
-#### 11.8.2 REST API
-
-You can show a specific Vault using REST API as follows where ’44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa’ is the vault-id:
-```bash
-curl -v -k https://localhost:8443/api/v1/vaults/44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa 
-	--header "Content-Type: application/json; charset=UTF-8" 
-    --header "Authorization: Bearer $AUTH_TOKEN"
-```
-
-#### 11.8.3 Docker CLI
-
-You can create new Vault using Docker CLI as follows:
-```bash
-docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass 
-    -j true --master-username frank --master-password *** 
-    get-vault --vault-id 44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa
-```
-
 ### 11.9 Updating a Vault Data
 
 #### 11.9.1 Command Line
@@ -1729,7 +1529,7 @@ In above example, the exported data will be encrypted with given password and yo
 
 You can import accounts data from a CSV file using REST API as follows:
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault_id/import 
+curl -v -k -X POST https://localhost:8443/api/v1/vaults/$vault_id/import 
 	--header "Content-Type: application/json; charset=UTF-8" 
     --header "Authorization: Bearer $AUTH_TOKEN" 
     --data-binary "@accounts.csv" -d '{}'
@@ -1737,14 +1537,14 @@ curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault_id/import
 You can then export accounts data as an encrypted CSV file as follows:
 
 ```bash
-curl -v -k --http2 --sslv2 -X POST "https://localhost:8443/api/v1//vaults/$vault_id/export" 
+curl -v -k --http2 --sslv2 -X POST "https://localhost:8443/api/v1/vaults/$vault_id/export" 
 	--header "Content-Type: application/json; charset=UTF-8" 
     --header "Authorization: Bearer $AUTH_TOKEN" -d '{"password": "**"}' > encrypted_csv.dat
 ```
 And then import it back later as follows:
 
 ```bash
-curl -v -k -X POST https://localhost:8443/api/v1//vaults/$vault_id/import 
+curl -v -k -X POST https://localhost:8443/api/v1/vaults/$vault_id/import 
 	--header "Content-Type: application/json; charset=UTF-8" 
     --header "Authorization: Bearer $AUTH_TOKEN" --data-binary "@encrypted_csv.dat" 
     -d '{"password": "***"}'

@@ -1824,7 +1824,7 @@ mod tests {
         let message = Message::new("user", MessageKind::Advisory, "subject", "data");
         let message_entity = MessageEntity::new(&message, "salt", "nonce", "data");
         assert_eq!("user", message_entity.user_id);
-        assert_eq!("kind", message_entity.kind);
+        assert_eq!(MessageKind::Advisory, message_entity.kind);
         assert_eq!("data", message_entity.encrypted_value);
         assert!(message_entity.created_at.timestamp() > 0);
     }
