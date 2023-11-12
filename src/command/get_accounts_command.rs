@@ -17,7 +17,7 @@ pub async fn execute(
         if account_summaries.len() <= 10 {
             full_accounts.push(service_locator.account_service.get_account(&ctx, &account_summary.account_id).await?);
         } else {
-            if full_accounts.len() == 0 {
+            if full_accounts.is_empty() {
                 log::warn!("Too many accounts queried {}, showing only summaries", account_summaries.len());
             }
             let mut account = Account::new(vault_id, account_summary.kind.clone());

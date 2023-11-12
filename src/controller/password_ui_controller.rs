@@ -34,7 +34,7 @@ pub async fn schedule_password_analysis(
     service_locator: web::Data<ServiceLocator>,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let _ = service_locator
+    service_locator
         .password_service
         .schedule_analyze_all_vault_passwords(&auth.context)
         .await?;

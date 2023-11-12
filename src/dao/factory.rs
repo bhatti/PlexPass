@@ -72,7 +72,7 @@ pub async fn create_vault_repository(
     Ok(Arc::new(RetryableRepository::new(
         config,
         Arc::new(VaultRepositoryImpl::new(
-            config.max_vaults_per_user.clone(),
+            config.max_vaults_per_user,
             POOL.clone(),
             create_user_vault_repository(config).await?,
             create_user_repository(config).await?,
@@ -96,8 +96,8 @@ pub async fn create_account_repository(
     Ok(Arc::new(RetryableRepository::new(
         config,
         Arc::new(AccountRepositoryImpl::new(
-            config.max_vaults_per_user.clone(),
-            config.max_accounts_per_vault.clone(),
+            config.max_vaults_per_user,
+            config.max_accounts_per_vault,
             POOL.clone(),
             create_user_vault_repository(config).await?,
             create_vault_repository(config).await?,

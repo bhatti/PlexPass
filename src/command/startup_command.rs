@@ -128,7 +128,7 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
                 Err(err) => {
                     log::warn!("failed to start openSSL based API server on {} due to {:?}", https_port, err);
                     log::info!("starting HTTP based API server on {}", http_port);
-                    server.bind(("0.0.0.0", http_port.clone()))?.run().await?;
+                    server.bind(("0.0.0.0", http_port))?.run().await?;
                 }
             };
         }
@@ -281,10 +281,10 @@ fn load_encrypted_private_key(key_file: &str, key_password: &str) -> PassResult<
     let mut file = File::open(key_file)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
-    return Ok(PKey::private_key_from_pem_passphrase(
+    Ok(PKey::private_key_from_pem_passphrase(
         &buffer,
         key_password.as_bytes(),
-    )?);
+    )?)
 }
 
 fn load_rustls_config(config: &PassConfig) -> PassResult<ServerConfig> {

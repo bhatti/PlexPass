@@ -40,7 +40,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     if let Some(ref data_dir) = args.data_dir {
-        config.override_data_dir(&data_dir);
+        config.override_data_dir(data_dir);
     }
 
     if let CommandActions::Server { .. } = args.action {
@@ -165,7 +165,7 @@ async fn main() -> std::io::Result<()> {
                 config,
                 &master_username,
                 &master_password,
-                &vault_id,
+                vault_id,
             ).await.expect("failed to get vault");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&vault).unwrap());
@@ -213,7 +213,7 @@ async fn main() -> std::io::Result<()> {
                 config,
                 &master_username,
                 &master_password,
-                &vault_id,
+                vault_id,
             ).await.expect("failed to delete vault");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("deleted", size == 1)]);
@@ -246,7 +246,7 @@ async fn main() -> std::io::Result<()> {
                 config,
                 &master_username,
                 &master_password,
-                &vault_id,
+                vault_id,
                 q.clone(),
             ).await.expect("failed to get accounts");
             if args.json_output.unwrap_or(false) {
@@ -262,7 +262,7 @@ async fn main() -> std::io::Result<()> {
                 config,
                 &master_username,
                 &master_password,
-                &account_id,
+                account_id,
             ).await.expect("failed to get account");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&account).unwrap());
@@ -294,7 +294,7 @@ async fn main() -> std::io::Result<()> {
                 config,
                 &master_username,
                 &master_password,
-                &account_id,
+                account_id,
             ).await.expect("failed to delete account");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("deleted", size == 1)]);
@@ -362,7 +362,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::AsymmetricEncrypt { public_key, in_path, out_path } => {
-            let _ = asymmetric_encrypt_command::execute(
+            asymmetric_encrypt_command::execute(
                 config,
                 public_key,
                 in_path,
@@ -373,7 +373,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::AsymmetricDecrypt { secret_key, in_path, out_path } => {
-            let _ = asymmetric_decrypt_command::execute(
+            asymmetric_decrypt_command::execute(
                 config,
                 secret_key,
                 in_path,
@@ -384,7 +384,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::SymmetricEncrypt { secret_key, in_path, out_path } => {
-            let _ = symmetric_encrypt_command::execute(
+            symmetric_encrypt_command::execute(
                 config,
                 secret_key,
                 in_path,
@@ -395,7 +395,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::SymmetricDecrypt { secret_key, in_path, out_path } => {
-            let _ = symmetric_decrypt_command::execute(
+            symmetric_decrypt_command::execute(
                 config,
                 secret_key,
                 in_path,

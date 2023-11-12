@@ -264,7 +264,7 @@ pub(crate) async fn finish_authentication(
 
     let auth_result = webauthn
         .finish_passkey_authentication(&auth, &auth_state)
-        .map_err(|e| {
+        .map_err(|_e| {
             PassError::authentication("bad request")
         })?;
 

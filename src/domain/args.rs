@@ -497,15 +497,15 @@ impl Args {
             CommandActions::CreateUser { name, email, locale, light_mode } => {
                 let mut user = User::new(&username, name.clone(), email.clone());
                 user.locale = locale.clone();
-                user.light_mode = light_mode.clone();
-                return Some(user);
+                user.light_mode = *light_mode;
+                Some(user)
             }
             CommandActions::UpdateUser { name, email, locale, light_mode, icon } => {
                 let mut user = User::new(&username, name.clone(), email.clone());
                 user.locale = locale.clone();
-                user.light_mode = light_mode.clone();
+                user.light_mode = *light_mode;
                 user.icon = icon.clone();
-                return Some(user);
+                Some(user)
             }
             _ => {
                 None
@@ -601,12 +601,12 @@ impl Args {
     pub fn to_vault(&self) -> Option<Vault> {
         match &self.action {
             CommandActions::CreateVault { title, kind, icon } => {
-                let mut vault = Vault::new("", &title, kind.clone().unwrap_or(VaultKind::Logins));
+                let mut vault = Vault::new("", title, kind.clone().unwrap_or(VaultKind::Logins));
                 vault.icon = icon.clone();
                 Some(vault)
             }
             CommandActions::UpdateVault { vault_id, title, kind, icon } => {
-                let mut vault = Vault::new("", &title, kind.clone().unwrap_or(VaultKind::Logins));
+                let mut vault = Vault::new("", title, kind.clone().unwrap_or(VaultKind::Logins));
                 vault.vault_id = vault_id.clone();
                 vault.icon = icon.clone();
                 Some(vault)
@@ -667,12 +667,12 @@ impl Args {
     ) -> Account {
         let kind = if let Some(kind) = kind {
             kind.clone()
-        } else if *username == None && *email == None && *password == None && *notes != None {
+        } else if username.is_none() && email.is_none() && password.is_none() && notes.is_some() {
             AccountKind::Notes
         } else {
             AccountKind::Login
         };
-        let mut account = Account::new(&vault_id, kind);
+        let mut account = Account::new(vault_id, kind);
         account.details.label = label.clone();
         account.details.favorite = *favorite == Some(true);
         account.details.description = description.clone();
@@ -680,9 +680,9 @@ impl Args {
         account.details.email = email.clone();
         account.details.url = url.clone();
         account.details.category = category.clone();
-        account.details.tags = tags.clone().unwrap_or(vec![]);
+        account.details.tags = tags.clone().unwrap_or_default();
         account.details.icon = icon.clone();
-        account.details.renew_interval_days = renew_interval_days.clone();
+        account.details.renew_interval_days = *renew_interval_days;
         account.details.expires_at = safe_parse_string_date(expires_at.clone());
 
         account.credentials.password = password.clone();

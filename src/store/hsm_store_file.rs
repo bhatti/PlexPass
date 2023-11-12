@@ -21,10 +21,10 @@ impl EncryptedFileHSMStore {
     }
 
     fn build_file_name(&self, username: &str, name: &str) -> String {
-        let file_name = self
+        
+        self
             .config
-            .build_data_file(&format!("{}_{}_{}", crypto::compute_sha256_hex(username), name, KEY_FILE_NAME));
-        file_name
+            .build_data_file(&format!("{}_{}_{}", crypto::compute_sha256_hex(username), name, KEY_FILE_NAME))
     }
 }
 
@@ -41,7 +41,7 @@ impl HSMStore for EncryptedFileHSMStore {
         let file_name = self.build_file_name(username, name);
         let mut data_file = File::create(file_name)?;
         let encrypted = crypto::ec_encrypt_hex(&self.sk_pk.1, value)?;
-        data_file.write(&encrypted.as_bytes())?;
+        data_file.write_all(encrypted.as_bytes())?;
         Ok(())
     }
 }
@@ -60,7 +60,7 @@ mod tests {
         let hsm = EncryptedFileHSMStore::new(&config).unwrap();
 
         // WHEN setting hsm property
-        let _ = hsm
+        hsm
             .set_property("username", "user1_key1", "value1")
             .unwrap();
         let value = hsm.get_property("username", "user1_key1").unwrap();

@@ -110,7 +110,7 @@ impl UserVaultRepository for UserVaultRepositoryImpl {
             .limit(limit as i64)
             .load::<UserVaultEntity>(conn)?;
 
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), items))
+        Ok(PaginatedResult::new(offset, limit, items))
     }
 
     fn count(

@@ -44,9 +44,8 @@ impl CSVRecord {
             category: account.details.category.clone(),
             tags: Some(account.details.tags.clone().join(";")),
             icon: account.details.icon.clone(),
-            renew_interval_days: account.details.renew_interval_days.clone(),
-            expires_at: if let Some(expires_at) = account.details.expires_at {
-                Some(format!("{}", expires_at.format("2015-09-05")))} else {None},
+            renew_interval_days: account.details.renew_interval_days,
+            expires_at: account.details.expires_at.map(|expires_at| format!("{}", expires_at.format("2015-09-05"))),
         }
     }
 
@@ -85,9 +84,9 @@ impl CSVRecord {
             account.details.tags = tags.as_str().split("[,;]").map(|s|s.to_string()).collect::<Vec<String>>();
         }
         account.details.icon = self.icon.clone();
-        account.details.renew_interval_days = self.renew_interval_days.clone();
+        account.details.renew_interval_days = self.renew_interval_days;
         if let Some(expires_at) = &self.expires_at {
-            account.details.expires_at = safe_parse_str_date(&expires_at);
+            account.details.expires_at = safe_parse_str_date(expires_at);
         }
 
         account.credentials.password = self.password.clone();

@@ -81,7 +81,7 @@ pub(crate) fn generate_secret_key() -> [u8; SECRET_LEN] {
 /// Generate a public and private keypair based on Elliptic Curve
 pub(crate) fn generate_private_public_keys() -> (String, String) {
     let (sk, pk) = generate_keypair();
-    (hex::encode(&sk.serialize()), hex::encode(pk.serialize()))
+    (hex::encode(sk.serialize()), hex::encode(pk.serialize()))
 }
 
 /// Generate a public and private keypair using given secret
@@ -90,7 +90,7 @@ pub(crate) fn generate_private_public_keys_from_secret(
 ) -> PassResult<(String, String)> {
     let (sk, _) = generate_private_key_from_secret(secret)?;
     let pk = PublicKey::from_secret_key(&sk);
-    Ok((hex::encode(&sk.serialize()), hex::encode(pk.serialize())))
+    Ok((hex::encode(sk.serialize()), hex::encode(pk.serialize())))
 }
 
 pub(crate) fn generate_private_key_from_secret(secret: &str) -> PassResult<(SecretKey, [u8; SECRET_LEN])> {
@@ -99,9 +99,7 @@ pub(crate) fn generate_private_key_from_secret(secret: &str) -> PassResult<(Secr
         return Err(PassError::validation(format!("secret ({}:{})is too small", secret, secret.len()).as_str(), None));
     }
     let mut p = [0; SECRET_LEN];
-    for i in 0..SECRET_LEN {
-        p[i] = in_bytes[i.clone()];
-    }
+    p[..SECRET_LEN].copy_from_slice(&in_bytes[..SECRET_LEN]);
     let sk = SecretKey::parse(&p)?;
     Ok((sk, sk.serialize()))
 }
@@ -191,7 +189,7 @@ pub(crate) fn aes_encrypt(
     let binding = generate_nonce();
     let nonce = AesGenericArray::from_slice(&binding);
     let ciphertext = cipher.encrypt(
-        &nonce,
+        nonce,
         AesPayload {
             msg: plaintext,
             aad,
@@ -230,7 +228,7 @@ pub(crate) fn cha_encrypt(
     let cipher = ChaCha20Poly1305::new(ChaGenericArray::from_slice(secret_key));
     let binding = generate_nonce();
     let nonce = ChaGenericArray::from_slice(&binding);
-    let ciphertext = cipher.encrypt(&nonce, plaintext)?;
+    let ciphertext = cipher.encrypt(nonce, plaintext)?;
     Ok((nonce.to_vec(), ciphertext))
 }
 
@@ -440,8 +438,8 @@ mod tests {
         let hash1 = tri_hash_password(password1) as i64;
         let hash2 = tri_hash_password(password2) as i64;
         let hash3 = tri_hash_password(password3) as i64;
-        assert!((hash1.clone() - hash2.clone()).abs() < 20);
-        assert!((hash1 - hash3.clone()).abs() > 100);
+        assert!((hash1 - hash2).abs() < 20);
+        assert!((hash1 - hash3).abs() > 100);
         assert!((hash2 - hash3).abs() > 100);
     }
 

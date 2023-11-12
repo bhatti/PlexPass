@@ -117,7 +117,7 @@ impl<S, B> AuthenticationMiddleware<S> where B: 'static, S: Service<ServiceReque
     fn validate_api_token(req: &ServiceRequest) -> bool {
         if let Some(service_locator) = req.app_data::<Data<ServiceLocator>>() {
             if let Ok(res) =
-            controller::verify_token_header(&req, service_locator)
+            controller::verify_token_header(req, service_locator)
             {
                 return res;
             }
@@ -127,7 +127,7 @@ impl<S, B> AuthenticationMiddleware<S> where B: 'static, S: Service<ServiceReque
     fn validate_ui_session(req: &ServiceRequest) -> bool {
         if let Some(service_locator) = req.app_data::<Data<ServiceLocator>>() {
             if let Ok(res) =
-            controller::verify_session_cookie(&req, service_locator)
+            controller::verify_session_cookie(req, service_locator)
             {
                 return res;
             }

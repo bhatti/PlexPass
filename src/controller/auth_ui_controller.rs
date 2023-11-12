@@ -85,7 +85,7 @@ pub async fn handle_user_signin(
         .signin_user(&params.username, &params.master_password, context)
         .await {
         Ok((_, _, token)) => {
-            let _ = session.insert(USER_SESSION_KEY, token)?;
+            session.insert(USER_SESSION_KEY, token)?;
             Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/")).finish())
         }
         Err(err) => {
@@ -140,7 +140,7 @@ pub async fn handle_user_signup(
         .signup_user(&user, &params.master_password, context)
         .await {
         Ok((_ctx, token)) => {
-            let _ = session.insert(USER_SESSION_KEY, token)?;
+            session.insert(USER_SESSION_KEY, token)?;
             Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/")).finish())
         }
         Err(err) => {

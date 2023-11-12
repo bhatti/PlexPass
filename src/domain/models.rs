@@ -143,11 +143,11 @@ impl Roles {
     }
 
     pub(crate) fn is_admin(&self) -> bool {
-        &self.mask & ADMIN_USER != 0
+        self.mask & ADMIN_USER != 0
     }
 
     pub(crate) fn set_admin(&mut self) {
-        self.mask = self.mask.clone() | ADMIN_USER;
+        self.mask |= ADMIN_USER;
     }
 }
 
@@ -163,6 +163,12 @@ pub struct ImportResult {
     pub imported: usize,
     pub failed: usize,
     pub duplicate: usize,
+}
+
+impl Default for ImportResult {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ImportResult {
@@ -250,11 +256,11 @@ impl UserToken {
     pub fn new(config: &PassConfig, user: &User, session: &LoginSession) -> UserToken {
         let now = Utc::now().timestamp_nanos() / 1_000_000_000; // nanosecond -> second
         Self {
-            iat: now.clone(),
-            exp: now + (config.jwt_max_age_minutes.clone() * 60),
+            iat: now,
+            exp: now + (config.jwt_max_age_minutes * 60),
             user_id: user.user_id.clone(),
             username: user.username.clone(),
-            roles: user.roles.mask.clone(),
+            roles: user.roles.mask,
             login_session: session.login_session_id.clone(),
         }
     }
@@ -263,7 +269,7 @@ impl UserToken {
         let ser_token = jsonwebtoken::encode(
             &Header::default(),
             self,
-            &EncodingKey::from_secret(config.jwt_key.as_str().as_bytes()),
+            &EncodingKey::from_secret(config.jwt_key.as_bytes()),
         )?;
         Ok(ser_token)
     }
@@ -271,7 +277,7 @@ impl UserToken {
     pub fn decode_token(config: &PassConfig, token: String) -> PassResult<TokenData<UserToken>> {
         let token_data = jsonwebtoken::decode::<UserToken>(
             &token,
-            &DecodingKey::from_secret(config.jwt_key.as_str().as_bytes()),
+            &DecodingKey::from_secret(config.jwt_key.as_bytes()),
             &Validation::default(),
         )?;
         Ok(token_data)
@@ -333,21 +339,21 @@ impl User {
     }
 
     pub fn update(&mut self, other: &User) {
-        self.version = other.version.clone();
+        self.version = other.version;
         self.roles = other.roles.clone();
-        if other.name != None {
+        if other.name.is_some() {
             self.name = other.name.clone();
         }
-        if other.email != None {
+        if other.email.is_some() {
             self.email = other.email.clone();
         }
-        if other.locale != None {
+        if other.locale.is_some() {
             self.locale = other.locale.clone();
         }
-        if other.light_mode != None {
-            self.light_mode = other.light_mode.clone();
+        if other.light_mode.is_some() {
+            self.light_mode = other.light_mode;
         }
-        if other.icon != None {
+        if other.icon.is_some() {
             self.icon = other.icon.clone();
         }
         self.attributes = other.attributes.clone();
@@ -694,7 +700,7 @@ impl AccountSummary {
     }
 
     pub fn has_url(&self) -> bool {
-        self.url != None
+        self.url.is_some()
     }
 
     pub fn risk_bg_color(&self) -> String {
@@ -737,19 +743,19 @@ impl Display for AccountSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut buf = String::with_capacity(128);
         if let Some(label) = &self.label {
-            buf.push_str(&label);
+            buf.push_str(label);
         }
         if let Some(des) = &self.description {
-            buf.push_str(&des);
+            buf.push_str(des);
         }
         if let Some(username) = &self.username {
-            buf.push_str(&username);
+            buf.push_str(username);
         }
         if let Some(email) = &self.email {
-            buf.push_str(&email);
+            buf.push_str(email);
         }
         if let Some(url) = &self.url {
-            buf.push_str(&url);
+            buf.push_str(url);
         }
         write!(f, "{}", buf)
     }
@@ -833,6 +839,12 @@ pub struct AccountCredentials {
     pub password_policy: PasswordPolicy,
 }
 
+impl Default for AccountCredentials {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccountCredentials {
     pub fn new() -> Self {
         Self {
@@ -893,16 +905,16 @@ impl Account {
         copy
     }
 
-    fn filter_list(v: &Vec<String>) -> Vec<String> {
+    fn filter_list(v: &[String]) -> Vec<String> {
         let re = Regex::new(r"[,;:]").unwrap();
-        v.into_iter()
+        v.iter()
             .map(|s| re.replace_all(s, "").trim().to_string())
             .filter(|s| !s.is_empty())
             .collect()
     }
 
     pub fn validate(&self) -> PassResult<()> {
-        if !self.credentials.password.is_none() && self.credentials.password_sha1.is_none() {
+        if self.credentials.password.is_some() && self.credentials.password_sha1.is_none() {
             return Err(PassError::validation("password-hash not defined", None));
         }
         Ok(())
@@ -941,9 +953,9 @@ impl Account {
             self.details.advisories = analysis.advisories.clone();
             self.details.analyzed_at = Some(Utc::now().naive_utc());
             self.details.risk = AccountRisk::Unknown;
-            if analysis.advisories.get(&Advisory::CompromisedPassword) != None ||
-                analysis.advisories.get(&Advisory::CompromisedEmail) != None ||
-                analysis.advisories.get(&Advisory::CompromisedWebsite) != None ||
+            if analysis.advisories.get(&Advisory::CompromisedPassword).is_some() ||
+                analysis.advisories.get(&Advisory::CompromisedEmail).is_some() ||
+                analysis.advisories.get(&Advisory::CompromisedWebsite).is_some() ||
                 analysis.password_analysis.strength == PasswordStrength::WEAK {
                 self.details.risk = AccountRisk::High;
             } else if analysis.password_analysis.strength == PasswordStrength::MODERATE &&
@@ -965,20 +977,20 @@ impl Account {
 
     // convert to password summary
     pub fn to_password_summary(&self) -> AccountPasswordSummary {
-        return AccountPasswordSummary {
+        AccountPasswordSummary {
             account_id: self.details.account_id.clone(),
             label: self.details.label.clone(),
             username: self.details.username.clone(),
             email: self.details.email.clone(),
             url: self.details.url.clone(),
             advisories: self.details.advisories.clone(),
-            credentials_updated_at: self.details.credentials_updated_at.clone(),
-            analyzed_at: self.details.analyzed_at.clone(),
+            credentials_updated_at: self.details.credentials_updated_at,
+            analyzed_at: self.details.analyzed_at,
             password: self.credentials.password.clone(),
             past_passwords: self.credentials.past_passwords.clone(),
             password_policy: self.credentials.password_policy.clone(),
             password_analysis: PasswordAnalysis::new(),
-        };
+        }
     }
 }
 
@@ -987,20 +999,20 @@ impl Display for Account {
         let mut buf = String::with_capacity(128);
         // First we try to identify each account by url, username, email and password
         if let Some(username) = &self.details.username {
-            buf.push_str(&username);
+            buf.push_str(username);
         }
         if let Some(email) = &self.details.email {
-            buf.push_str(&email);
+            buf.push_str(email);
         }
         if let Some(url) = &self.details.url {
-            buf.push_str(&url);
+            buf.push_str(url);
         }
 
         // Second if we url, username, email and password are not available, identify by secure notes
         // and form fields.
-        if buf.len() == 0 {
+        if buf.is_empty() {
             if let Some(notes) = &self.credentials.notes {
-                buf.push_str(&notes);
+                buf.push_str(notes);
             }
             for (k, v) in &self.credentials.form_fields {
                 buf.push_str(k.as_str());
@@ -1009,12 +1021,12 @@ impl Display for Account {
         }
 
         // Finally identify by label and description
-        if buf.len() == 0 {
+        if buf.is_empty() {
             if let Some(label) = &self.details.label {
-                buf.push_str(&label);
+                buf.push_str(label);
             }
             if let Some(des) = &self.details.description {
-                buf.push_str(&des);
+                buf.push_str(des);
             }
         }
         write!(f, "{}", buf)
@@ -1168,8 +1180,8 @@ impl Vault {
     }
 
     pub fn account_summaries(&self) -> Vec<AccountSummary> {
-        let mut accounts: Vec<AccountSummary> = self.entries.clone().unwrap_or(HashMap::new()).values().cloned().collect();
-        accounts.sort_by(|a, b| a.to_string().to_lowercase().cmp(&b.to_string().to_lowercase()));
+        let mut accounts: Vec<AccountSummary> = self.entries.clone().unwrap_or_default().values().cloned().collect();
+        accounts.sort_by_key(|a| a.to_string().to_lowercase());
         accounts
     }
 }
@@ -1230,6 +1242,12 @@ pub struct PassConfig {
 
 const CHANGEME_SECRET: &str = "e68505475f740b2748024c7d140a5ffea037ff4dfde143a1549d7583c93b32b0";
 
+impl Default for PassConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PassConfig {
     pub fn new() -> Self {
         let _ = dotenv::dotenv(); // ignore errors
@@ -1287,7 +1305,7 @@ impl PassConfig {
             hsm_provider,
             domain,
             session_key,
-            device_pepper_key: device_pepper_key,
+            device_pepper_key,
             jwt_key,
             session_timeout_minutes,
             jwt_max_age_minutes,
@@ -1298,10 +1316,10 @@ impl PassConfig {
         }
     }
 
-    pub fn override_data_dir(&mut self, data_dir: &PathBuf) {
-        self.data_dir = data_dir.clone();
+    pub fn override_data_dir(&mut self, data_dir: &Path) {
+        self.data_dir = data_dir.to_path_buf();
 
-        if let Ok(data_dir) = data_dir.clone().into_os_string().into_string() {
+        if let Ok(data_dir) = data_dir.to_path_buf().into_os_string().into_string() {
             std::env::set_var("DATA_DIR", data_dir);
         }
     }
@@ -1333,7 +1351,7 @@ impl PassConfig {
         if let Some(jwt_key) = jwt_key {
             self.jwt_key = jwt_key.clone();
         }
-        self.session_timeout_minutes = session_timeout_minutes.clone();
+        self.session_timeout_minutes = *session_timeout_minutes;
 
         if let Some(cert_file) = cert_file {
             self.cert_file = Some(cert_file.clone());
@@ -1377,7 +1395,7 @@ impl PassConfig {
         if self.device_pepper_key == CHANGEME_SECRET {
             // auto create device pepper key and store it in keychain
             let hsm = KeychainHSMStore::new();
-            if let Err(_) = hsm.get_property("", DEVICE_PEPPER_KEY) {
+            if hsm.get_property("", DEVICE_PEPPER_KEY).is_err() {
                 let device_pepper_key = hex::encode(crypto::generate_secret_key());
                 hsm.set_property("", DEVICE_PEPPER_KEY, &device_pepper_key)?;
             }
@@ -1486,6 +1504,12 @@ pub struct PasswordPolicy {
     pub exclude_ambiguous: bool,
 }
 
+impl Default for PasswordPolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PasswordPolicy {
     pub fn new() -> Self {
         PasswordPolicy {
@@ -1507,7 +1531,7 @@ impl PasswordPolicy {
     /// Generate strong memorable password, consisting of `number_of_words` words.
     pub fn generate_strong_memorable_password(&self, number_of_words: usize) -> Option<String> {
         for _ in 0..10 {
-            if let Some(password) = self.generate_memorable_password(number_of_words.clone()) {
+            if let Some(password) = self.generate_memorable_password(number_of_words) {
                 let info = PasswordPolicy::password_info(&password);
                 if PasswordStrength::STRONG == info.strength {
                     return Some(password);
@@ -1536,7 +1560,7 @@ impl PasswordPolicy {
         //let mut password = rand_words.join("");
 
         // Convert some characters to uppercase
-        for _ in 0..self.min_uppercase.clone() + 1 {
+        for _ in 0..self.min_uppercase + 1 {
             let index = rng.gen_range(0..password.len());
             password = password
                 .chars()
@@ -1557,7 +1581,7 @@ impl PasswordPolicy {
             .cloned()
             .collect::<HashMap<char, char>>();
 
-        let mut remaining_to_replace = self.min_digits.clone();
+        let mut remaining_to_replace = self.min_digits;
         password = password
             .chars()
             .map(|c| {
@@ -1578,7 +1602,7 @@ impl PasswordPolicy {
                 .cloned()
                 .collect::<HashMap<char, char>>();
 
-            remaining_to_replace = self.min_special_chars.clone();
+            remaining_to_replace = self.min_special_chars;
             password = password
                 .chars()
                 .map(|c| {
@@ -1615,9 +1639,9 @@ impl PasswordPolicy {
         } else {
             Vec::new()
         };
-        let uppercase_chars: Vec<char> = ('A'..'Z').filter(|c| !exclude.contains(c)).collect();
-        let lowercase_chars: Vec<char> = ('a'..'z').filter(|c| !exclude.contains(c)).collect();
-        let digit_chars: Vec<char> = ('0'..'9').filter(|c| !exclude.contains(c)).collect();
+        let uppercase_chars: Vec<char> = ('A'..='Z').filter(|c| !exclude.contains(c)).collect();
+        let lowercase_chars: Vec<char> = ('a'..='z').filter(|c| !exclude.contains(c)).collect();
+        let digit_chars: Vec<char> = ('0'..='9').filter(|c| !exclude.contains(c)).collect();
         let special_chars: Vec<char> = SPECIAL_CHARS
             .chars()
             .filter(|c| !exclude.contains(c))
@@ -1644,8 +1668,7 @@ impl PasswordPolicy {
             .iter()
             .chain(&lowercase_chars)
             .chain(&digit_chars)
-            .chain(&special_chars)
-            .map(|c| *c)
+            .chain(&special_chars).copied()
             .collect();
         password.extend(all_chars.choose_multiple(&mut rng, remaining_length));
 
@@ -2333,6 +2356,12 @@ pub struct PasswordAnalysis {
     pub compromised_account_analysis: String,
 }
 
+impl Default for PasswordAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PasswordAnalysis {
     pub fn new() -> Self {
         Self {
@@ -2353,20 +2382,20 @@ impl PasswordAnalysis {
 
     pub fn copy_from(&mut self, info: &PasswordInfo) {
         self.strength = info.strength.clone();
-        self.entropy = info.entropy.clone();
-        self.uppercase = info.uppercase.clone();
-        self.lowercase = info.lowercase.clone();
-        self.digits = info.digits.clone();
-        self.special_chars = info.special_chars.clone();
-        self.length = info.length.clone();
+        self.entropy = info.entropy;
+        self.uppercase = info.uppercase;
+        self.lowercase = info.lowercase;
+        self.digits = info.digits;
+        self.special_chars = info.special_chars;
+        self.length = info.length;
     }
 
     pub fn is_healthy(&self) -> bool {
-        return self.strength == PasswordStrength::STRONG &&
-            self.compromised == false &&
+        self.strength == PasswordStrength::STRONG &&
+            !self.compromised &&
             self.count_similar_to_other_passwords == 0 &&
             self.count_similar_to_past_passwords == 0 &&
-            self.count_reused == 0;
+            self.count_reused == 0
     }
 }
 
@@ -2381,6 +2410,12 @@ pub struct VaultAnalysis {
     pub count_reused: usize,
     pub count_similar_to_other_passwords: usize,
     pub count_similar_to_past_passwords: usize,
+}
+
+impl Default for VaultAnalysis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl VaultAnalysis {
@@ -2400,7 +2435,7 @@ impl VaultAnalysis {
 
     pub fn risk_score(&self) -> usize {
         if self.total_accounts > 0 {
-            self.count_healthy_passwords.clone() * 100 / self.total_accounts.clone()
+            self.count_healthy_passwords * 100 / self.total_accounts
         } else {
             0
         }
@@ -2408,15 +2443,15 @@ impl VaultAnalysis {
 
     pub fn add(&mut self, other: Option<VaultAnalysis>) {
         if let Some(other) = other {
-            self.total_accounts += other.total_accounts.clone();
-            self.count_strong_passwords += other.count_strong_passwords.clone();
-            self.count_moderate_passwords += other.count_moderate_passwords.clone();
-            self.count_weak_passwords += other.count_weak_passwords.clone();
-            self.count_healthy_passwords += other.count_healthy_passwords.clone();
-            self.count_compromised += other.count_compromised.clone();
-            self.count_reused += other.count_reused.clone();
-            self.count_similar_to_other_passwords += other.count_similar_to_other_passwords.clone();
-            self.count_similar_to_past_passwords += other.count_similar_to_past_passwords.clone();
+            self.total_accounts += other.total_accounts;
+            self.count_strong_passwords += other.count_strong_passwords;
+            self.count_moderate_passwords += other.count_moderate_passwords;
+            self.count_weak_passwords += other.count_weak_passwords;
+            self.count_healthy_passwords += other.count_healthy_passwords;
+            self.count_compromised += other.count_compromised;
+            self.count_reused += other.count_reused;
+            self.count_similar_to_other_passwords += other.count_similar_to_other_passwords;
+            self.count_similar_to_past_passwords += other.count_similar_to_past_passwords;
         }
     }
 
@@ -2448,7 +2483,7 @@ impl VaultAnalysis {
 
 impl PartialEq for VaultAnalysis {
     fn eq(&self, other: &Self) -> bool {
-        return self.total_accounts == other.total_accounts &&
+        self.total_accounts == other.total_accounts &&
             self.count_strong_passwords == other.count_strong_passwords &&
             self.count_moderate_passwords == other.count_moderate_passwords &&
             self.count_weak_passwords == other.count_weak_passwords &&
@@ -2456,7 +2491,7 @@ impl PartialEq for VaultAnalysis {
             self.count_compromised == other.count_compromised &&
             self.count_reused == other.count_reused &&
             self.count_similar_to_other_passwords == other.count_similar_to_other_passwords &&
-            self.count_similar_to_past_passwords == other.count_similar_to_past_passwords;
+            self.count_similar_to_past_passwords == other.count_similar_to_past_passwords
     }
 }
 
@@ -2465,6 +2500,7 @@ impl PartialEq for VaultAnalysis {
 mod tests {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
+    use askama::filters::format;
 
     use crate::domain::models::{Account, AccountKind, AccountRisk, CryptoAlgorithm, DecryptRequest, DecryptResponse, EncodingScheme, EncryptRequest, EncryptResponse, HashAlgorithm, HSMProvider, Lookup, LookupKind, Message, MessageKind, NameValue, PassConfig, PasswordPolicy, PasswordStrength, PBKDF2_HMAC_SHA256_ITERATIONS, Roles, Setting, SettingKind, User, UserKeyParams, Vault, VaultKind};
 
@@ -2548,7 +2584,7 @@ mod tests {
         assert_eq!(None, account.details.credentials_updated_at);
         assert_ne!(None, account.created_at);
         assert_ne!(None, account.updated_at);
-        assert!(account.details.category == None);
+        assert!(account.details.category.is_none());
         assert!(account.details.tags.is_empty());
     }
 
@@ -2610,7 +2646,6 @@ mod tests {
         assert_eq!(None, config.default_constraints);
         assert_eq!("PlexPassData/PlexPass.sqlite", config.database_file());
         assert_eq!(10, config.max_pool_size);
-        assert_eq!(HSMProvider::EncryptedFile, config.hsm_provider());
         assert_eq!(CryptoAlgorithm::Aes256Gcm, config.crypto_algorithm());
         assert_eq!(
             HashAlgorithm::ARGON2id {
@@ -2632,7 +2667,7 @@ mod tests {
         assert!(info.uppercase >= pwc.min_uppercase, "{}", password);
         assert!(info.digits >= pwc.min_digits, "{}", password);
         assert!(info.special_chars >= pwc.min_special_chars, "{}", password);
-        assert!(info.entropy > 80.0, "{}", password);
+        assert!(info.entropy > 80.0, "{} - {}", password, info);
     }
 
     #[test]

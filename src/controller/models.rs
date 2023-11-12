@@ -63,7 +63,7 @@ impl SignupUserRequest {
         let mut u = User::new(&self.username, self.name.clone(), self.email.clone());
         if let Some(attrs) = &self.attributes {
             for (k, v) in attrs {
-                u.attributes.push(NameValue::new("", &k, &v));
+                u.attributes.push(NameValue::new("", k, v));
             }
         }
         u
@@ -136,13 +136,13 @@ impl UpdateUserRequest {
     pub fn to_user(&self) -> User {
         let mut u = User::new(&self.username, self.name.clone(), self.email.clone());
         u.user_id = self.user_id.clone();
-        u.version = self.version.clone();
+        u.version = self.version;
         u.locale = self.locale.clone();
-        u.light_mode = self.light_mode.clone();
+        u.light_mode = self.light_mode;
         u.icon = self.icon.clone();
         if let Some(attrs) = &self.attributes {
             for (k, v) in attrs {
-                u.attributes.push(NameValue::new("", &k, &v));
+                u.attributes.push(NameValue::new("", k, v));
             }
         }
         u
@@ -204,14 +204,14 @@ impl VaultResponse {
     pub fn new(vault: &Vault) -> Self {
         Self {
             vault_id: vault.vault_id.clone(),
-            version: vault.version.clone(),
+            version: vault.version,
             owner_user_id: vault.owner_user_id.clone(),
             title: vault.title.clone(),
             kind: vault.kind.clone(),
-            analysis: vault.analysis.clone().unwrap_or(VaultAnalysis::new()),
-            analyzed_at: vault.analyzed_at.clone(),
-            created_at: vault.created_at.clone(),
-            updated_at: vault.updated_at.clone(),
+            analysis: vault.analysis.clone().unwrap_or_default(),
+            analyzed_at: vault.analyzed_at,
+            created_at: vault.created_at,
+            updated_at: vault.updated_at,
         }
     }
 }
@@ -235,7 +235,7 @@ impl UpdateVaultRequest {
     pub fn to_vault(&self, user_id: &str) -> Vault {
         let mut vault = Vault::new(user_id, &self.title, self.kind.clone().unwrap_or(VaultKind::Logins));
         vault.vault_id = self.vault_id.clone();
-        vault.version = self.version.clone();
+        vault.version = self.version;
         vault.icon = self.icon.clone();
         vault
     }
@@ -332,7 +332,7 @@ impl CreateAccountRequest {
         if let Some(kind) = &self.kind {
             return kind.clone();
         }
-        if self.username == None && self.email == None && self.password == None && self.notes != None {
+        if self.username.is_none() && self.email.is_none() && self.password.is_none() && self.notes.is_some() {
             return AccountKind::Notes;
         }
         AccountKind::Login
@@ -347,35 +347,35 @@ impl CreateAccountRequest {
         account.details.email = self.email.clone();
         account.details.url = self.url.clone();
         account.details.category = self.category.clone();
-        account.details.tags = self.tags.clone().unwrap_or(vec![]);
+        account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
-        account.details.renew_interval_days = self.renew_interval_days.clone();
-        account.details.expires_at = self.expires_at.clone();
+        account.details.renew_interval_days = self.renew_interval_days;
+        account.details.expires_at = self.expires_at;
 
         account.credentials.password = self.password.clone();
-        account.credentials.form_fields = self.form_fields.clone().unwrap_or(HashMap::new());
+        account.credentials.form_fields = self.form_fields.clone().unwrap_or_default();
         account.credentials.notes = self.notes.clone();
         account.credentials.otp = self.otp.clone();
 
         let mut password_policy = PasswordPolicy::new();
 
         if let Some(min_uppercase) = &self.password_min_uppercase {
-            password_policy.min_uppercase = min_uppercase.clone();
+            password_policy.min_uppercase = *min_uppercase;
         }
         if let Some(min_lowercase) = &self.password_min_lowercase {
-            password_policy.min_lowercase = min_lowercase.clone();
+            password_policy.min_lowercase = *min_lowercase;
         }
         if let Some(min_digits) = &self.password_min_digits {
-            password_policy.min_digits = min_digits.clone();
+            password_policy.min_digits = *min_digits;
         }
         if let Some(min_special_chars) = &self.password_min_special_chars {
-            password_policy.min_special_chars = min_special_chars.clone();
+            password_policy.min_special_chars = *min_special_chars;
         }
         if let Some(min_length) = &self.password_min_length {
-            password_policy.min_length = min_length.clone();
+            password_policy.min_length = *min_length;
         }
         if let Some(max_length) = &self.password_max_length {
-            password_policy.max_length = max_length.clone();
+            password_policy.max_length = *max_length;
         }
         account.credentials.password_policy = password_policy;
         account
@@ -454,10 +454,10 @@ impl AccountResponse {
         Self {
             vault_id: account.vault_id.clone(),
             account_id: account.details.account_id.clone(),
-            version: account.details.version.clone(),
+            version: account.details.version,
             kind: account.details.kind.clone(),
             label: account.details.label.clone(),
-            favorite: Some(account.details.favorite.clone()),
+            favorite: Some(account.details.favorite),
             risk: account.details.risk.clone(),
             risk_bg_color: account.details.risk_bg_color(),
             description: account.details.description.clone(),
@@ -472,24 +472,23 @@ impl AccountResponse {
             form_fields: Some(account.credentials.form_fields.clone()),
             notes: account.credentials.notes.clone(),
             advisories: account.details.advisories.clone(),
-            password_min_uppercase: Some(account.credentials.password_policy.min_uppercase.clone()),
-            password_min_lowercase: Some(account.credentials.password_policy.min_lowercase.clone()),
-            password_min_digits: Some(account.credentials.password_policy.min_digits.clone()),
+            password_min_uppercase: Some(account.credentials.password_policy.min_uppercase),
+            password_min_lowercase: Some(account.credentials.password_policy.min_lowercase),
+            password_min_digits: Some(account.credentials.password_policy.min_digits),
             password_min_special_chars: Some(
                 account
                     .credentials
                     .password_policy
-                    .min_special_chars
-                    .clone(),
+                    .min_special_chars,
             ),
-            password_min_length: Some(account.credentials.password_policy.min_length.clone()),
-            password_max_length: Some(account.credentials.password_policy.max_length.clone()),
-            renew_interval_days: account.details.renew_interval_days.clone(),
-            expires_at: account.details.expires_at.clone(),
-            credentials_updated_at: account.details.credentials_updated_at.clone(),
-            analyzed_at: account.details.analyzed_at.clone(),
-            created_at: account.created_at.clone(),
-            updated_at: account.updated_at.clone(),
+            password_min_length: Some(account.credentials.password_policy.min_length),
+            password_max_length: Some(account.credentials.password_policy.max_length),
+            renew_interval_days: account.details.renew_interval_days,
+            expires_at: account.details.expires_at,
+            credentials_updated_at: account.details.credentials_updated_at,
+            analyzed_at: account.details.analyzed_at,
+            created_at: account.created_at,
+            updated_at: account.updated_at,
         }
     }
 }
@@ -511,12 +510,12 @@ impl PaginatedAccountResult {
         let accounts = res
             .records
             .iter()
-            .map(|v| AccountResponse::new(v))
+            .map(AccountResponse::new)
             .collect::<Vec<AccountResponse>>();
         Self {
-            offset: res.offset.clone(),
-            limit: res.limit.clone(),
-            total_records: res.total_records.clone(),
+            offset: res.offset,
+            limit: res.limit,
+            total_records: res.total_records,
             accounts,
         }
     }
@@ -633,7 +632,7 @@ impl UpdateAccountRequest {
         if let Some(kind) = &self.kind {
             return kind.clone();
         }
-        if self.username == None && self.email == None && self.password == None && self.notes != None {
+        if self.username.is_none() && self.email.is_none() && self.password.is_none() && self.notes.is_some() {
             return AccountKind::Notes;
         }
         AccountKind::Login
@@ -642,7 +641,7 @@ impl UpdateAccountRequest {
     pub fn to_account(&self) -> Account {
         let mut account = Account::new(&self.vault_id, self.get_kind());
         account.details.account_id = self.account_id.clone();
-        account.details.version = self.version.clone();
+        account.details.version = self.version;
         account.details.label = self.label.clone();
         account.details.favorite = self.favorite == Some(true);
         account.details.description = self.description.clone();
@@ -650,35 +649,35 @@ impl UpdateAccountRequest {
         account.details.email = self.email.clone();
         account.details.url = self.url.clone();
         account.details.category = self.category.clone();
-        account.details.tags = self.tags.clone().unwrap_or(vec![]);
+        account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
 
         account.credentials.password = self.password.clone();
-        account.credentials.form_fields = self.form_fields.clone().unwrap_or(HashMap::new());
+        account.credentials.form_fields = self.form_fields.clone().unwrap_or_default();
         account.credentials.notes = self.notes.clone();
         account.credentials.otp = self.otp.clone();
-        account.details.renew_interval_days = self.renew_interval_days.clone();
-        account.details.expires_at = self.expires_at.clone();
+        account.details.renew_interval_days = self.renew_interval_days;
+        account.details.expires_at = self.expires_at;
 
         let mut password_policy = PasswordPolicy::new();
 
         if let Some(min_uppercase) = &self.password_min_uppercase {
-            password_policy.min_uppercase = min_uppercase.clone();
+            password_policy.min_uppercase = *min_uppercase;
         }
         if let Some(min_lowercase) = &self.password_min_lowercase {
-            password_policy.min_lowercase = min_lowercase.clone();
+            password_policy.min_lowercase = *min_lowercase;
         }
         if let Some(min_digits) = &self.password_min_digits {
-            password_policy.min_digits = min_digits.clone();
+            password_policy.min_digits = *min_digits;
         }
         if let Some(min_special_chars) = &self.password_min_special_chars {
-            password_policy.min_special_chars = min_special_chars.clone();
+            password_policy.min_special_chars = *min_special_chars;
         }
         if let Some(min_length) = &self.password_min_length {
-            password_policy.min_length = min_length.clone();
+            password_policy.min_length = *min_length;
         }
         if let Some(max_length) = &self.password_max_length {
-            password_policy.max_length = max_length.clone();
+            password_policy.max_length = *max_length;
         }
         account.credentials.password_policy = password_policy;
         account
@@ -733,17 +732,17 @@ impl Account {
         if new_rec {
             account.details.account_id = Uuid::new_v4().to_string();
             account.details.version = 0;
-        } else if account.details.account_id == "" {
+        } else if account.details.account_id.is_empty() {
             return Err(PassError::validation("account_id is not specified", None));
         }
-        if account.vault_id == "" {
+        if account.vault_id.is_empty() {
             return Err(PassError::validation("vault_id is not specified", None));
         }
         let max_custom = cmp::min(custom_names.len(), custom_values.len());
         let mut attributes: HashMap<String, String> = HashMap::new();
         for i in 0..max_custom {
-            if custom_names[i].len() > 0 {
-                attributes.insert(custom_names[i.clone()].clone(), custom_values[i.clone()].clone());
+            if !custom_names[i].is_empty() {
+                attributes.insert(custom_names[i].clone(), custom_values[i].clone());
             }
         }
         account.credentials.form_fields = attributes;

@@ -66,7 +66,7 @@ impl ImportExportService for ImportExportServiceImpl {
             match self.account_service.create_account(ctx, &accounts[i]).await {
                 Ok(_) => {
                     response.imported += 1;
-                    callback(ProgressStatus::Updated { current: i.clone(), total: accounts.len() });
+                    callback(ProgressStatus::Updated { current: i, total: accounts.len() });
                 }
                 Err(err) => {
                     if let PassError::DuplicateKey { .. } = err {
@@ -74,7 +74,7 @@ impl ImportExportService for ImportExportServiceImpl {
                     } else {
                         response.failed += 1;
                     }
-                    log::warn!("failed to import {} due to {}", &accounts[i.clone()].details.account_id, err);
+                    log::warn!("failed to import {} due to {}", &accounts[i].details.account_id, err);
                 }
             }
         }
@@ -97,12 +97,12 @@ impl ImportExportService for ImportExportServiceImpl {
         let mut buf = Vec::new();
         for i in (0..count).step_by(10) {
             match self.account_service.find_accounts_by_vault(ctx, &vault.vault_id, HashMap::new(),
-                                                              i.clone() as i64, 10).await {
+                                                              i as i64, 10).await {
                 Ok(accounts) => {
-                    let csv_records = accounts.records.iter().map(|a| CSVRecord::new(a)).collect::<Vec<CSVRecord>>();
+                    let csv_records = accounts.records.iter().map(CSVRecord::new).collect::<Vec<CSVRecord>>();
 
                     CSVRecord::write(csv_records, &mut buf, i == 0)?;
-                    callback(ProgressStatus::Updated { current: i.clone(), total: count.clone() });
+                    callback(ProgressStatus::Updated { current: i, total: count });
                 }
                 Err(err) => {
                     callback(ProgressStatus::Failed(err.clone()));
@@ -195,7 +195,7 @@ Login,Twitch,https://twitch.tv/,mylogin6,mypassword6,mynote6,,"""
             }),
         ).await.unwrap();
         let str_csv = String::from_utf8(bytes_csv).expect("failed to convert csv");
-        let lines = str_csv.as_str().split("\n").collect::<Vec<&str>>();
+        let lines = str_csv.as_str().split('\n').collect::<Vec<&str>>();
         assert_eq!(
             19, // + header and empty line
             lines.len(),
@@ -253,7 +253,7 @@ Login,Twitch,https://twitch.tv/,mylogin6,mypassword6,mynote6,,"""
         let encryption_service = create_encryption_service(&config).await.unwrap();
         let bytes_csv = encryption_service.symmetric_decrypt("", "password", encrypted_bytes, EncodingScheme::Base64).unwrap();
         let str_csv = String::from_utf8(bytes_csv).expect("failed to convert csv");
-        let lines = str_csv.as_str().split("\n").collect::<Vec<&str>>();
+        let lines = str_csv.as_str().split('\n').collect::<Vec<&str>>();
         assert_eq!(
             19, // + header and empty line
             lines.len(),

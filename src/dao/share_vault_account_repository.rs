@@ -73,7 +73,7 @@ impl ShareVaultAccountRepositoryImpl {
     async fn handle_shared_vaults(&self, ctx: &&UserContext) -> PassResult<usize> {
         let vault_messages = self.message_repository
             .find(
-                &ctx,
+                ctx,
                 HashMap::from([
                     ("user_id".into(), ctx.user_id.clone()),
                     ("kind".into(), MessageKind::ShareVault.to_string()),
@@ -115,7 +115,7 @@ impl ShareVaultAccountRepositoryImpl {
     async fn handle_shared_accounts(&self, ctx: &&UserContext) -> PassResult<usize> {
         let account_messages = self.message_repository
             .find(
-                &ctx,
+                ctx,
                 HashMap::from([
                     ("user_id".into(), ctx.user_id.clone()),
                     ("kind".into(), MessageKind::ShareAccount.to_string()),
@@ -159,7 +159,7 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
         target_username: &str,
         read_only: bool,
     ) -> PassResult<usize> {
-        if target_username == &ctx.username {
+        if target_username == ctx.username {
             return Err(PassError::validation("target username cannot be same as user's own username", None));
         }
         let target_user_id = self.get_user_id(ctx, target_username)?;
@@ -224,7 +224,7 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
         ctx: &UserContext,
         account_id: &str,
         target_username: &str) -> PassResult<usize> {
-        if target_username == &ctx.username {
+        if target_username == ctx.username {
             return Err(PassError::validation("target username cannot be same as user's own username", None));
         }
         let target_user_id = self.get_user_id(ctx, target_username)?;

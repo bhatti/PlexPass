@@ -21,31 +21,29 @@ struct AuditLogTemplate {
 impl AuditLogTemplate {
     pub fn new(logs: &PaginatedResult<AuditLog>, current_page: usize, records_per_page: usize) -> Self {
         let total_records: usize = logs.total_records.unwrap_or(logs.records.len() as i64) as usize;
-        let total_pages: usize = (total_records.clone() + records_per_page.clone() - 1) / records_per_page;
+        let total_pages: usize = (total_records + records_per_page - 1) / records_per_page;
         let num_pages_to_display = 10;
 
         let start_page = if total_pages <= num_pages_to_display {
             1
-        } else if current_page <= num_pages_to_display.clone() / 2 {
-            1
-        } else if current_page + num_pages_to_display.clone() / 2 >= total_pages {
+        } else if current_page + num_pages_to_display / 2 >= total_pages {
             total_pages - num_pages_to_display + 1
         } else {
-            current_page.clone() - num_pages_to_display / 2
+            current_page - num_pages_to_display / 2
         };
 
-        let end_page = usize::min(start_page + num_pages_to_display.clone() - 1, total_pages);
+        let end_page = usize::min(start_page + num_pages_to_display - 1, total_pages);
 
         let x = Self {
-            current_page: current_page.clone(),
-            total_pages: total_pages.clone(),
+            current_page,
+            total_pages,
             pages: (start_page..=end_page).collect(),
             audit_logs: vec![],
         };
         println!("xxxxx {:?}", x);
         Self {
-            current_page: current_page.clone(),
-            total_pages: total_pages.clone(),
+            current_page,
+            total_pages,
             pages: (start_page..=end_page).collect(),
             audit_logs: logs.records.clone(),
         }
@@ -69,14 +67,14 @@ pub async fn audit_logs(
     }
     let page = query.page.unwrap_or(1);
     let limit = 50;
-    let offset = (page-1) * limit.clone();
+    let offset = (page-1) * limit;
     let logs = service_locator
         .audit_log_service
         .find(
             &auth.context,
             predicates,
             offset as i64,
-            limit.clone(),
+            limit,
         )
         .await?;
     let template = AuditLogTemplate::new(&logs, page, limit);

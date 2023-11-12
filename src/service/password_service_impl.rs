@@ -46,9 +46,9 @@ impl PasswordServiceImpl {
         let mut offset = 0;
         loop {
             let accounts = self.account_service.find_accounts_by_vault(
-                ctx, vault_id, HashMap::new(), offset.clone(), 1000).await?;
+                ctx, vault_id, HashMap::new(), offset, 1000).await?;
             for account in &accounts.records {
-                if account.details.username != None || account.details.email != None || account.credentials.password != None {
+                if account.details.username.is_some() || account.details.email.is_some() || account.credentials.password.is_some() {
                     result.push(account.to_password_summary());
                 }
             }
@@ -182,20 +182,20 @@ impl PasswordService for PasswordServiceImpl {
                 }
 
                 // Check if password is compromised
-                if let Ok(compromised) = self.password_compromised(&password).await {
+                if let Ok(compromised) = self.password_compromised(password).await {
                     password_summary.advisories.insert(Advisory::CompromisedPassword,
-                                                       format!("The password is compromised and found in 'Have I been Pwned' database."));
+                                                       "The password is compromised and found in 'Have I been Pwned' database.".to_string());
                     password_summary.password_analysis.compromised = compromised;
                 }
                 //
                 // TODO  CompromisedWebsite
                 //
                 let mut account = self.account_service.get_account(ctx, &password_summary.account_id).await?;
-                if account.update_analysis(&password_summary) {
+                if account.update_analysis(password_summary) {
                     let _ = self.account_service.update_account(ctx, &account).await?;
                 }
 
-                vault_analysis.update(&password_summary);
+                vault_analysis.update(password_summary);
             }
         }
 
@@ -352,7 +352,7 @@ mod tests {
             }
         }
         let all_analysis = password_service.analyze_all_vault_passwords(&ctx).await.unwrap();
-        assert!(all_analysis.len() > 0);
+        assert!(!all_analysis.is_empty());
         assert!(password_service.analyze_all_vault_passwords(&ctx).await.is_err());
     }
 }

@@ -450,7 +450,7 @@ async fn invoke_with_retry_attempts<T, F: Fn() -> R, R>(
                 return Ok(k);
             }
             Err(err) => {
-                if !err.retryable() || i == config.max_retries.clone() - 1 {
+                if !err.retryable() || i == config.max_retries - 1 {
                     if let PassError::NotFound { .. } = err {} else {
                         log::warn!(
                             "error while invoking not retryable function {} due to {:?}",
@@ -462,7 +462,7 @@ async fn invoke_with_retry_attempts<T, F: Fn() -> R, R>(
                 }
                 let jitter = rand::thread_rng().gen_range(10..(20 * (i + 1))) as u64;
                 let delay = Duration::from_millis(
-                    jitter + config.delay_between_retries.clone() * (i + 1) as u64,
+                    jitter + config.delay_between_retries * (i + 1) as u64,
                 );
                 log::warn!("error while invoking retryable function {} due to {:?}, will retry {}th time with delay {:?}", msg, err, i, delay);
                 tokio::time::sleep(delay).await;

@@ -67,7 +67,7 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
         // ensure setting belongs to user -- no acl check
         ctx.validate_user_id(&setting.user_id, || false)?;
 
-        let existing_setting_entity = self.get_entity(&ctx, &setting.setting_id).await?;
+        let existing_setting_entity = self.get_entity(ctx, &setting.setting_id).await?;
 
         let mut conn = self.connection()?;
         let size = diesel::update(
@@ -104,7 +104,7 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
 
     // delete an existing setting.
     async fn delete(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {
-        let setting_entity = self.get_entity(&ctx, id).await?;
+        let setting_entity = self.get_entity(ctx, id).await?;
 
         // ensure setting belongs to user - no acl check
         ctx.validate_user_id(&setting_entity.user_id, || false)?;
@@ -216,7 +216,7 @@ impl Repository<Setting, SettingEntity> for SettingRepositoryImpl {
             let setting = entity.to_setting();
             res.push(setting)
         }
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), res))
+        Ok(PaginatedResult::new(offset, limit, res))
     }
 
     async fn count(

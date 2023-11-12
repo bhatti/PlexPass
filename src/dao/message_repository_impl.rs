@@ -219,7 +219,7 @@ impl Repository<Message, MessageEntity> for MessageRepositoryImpl {
             let message = entity.to_message(ctx, &user_crypto_key)?;
             res.push(message)
         }
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), res))
+        Ok(PaginatedResult::new(offset, limit, res))
     }
 
     async fn count(

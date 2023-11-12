@@ -12,7 +12,7 @@ pub async fn execute(
     let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
     let old_vault = service_locator.vault_service.get_vault(&ctx, &vault.vault_id).await?;
     vault.owner_user_id = old_vault.owner_user_id.clone();
-    vault.version = old_vault.version.clone();
+    vault.version = old_vault.version;
     let size = service_locator.vault_service.update_vault(&ctx, vault).await?;
     Ok(size)
 }

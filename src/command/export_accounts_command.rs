@@ -16,7 +16,7 @@ pub async fn execute(
     let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
     let (_, bytes_csv) = service_locator.import_export_service.export_accounts(
         &ctx,
-        &vault_id,
+        vault_id,
         password.clone(),
         EncodingScheme::Base64,
         Box::new(|status| match status {

@@ -259,7 +259,7 @@ mod tests {
             .await
             .unwrap();
         // THEN it should return count of accounts
-        assert_eq!(5 as i64, count);
+        assert_eq!(5_i64, count);
 
         // Verify summary in vault
         let loaded = vault_service

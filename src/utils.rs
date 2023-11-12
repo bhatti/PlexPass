@@ -79,7 +79,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_should_safe_parse_string_date() {
-        assert!(safe_parse_string_date(None) == None);
+        assert!(safe_parse_string_date(None).is_none());
         assert_eq!(12, safe_parse_string_date(Some("2023-10-12".into())).unwrap().day());
         assert_eq!(12, safe_parse_string_date(Some("2023/10/12".into())).unwrap().day());
         assert_eq!(12, safe_parse_string_date(Some("10/12/2023".into())).unwrap().day());

@@ -33,7 +33,7 @@ pub async fn asymmetric_encrypt(
     let pk = path.into_inner();
     let res = service_locator.encryption_service.asymmetric_encrypt(
         &pk,
-        (&body).to_vec(),
+        body.to_vec(),
         EncodingScheme::Base64)?;
     Ok(HttpResponse::Ok().body(Bytes::from(res)))
 }
@@ -47,7 +47,7 @@ pub async fn asymmetric_decrypt(
     let sk = path.into_inner();
     let res = service_locator.encryption_service.asymmetric_decrypt(
                           &sk,
-                          (&body).to_vec(),
+                          body.to_vec(),
                           EncodingScheme::Base64)?;
     Ok(HttpResponse::Ok().body(Bytes::from(res)))
 }
@@ -64,7 +64,7 @@ pub async fn symmetric_encrypt(
         "",
         "",
         &secret,
-        (&body).to_vec(),
+        body.to_vec(),
         EncodingScheme::Base64)?;
     Ok(HttpResponse::Ok().body(Bytes::from(res)))
 }
@@ -79,7 +79,7 @@ pub async fn symmetric_decrypt(
     let res = service_locator.encryption_service.symmetric_decrypt(
         "",
         &secret,
-        (&body).to_vec(),
+        body.to_vec(),
         EncodingScheme::Base64)?;
     Ok(HttpResponse::Ok().body(Bytes::from(res)))
 }

@@ -9,6 +9,12 @@ pub struct Scheduler {
     tasks: Arc<DashMap<String, (JoinHandle<()>, oneshot::Sender<()>)>>,
 }
 
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scheduler {
     // Create a new Scheduler.
     pub fn new() -> Self {

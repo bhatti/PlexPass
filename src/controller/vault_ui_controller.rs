@@ -57,7 +57,7 @@ pub async fn home_page(
         .get_user_vaults(&auth.context)
         .await?
         .iter()
-        .map(|v| VaultResponse::new(v))
+        .map(VaultResponse::new)
         .collect();
     let selected_vault_id = query.selected_vault_id.clone().unwrap_or(vaults[0].vault_id.clone());
     let selected_vault = vaults.iter()

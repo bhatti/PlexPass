@@ -58,7 +58,7 @@ impl UserServiceImpl {
         let mut login_session = LoginSession::new(&user.user_id);
         login_session.ip_address = context.get(CONTEXT_IP_ADDRESS).cloned();
         let _ = self.login_session_repository.create(&login_session)?;
-        Ok(UserToken::new(&self.config, &user, &login_session))
+        Ok(UserToken::new(&self.config, user, &login_session))
     }
 }
 
@@ -76,9 +76,8 @@ impl UserService for UserServiceImpl {
             let sample_password = PasswordPolicy::new().generate_strong_memorable_password(3).unwrap_or("".into());
             let err_msg = safe_localized_message(
                 "weak-master-password",
-                Some(&vec!["info", &password_info.to_string(),
-                           "sample_password", &sample_password,
-                ]));
+                Some(&["info", &password_info.to_string(),
+                           "sample_password", &sample_password]));
             return Err(PassError::validation(&err_msg, None));
         }
 
@@ -121,7 +120,7 @@ impl UserService for UserServiceImpl {
 
         // create default vaults
         for vault_title in DEFAULT_VAULT_NAMES {
-            let vault = Vault::new(&user.user_id, &vault_title, VaultKind::from(vault_title));
+            let vault = Vault::new(&user.user_id, vault_title, VaultKind::from(vault_title));
             let _ = self.vault_repository.create(&ctx, &vault).await?;
         }
 
@@ -133,7 +132,7 @@ impl UserService for UserServiceImpl {
         self.hsm_store
             .set_property(&user.username, USER_SECRET_KEY_NAME, &ctx.secret_key)?;
 
-        let token = self.add_user_session(context, &user)?;
+        let token = self.add_user_session(context, user)?;
         log::info!("Signed up {} in {:?}", &user.user_id, metric.elapsed());
         Ok((ctx, token))
     }
@@ -206,7 +205,7 @@ impl UserService for UserServiceImpl {
     async fn get_user(&self, ctx: &UserContext, id: &str) -> PassResult<(UserContext, User)> {
         let _ = self.metrics.new_metric("get_user");
         // Finding user by username
-        let user = self.user_repository.get(&ctx, id).await?;
+        let user = self.user_repository.get(ctx, id).await?;
         let mut ctx = ctx.clone();
         ctx.roles = user.roles.clone();
         Ok((ctx, user))
@@ -214,7 +213,7 @@ impl UserService for UserServiceImpl {
 
     async fn update_user(&self, ctx: &UserContext, user: &User) -> PassResult<usize> {
         let _ = self.metrics.new_metric("update_user");
-        self.user_repository.update(&ctx, user).await
+        self.user_repository.update(ctx, user).await
     }
 
     async fn delete_user(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {

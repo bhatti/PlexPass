@@ -135,7 +135,7 @@ pub async fn export_accounts(
             ProgressStatus::Failed(_) => {}
         }),
     ).await?;
-    let file = if password == None {
+    let file = if password.is_none() {
         format!("exported_accounts_{}.csv", &vault_id)
     } else {
         format!("exported_accounts_{}_encrypted.csv", &vault_id)

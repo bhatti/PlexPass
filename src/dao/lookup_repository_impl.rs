@@ -222,7 +222,7 @@ impl Repository<Lookup, LookupEntity> for LookupRepositoryImpl {
             let lookup = entity.to_lookup();
             res.push(lookup)
         }
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), res))
+        Ok(PaginatedResult::new(offset, limit, res))
     }
 
     async fn count(&self, _: &UserContext, predicates: HashMap<String, String>) -> PassResult<i64> {
@@ -362,7 +362,7 @@ mod tests {
         for i in 0..10 {
             let name1 = format!("{}_{}", prefix1, i);
             // WHEN creating a lookup
-            let lookup1 = Lookup::new(&user1.user_id, kinds[i.clone() % 2].clone(), &name1);
+            let lookup1 = Lookup::new(&user1.user_id, kinds[i % 2].clone(), &name1);
             // THEN it should succeed.
             assert_eq!(1, lookup_repo.create(&ctx1, &lookup1).await.unwrap());
 

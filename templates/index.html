@@ -77,7 +77,7 @@
                         onclick="importAccounts('{{selected_vault_id}}')">Import Accounts</button>
                 <button class="btn btn-dark" data-toggle="modal" data-target="#importAccountsModal"
                         onclick="exportAccounts('{{selected_vault_id}}')">Export Accounts</button>
-                <button class="btn btn-info" data-toggle="modal" data-target="#shareVaultModal"
+                <button class="btn btn-warning" data-toggle="modal" data-target="#shareVaultModal"
                         onclick="shareVault('{{selected_vault_id}}')">Share Vault</button>
                 <form action="/">
                     <input type="hidden" name="selected_vault_id" value="{{selected_vault_id}}">
@@ -126,11 +126,8 @@
                         <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
                                 onclick="deleteAccount('{{account.account_id}}')">Delete
                         </button>
-                        <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#deletetModal"
-                                onclick="shareAccount('{{account.account_id}}')">Share
-                        </button>
                         <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#deletetModal"
-                                onclick="accountRisk('{{account.account_id}}')">Risk
+                                onclick="shareAccount('{{account.account_id}}')">Share
                         </button>
                     </td>
                 </tr>

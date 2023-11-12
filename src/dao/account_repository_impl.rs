@@ -69,7 +69,7 @@ impl AccountRepositoryImpl {
                 ctx,
                 HashMap::from([]),
                 0,
-                self.max_vaults_per_user.clone() as usize,
+                self.max_vaults_per_user as usize,
             )
             .await?;
 
@@ -150,7 +150,7 @@ impl AccountRepositoryImpl {
         vault_repository: Arc<dyn VaultRepository + Send + Sync>,
         account_repository: Arc<dyn AccountRepository + Send + Sync>,
     ) -> PassResult<usize> {
-        let user_crypto_key = user_repository.get_crypto_key(&ctx, &ctx.user_id).await?;
+        let user_crypto_key = user_repository.get_crypto_key(ctx, &ctx.user_id).await?;
         let user_private_key = user_crypto_key.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
 
         let decrypted_json_account = crypto::ec_decrypt_hex(&user_private_key, &payload.encrypted_account)?;
@@ -161,7 +161,7 @@ impl AccountRepositoryImpl {
             0,
             100,
         ).await?;
-        if vaults.records.len() == 0 {
+        if vaults.records.is_empty() {
             return Err(PassError::validation("no vault found for user to import account", None));
         }
         let vault_kind = account.details.kind.to_vault_kind();
@@ -196,7 +196,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                 HashMap::from([("vault_id".into(), account.vault_id.clone())]),
             )
             .await?;
-        if count > self.max_accounts_per_vault.clone() as i64 {
+        if count > self.max_accounts_per_vault as i64 {
             return Err(PassError::validation(
                 format!("too many accounts {} for the vault, please create a new vault for storing additional accounts.", count).as_str(),
                 None,
@@ -270,7 +270,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             .await?;
 
         // checking version for concurrency control
-        account_entity.match_version(account.details.version.clone())?;
+        account_entity.match_version(account.details.version)?;
         let mut account = account.clone();
         account.before_save();
 
@@ -310,12 +310,12 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             diesel::update(
                 accounts.filter(
                     version
-                        .eq(account.details.version.clone())
+                        .eq(account.details.version)
                         .and(account_id.eq(&account.details.account_id)),
                 ),
             )
                 .set((
-                    version.eq(account_entity.version.clone() + 1),
+                    version.eq(account_entity.version + 1),
                     archived_version.eq(&account_entity.archived_version),
                     salt.eq(&account_entity.salt),
                     nonce.eq(&account_entity.nonce),
@@ -525,7 +525,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             )?);
         }
 
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), res))
+        Ok(PaginatedResult::new(offset, limit, res))
     }
 
     async fn count(

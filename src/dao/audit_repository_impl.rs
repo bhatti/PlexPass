@@ -112,7 +112,7 @@ impl AuditRepository for AuditRepositoryImpl {
             .limit(limit as i64)
             .load::<AuditEntity>(&mut conn)?;
         let logs = entities.into_iter().map(|l| l.to_log()).collect::<Vec<AuditLog>>();
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), logs))
+        Ok(PaginatedResult::new(offset, limit, logs))
     }
 
     // delete_by_user_id delete all user audits

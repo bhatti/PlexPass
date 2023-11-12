@@ -67,7 +67,7 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
             ));
         }
         let entity = items.remove(0);
-        if entity.login_session_id == id && entity.signed_out_at == None {
+        if entity.login_session_id == id && entity.signed_out_at.is_none() {
             return Ok(entity.to_login_session())
         }
         return Err(PassError::not_found(

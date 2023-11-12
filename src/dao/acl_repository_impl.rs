@@ -111,7 +111,7 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
             .set((
                 resource_type.eq(acl_entity.resource_type.to_string()),
                 resource_id.eq(acl_entity.resource_id.to_string()),
-                permissions.eq(acl_entity.permissions.clone()),
+                permissions.eq(acl_entity.permissions),
                 scope.eq(acl_entity.scope.to_string()),
                 updated_at.eq(Utc::now().naive_utc()),
             ))
@@ -256,7 +256,7 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
             .order(acls::resource_type)
             .limit(limit as i64)
             .load::<ACLEntity>(&mut conn)?;
-        Ok(PaginatedResult::new(offset.clone(), limit.clone(), entities))
+        Ok(PaginatedResult::new(offset, limit, entities))
     }
 
     async fn count(&self, _: &UserContext, predicates: HashMap<String, String>) -> PassResult<i64> {
@@ -405,13 +405,13 @@ mod tests {
         for i in 0..10 {
             let name1 = format!("{}_{}", prefix1, i);
             // WHEN creating a acl
-            let acl1 = ACLEntity::new(&user1.user_id, &resource_types[i.clone() % 2].clone(), &name1);
+            let acl1 = ACLEntity::new(&user1.user_id, &resource_types[i % 2].clone(), &name1);
             // THEN it should succeed.
             assert_eq!(1, acl_repo.create(&ctx1.as_admin(), &acl1).await.unwrap());
 
             // WHEN creating another acl
             let name2 = format!("{}_{}", prefix2, i);
-            let acl2 = ACLEntity::new(&user2.user_id, &resource_types[i.clone() % 2].clone(), &name2);
+            let acl2 = ACLEntity::new(&user2.user_id, &resource_types[i % 2].clone(), &name2);
             // THEN it should succeed.
             assert_eq!(1, acl_repo.create(&ctx2.as_admin(), &acl2).await.unwrap());
         }

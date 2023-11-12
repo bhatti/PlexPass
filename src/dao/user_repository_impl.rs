@@ -129,7 +129,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         let user_crypto_key = self.get_crypto_key(ctx, &user.user_id).await?;
 
         // match version for optimistic concurrency control
-        user_entity.match_version(user.version.clone())?;
+        user_entity.match_version(user.version)?;
 
         // update user in memory
         let _ = user_entity.update_from_user(ctx, user, &user_crypto_key)?;
@@ -145,7 +145,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         )
         .set((
             // username cannot be updated
-            version.eq(user_entity.version.clone() + 1),
+            version.eq(user_entity.version + 1),
             roles.eq(&user_entity.roles),
             nonce.eq(&user_entity.nonce),
             encrypted_value.eq(&user_entity.encrypted_value),
@@ -280,7 +280,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             users
                 .filter(username.like(match_username))
                 .offset(offset)
-                .limit(page_size.clone() as i64)
+                .limit(page_size as i64)
                 .order(users::username)
                 .load::<UserEntity>(&mut conn)?
         } else {
@@ -291,7 +291,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             users
                 .filter(username.eq(match_username))
                 .offset(offset)
-                .limit(page_size.clone() as i64)
+                .limit(page_size as i64)
                 .order(users::username)
                 .load::<UserEntity>(&mut conn)?
         };
@@ -308,7 +308,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             res.push(user);
         }
 
-        Ok(PaginatedResult::new(offset.clone(), page_size.clone(), res))
+        Ok(PaginatedResult::new(offset, page_size, res))
     }
 
     async fn count(
@@ -421,7 +421,7 @@ mod tests {
         let salt = hex::encode(crypto::generate_nonce());
         let pepper = hex::encode(crypto::generate_secret_key());
 
-        let admin = User::new(format!("{}", prefix1).as_str(), None, None);
+        let admin = User::new(prefix1.to_string().as_str(), None, None);
         let mut admin_ctx =
             UserContext::default_new(&admin.username, &admin.user_id, &salt, &pepper, "pass")
                 .unwrap();

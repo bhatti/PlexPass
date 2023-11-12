@@ -69,7 +69,7 @@ pub(crate) fn build_sqlite_pool(
     }
 
     match Pool::builder()
-        .max_size(config.max_pool_size.clone())
+        .max_size(config.max_pool_size)
         .connection_customizer(Box::new(ConnectionOptions {
             enable_wal: true,
             enable_foreign_keys: true,

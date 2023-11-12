@@ -61,13 +61,13 @@ fn validate_database_session(req: &ServiceRequest, service_locator: &Data<Servic
     let _ = service_locator
         .login_session_repository
         .get(&claims.login_session)?;
-    let mut ctx = build_user_context_from_token(service_locator, &claims)?;
+    let mut ctx = build_user_context_from_token(service_locator, claims)?;
     if let Some(addr) = req.peer_addr() {
         ctx.attributes.insert(CONTEXT_IP_ADDRESS.into(), addr.ip().to_string());
     };
     req.extensions_mut()
         .insert::<Authenticated>(Authenticated::new(claims.clone(), ctx));
-    return Ok(true);
+    Ok(true)
 }
 
 // Retrieving secret key from HSM if exists and is not empty
@@ -99,7 +99,7 @@ fn build_user_context_from_token(
     let ctx = UserContext::new(
         &token.username,
         &key_params.user_id,
-        Roles::new(token.roles.clone()),
+        Roles::new(token.roles),
         &key_params.pepper,
         &get_secret_key(service_locator, &token.username)?,
         service_locator.config.hash_algorithm(),
@@ -113,7 +113,7 @@ pub fn get_token_header(req: &ServiceRequest, config: &PassConfig) -> Option<Use
         if let Ok(auth_str) = auth_header.to_str() {
             if auth_str.starts_with("bearer") || auth_str.starts_with("Bearer") {
                 let token = auth_str[6..auth_str.len()].trim();
-                let _ = match UserToken::decode_token(config, token.to_string()) {
+                match UserToken::decode_token(config, token.to_string()) {
                     Ok(token_data) => {
                         return Some(token_data.claims);
                     }

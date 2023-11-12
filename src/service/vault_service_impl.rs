@@ -73,7 +73,7 @@ impl VaultService for VaultServiceImpl {
                 ctx,
                 HashMap::from([("user_id".into(), ctx.user_id.clone())]),
                 0,
-                self.config.max_vaults_per_user.clone() as usize,
+                self.config.max_vaults_per_user as usize,
             )
             .await?;
         Ok(res.records)

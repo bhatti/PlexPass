@@ -8,5 +8,5 @@ pub async fn execute(
     user: &User,
     master_password: &str) -> PassResult<(UserContext, UserToken)> {
     let service_locator = ServiceLocator::new(&config).await?;
-    service_locator.user_service.signup_user(&user, master_password, HashMap::new()).await
+    service_locator.user_service.signup_user(user, master_password, HashMap::new()).await
 }

@@ -30,8 +30,8 @@ fn get_available_locales() -> Result<Vec<LanguageIdentifier>, io::Error> {
     Ok(locales)
 }
 
-pub fn safe_localized_message<'a>(
-    message_id: &'a str,
+pub fn safe_localized_message(
+    message_id: &str,
     args: Option<&[&str]>,
 ) -> String {
     localized_message("en-US", message_id, args).unwrap_or(message_id.to_string())
@@ -65,7 +65,7 @@ fn localized_message<'a>(
     let mut fl_args = FluentArgs::new();
     if let Some(args) = args {
         for i in (0..args.len()-1).step_by(2) {
-            fl_args.set(args[i.clone()], FluentValue::from(args[i+1]));
+            fl_args.set(args[i], FluentValue::from(args[i+1]));
         }
     }
     let mut errors = vec![];
@@ -87,7 +87,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_should_get_message() {
-        let msg = safe_localized_message("hello", Some(&vec!["name", "Sam", "place", "World"]));
+        let msg = safe_localized_message("hello", Some(&["name", "Sam", "place", "World"]));
         assert!(msg.contains("Sam"));
         assert!(msg.contains("World"));
     }

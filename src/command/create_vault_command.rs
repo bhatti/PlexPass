@@ -11,5 +11,5 @@ pub async fn execute(
     let service_locator = ServiceLocator::new(&config).await?;
     let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
     vault.owner_user_id = ctx.user_id.clone();
-    service_locator.vault_service.create_vault(&ctx, &vault).await
+    service_locator.vault_service.create_vault(&ctx, vault).await
 }

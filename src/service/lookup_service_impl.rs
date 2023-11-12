@@ -41,7 +41,7 @@ impl LookupServiceImpl {
                 ctx,
                 HashMap::from([("kind".into(), kind.to_string())]),
                 0,
-                self.config.max_lookup_entries.clone() as usize,
+                self.config.max_lookup_entries as usize,
             )
             .await?;
         let mut res = vec![];

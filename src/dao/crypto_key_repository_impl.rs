@@ -67,7 +67,7 @@ impl CryptoKeyRepository for CryptoKeyRepositoryImpl {
             return Err(diesel::result::Error::NotFound);
         } else if items.len() > 1 {
             let mut filtered = items.into_iter().filter(|i| i.user_id == match_user_id).collect::<Vec<CryptoKeyEntity>>();
-            if filtered.len() > 0 {
+            if !filtered.is_empty() {
                 return Ok(filtered.remove(0));
             }
             log::warn!(

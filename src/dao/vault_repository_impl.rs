@@ -64,7 +64,7 @@ impl VaultRepositoryImpl {
         conn: &mut DbConnection,
     ) -> PassResult<usize> {
         // Add access to the shared data from Inbox message
-        let user_crypto_key = user_repository.get_crypto_key(&ctx, &ctx.user_id).await?;
+        let user_crypto_key = user_repository.get_crypto_key(ctx, &ctx.user_id).await?;
         let user_private_key = user_crypto_key.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
 
         let vault_crypto_key = CryptoKeyEntity::clone_from_sharing(
@@ -85,12 +85,12 @@ impl VaultRepositoryImpl {
             let acl_crypto_key = ACLEntity::for_crypto_key(&ctx.user_id,
                                                            &vault_crypto_key.crypto_key_id);
             let _ = ACLRepositoryImpl::create_conn(&acl_crypto_key, c)?;
-            if vault_crypto_key.parent_crypto_key_id != "" {
+            if !vault_crypto_key.parent_crypto_key_id.is_empty() {
                 let acl_crypto_key = ACLEntity::for_crypto_key(&ctx.user_id,
                                                                &vault_crypto_key.parent_crypto_key_id);
                 let _ = ACLRepositoryImpl::create_conn(&acl_crypto_key, c)?;
             }
-            let acl_vault = ACLEntity::for_vault(&ctx.user_id, &payload.vault_id, payload.read_only.clone());
+            let acl_vault = ACLEntity::for_vault(&ctx.user_id, &payload.vault_id, payload.read_only);
             let _ = ACLRepositoryImpl::create_conn(&acl_vault, c)?;
             audit_repository.create(&AuditEntity::new(
                 ctx,
@@ -123,7 +123,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             )
             .await?;
 
-        if count > self.max_vaults_per_user.clone() as i64 {
+        if count > self.max_vaults_per_user as i64 {
             return Err(PassError::validation(
                 format!("too many vaults {} for the user.", count).as_str(),
                 None,
@@ -188,7 +188,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                                          }
                                      })?;
         // match version for optimistic concurrency control
-        vault_entity.match_version(vault.version.clone())?;
+        vault_entity.match_version(vault.version)?;
 
         // updating vault
         let _ = vault_entity.update_from_context_vault(
@@ -208,7 +208,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             ),
         )
             .set((
-                version.eq(vault_entity.version.clone() + 1),
+                version.eq(vault_entity.version + 1),
                 title.eq(&vault_entity.title),
                 kind.eq(&vault_entity.kind),
                 nonce.eq(&vault_entity.nonce),
@@ -379,7 +379,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             )
             .select(VaultEntity::as_select())
             .offset(offset)
-            .limit(page_size.clone() as i64)
+            .limit(page_size as i64)
             .order(vaults::created_at) //vaults::title
             .load::<VaultEntity>(&mut conn)?;
 
@@ -397,7 +397,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             res.push(vault);
         }
 
-        Ok(PaginatedResult::new(offset.clone(), page_size.clone(), res))
+        Ok(PaginatedResult::new(offset, page_size, res))
     }
 
     async fn count(

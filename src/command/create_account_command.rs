@@ -10,6 +10,6 @@ pub async fn execute(
     ) -> PassResult<usize> {
     let service_locator = ServiceLocator::new(&config).await?;
     let (ctx, _, _) = service_locator.user_service.signin_user(master_username, master_password, HashMap::new()).await?;
-    let size = service_locator.account_service.create_account(&ctx, &account).await?;
+    let size = service_locator.account_service.create_account(&ctx, account).await?;
     Ok(size)
 }

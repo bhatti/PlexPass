@@ -9,6 +9,6 @@ pub async fn execute(
     let service_locator = ServiceLocator::new(&config).await?;
     let (ctx, signin_user, _) = service_locator.user_service.signin_user(&user.username, master_password, HashMap::new()).await?;
     user.user_id = signin_user.user_id.clone();
-    user.version = signin_user.version.clone();
+    user.version = signin_user.version;
     service_locator.user_service.update_user(&ctx, user).await
 }

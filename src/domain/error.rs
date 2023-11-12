@@ -149,11 +149,11 @@ impl PassError {
 
     pub fn retryable(&self) -> bool {
         match self {
-            PassError::Database { retryable, .. } => retryable.clone(),
+            PassError::Database { retryable, .. } => *retryable,
             PassError::Constraints { .. } => false,
             PassError::DuplicateKey { .. } => false,
             PassError::NotFound { .. } => false,
-            PassError::CurrentlyUnavailable { retryable, .. } => retryable.clone(),
+            PassError::CurrentlyUnavailable { retryable, .. } => *retryable,
             PassError::Validation { .. } => false,
             PassError::Serialization { .. } => false,
             PassError::Crypto { .. } => false,

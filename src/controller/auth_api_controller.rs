@@ -43,7 +43,7 @@ pub async fn signout_user(
     service_locator: web::Data<ServiceLocator>,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let _ = service_locator
+    service_locator
         .user_service
         .signout_user(&auth.context, &auth.user_token.login_session)
         .await?;

@@ -20,10 +20,10 @@ impl EncryptionServiceImpl {
         let nonce_bytes = nonce.as_bytes();
 
         let mut encoded = Vec::new();
-        let _ = encoded.write_u16::<byteorder::LittleEndian>(salt_bytes.len() as u16)?;
+        encoded.write_u16::<byteorder::LittleEndian>(salt_bytes.len() as u16)?;
         encoded.extend_from_slice(salt_bytes);
 
-        let _ = encoded.write_u16::<byteorder::LittleEndian>(nonce_bytes.len() as u16)?;
+        encoded.write_u16::<byteorder::LittleEndian>(nonce_bytes.len() as u16)?;
         encoded.extend_from_slice(nonce_bytes);
         encoded.extend_from_slice(&data);
         Ok(encoded)

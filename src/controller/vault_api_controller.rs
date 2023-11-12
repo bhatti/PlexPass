@@ -40,7 +40,7 @@ pub async fn analyze_vault_passwords(
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
     let id = path.into_inner();
-    let _ = service_locator
+    service_locator
         .password_service
         .schedule_analyze_vault_passwords(&auth.context, &id)
         .await?;
@@ -57,7 +57,7 @@ pub async fn get_vaults(
         .get_user_vaults(&auth.context)
         .await?
         .iter()
-        .map(|v| VaultResponse::new(v))
+        .map(VaultResponse::new)
         .collect();
     Ok(HttpResponse::Ok().json(vaults))
 }

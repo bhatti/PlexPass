@@ -159,6 +159,7 @@ impl PassMetrics {
         summary
     }
 
+    #[allow(dead_code)]
     pub(crate) fn dump(&self) -> PassResult<String> {
         let mut buffer = Vec::new();
         let encoder = TextEncoder::new();

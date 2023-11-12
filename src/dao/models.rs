@@ -86,7 +86,7 @@ impl UserContext {
         hash_algorithm: HashAlgorithm,
     ) -> PassResult<String> {
         Ok(hex::encode(crypto::compute_hash(
-            &hex::decode(salt.to_string())?,
+            &hex::decode(salt)?,
             pepper,
             master_password,
             hash_algorithm.clone(),
@@ -121,8 +121,8 @@ impl UserContext {
     }
 
     pub(crate) fn validate_username(&self, username: &str) -> PassResult<()> {
-        if &self.username == username || self.is_admin() {
-            return Ok(());
+        if self.username == username || self.is_admin() {
+            Ok(())
         } else {
             Err(PassError::authorization(
                 "username in context didn't match target user entity",
@@ -134,7 +134,7 @@ impl UserContext {
                                    user_id: &str,
                                    acl_check: impl Fn() -> bool,
     ) -> PassResult<()> {
-        if &self.user_id == user_id || self.is_admin() || acl_check() {
+        if self.user_id == user_id || self.is_admin() || acl_check() {
             Ok(())
         } else {
             eprintln!("backtrace: {}", Backtrace::capture());
@@ -150,14 +150,14 @@ impl UserContext {
     }
 
     pub(crate) fn is_admin(&self) -> bool {
-        &self.user_id != "" && &self.username != "" && self.roles.is_admin()
+        !self.user_id.is_empty() && !self.username.is_empty() && self.roles.is_admin()
     }
 
     pub(crate) fn decrypted_user_private_key(
         &self,
         user_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<String> {
-        user_crypto_key.decrypted_private_key_with_symmetric_input(&self, &self.secret_key)
+        user_crypto_key.decrypted_private_key_with_symmetric_input(self, &self.secret_key)
     }
 
     #[allow(dead_code)]
@@ -199,7 +199,7 @@ impl UserEntity {
             user_id: user.user_id.clone(),
             version: 0,
             username: user.username.clone(),
-            roles: user.roles.mask.clone(),
+            roles: user.roles.mask,
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -223,10 +223,10 @@ impl UserEntity {
         )?;
 
         // Encrypt user json using the symmetric key
-        let (nonce, encrypted_value) = encrypt_with(&ctx, &salt, &ctx.pepper, &user_symmetric_key, user)?;
+        let (nonce, encrypted_value) = encrypt_with(ctx, &salt, &ctx.pepper, &user_symmetric_key, user)?;
 
         Ok((
-            UserEntity::new(&user, &salt, &nonce, &encrypted_value),
+            UserEntity::new(user, &salt, &nonce, &encrypted_value),
             user_crypto_key,
         ))
     }
@@ -255,8 +255,8 @@ impl UserEntity {
         )?;
 
         let mut user: User = serde_json::from_str(&decrypted_user_json)?;
-        user.version = self.version.clone();
-        user.roles = Roles::new(self.roles.clone());
+        user.version = self.version;
+        user.roles = Roles::new(self.roles);
         user.created_at = Some(self.created_at);
         user.updated_at = Some(self.updated_at);
         Ok(user)
@@ -272,7 +272,7 @@ impl UserEntity {
         let mut old_user = self.to_user(ctx, user_crypto_key)?;
         old_user.update(user); // only allow update of certain attributes
 
-        self.version = self.version.clone() + 1;
+        self.version += 1;
         // Derive symmetric key using symmetric secret key that was created from the master-password.
 
         let decrypted_private_ky =
@@ -353,7 +353,7 @@ impl LoginSessionEntity {
             source: self.source.clone(),
             ip_address: self.ip_address.clone(),
             created_at: Some(self.created_at),
-            signed_out_at: self.signed_out_at.clone(),
+            signed_out_at: self.signed_out_at,
         }
     }
 }
@@ -430,7 +430,7 @@ impl CryptoKeyEntity {
         let encrypted_symmetric_key = crypto::ec_encrypt_hex(&public_key, &symmetric_key)?;
 
         // Encrypt private secret key with input
-        let (nonce, encrypted_private_key) = encrypt_with(&ctx, &salt, &ctx.pepper, input, &private_key)?;
+        let (nonce, encrypted_private_key) = encrypt_with(ctx, &salt, &ctx.pepper, input, &private_key)?;
 
         Ok((
             Self {
@@ -461,7 +461,7 @@ impl CryptoKeyEntity {
         let other_crypto_key: CryptoKeyEntity = serde_json::from_str(&json_crypto_key)?;
 
         // The other key stores decrypted private key so we will encrypt it with user's public key.
-        let encrypted_private_key = crypto::ec_encrypt_hex(&parent_public_key, &other_crypto_key.encrypted_private_key)?;
+        let encrypted_private_key = crypto::ec_encrypt_hex(parent_public_key, &other_crypto_key.encrypted_private_key)?;
 
         Ok(
             Self {
@@ -508,7 +508,7 @@ impl CryptoKeyEntity {
         let encrypted_symmetric_key = crypto::ec_encrypt_hex(&public_key, &symmetric_key)?;
 
         // Encrypt private key of based on parent's public using Elliptic Curve.
-        let encrypted_private_key = crypto::ec_encrypt_hex(&parent_public_key, &private_key)?;
+        let encrypted_private_key = crypto::ec_encrypt_hex(parent_public_key, &private_key)?;
 
         Ok((
             Self {
@@ -627,7 +627,7 @@ impl VaultEntity {
     pub fn new(vault: &Vault, salt: &str, nonce: &str, encrypted_value: &str) -> Self {
         VaultEntity {
             vault_id: vault.vault_id.clone(),
-            version: vault.version.clone(),
+            version: vault.version,
             owner_user_id: vault.owner_user_id.clone(),
             title: vault.title.clone(),
             kind: vault.kind.to_string(),
@@ -661,7 +661,7 @@ impl VaultEntity {
 
         // no key nonce for vault as we use Asymmetric encryption
         Ok((
-            VaultEntity::new(&vault, &salt, &nonce, &enc_value),
+            VaultEntity::new(vault, &salt, &nonce, &enc_value),
             crypto_key,
         ))
     }
@@ -675,7 +675,7 @@ impl VaultEntity {
         vault_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
         self.title = vault.title.clone();
-        self.version = self.version.clone() + 1;
+        self.version += 1;
 
         // Decrypt vault symmetric key based on salt, user's private key and master pepper
         let decrypted_symmetric_key = vault_crypto_key
@@ -683,7 +683,7 @@ impl VaultEntity {
                 &ctx.decrypted_user_private_key(user_crypto_key)?,
             )?;
 
-        let vault = if vault.entries == None {
+        let vault = if vault.entries.is_none() {
             // we will load entries from old vault
             let vault_json = decrypt_with(
                 ctx,
@@ -733,7 +733,7 @@ impl VaultEntity {
         )?;
 
         let mut vault: Vault = serde_json::from_str(&vault_json)?;
-        vault.version = self.version.clone();
+        vault.version = self.version;
         vault.title = self.title.clone();
         vault.kind = VaultKind::from(self.kind.as_str());
         vault.created_at = Some(self.created_at);
@@ -842,9 +842,9 @@ impl AccountEntity {
     pub fn new(account: &Account, salt: &str, nonce: &str, encrypted_value: &str) -> Self {
         AccountEntity {
             account_id: account.details.account_id.clone(),
-            version: account.details.version.clone(),
+            version: account.details.version,
             vault_id: account.vault_id.clone(),
-            archived_version: account.archived_version.clone(),
+            archived_version: account.archived_version,
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -889,7 +889,7 @@ impl AccountEntity {
         let (nonce, encrypted_value) = encrypt_with(ctx, &salt, "", &vault_symmetric_key, account)?;
 
         Ok((
-            AccountEntity::new(&account, &salt, &nonce, &encrypted_value),
+            AccountEntity::new(account, &salt, &nonce, &encrypted_value),
             crypto_key,
         ))
     }
@@ -902,17 +902,17 @@ impl AccountEntity {
         account: &Account,
         account_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
-        self.version = self.version.clone() + 1;
+        self.version += 1;
 
         let decrypted_symmetric_key = Self::decrypted_account_symmetric_key(
-            &ctx,
+            ctx,
             user_crypto_key,
             vault_crypto_key,
             account_crypto_key,
         )?;
 
         let mut account = account.clone();
-        account.details.version = self.version.clone();
+        account.details.version = self.version;
 
         // Encrypting without pepper key so that we can share it
         let (nonce, encrypted_value) =
@@ -932,7 +932,7 @@ impl AccountEntity {
         account_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<Account> {
         let decrypted_symmetric_key = Self::decrypted_account_symmetric_key(
-            &ctx,
+            ctx,
             user_crypto_key,
             vault_crypto_key,
             account_crypto_key,
@@ -949,7 +949,7 @@ impl AccountEntity {
 
         let mut account: Account = serde_json::from_str(&account_json)?;
         account.value_hash = self.value_hash.clone();
-        account.details.version = self.version.clone();
+        account.details.version = self.version;
         account.created_at = Some(self.created_at);
         account.updated_at = Some(self.updated_at);
         Ok(account)
@@ -1032,7 +1032,7 @@ impl ArchivedAccountEntity {
     pub fn new(account: &AccountEntity, crypto_key_id: &str) -> Self {
         ArchivedAccountEntity {
             account_id: account.account_id.clone(),
-            version: account.version.clone(),
+            version: account.version,
             vault_id: account.vault_id.clone(),
             crypto_key_id: crypto_key_id.into(),
             salt: account.salt.clone(),
@@ -1069,7 +1069,7 @@ impl ArchivedAccountEntity {
 
         let mut account: Account = serde_json::from_str(&account_json)?;
         account.value_hash = self.value_hash.clone();
-        account.details.version = self.version.clone();
+        account.details.version = self.version;
         account.created_at = Some(self.created_at);
         account.updated_at = Some(self.created_at);
         Ok(account)
@@ -1258,7 +1258,7 @@ impl MessageEntity {
             specversion: message.specversion.clone(),
             source: message.source.clone(),
             kind: message.kind.to_string(),
-            flags: message.flags.clone(),
+            flags: message.flags,
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -1291,7 +1291,7 @@ impl MessageEntity {
         let decrypted_private_key = ctx.decrypted_user_private_key(user_crypto_key)?;
         let decrypted_json_message = crypto::ec_decrypt_hex(&decrypted_private_key, &self.encrypted_value)?;
         let mut message: Message = serde_json::from_str(&decrypted_json_message)?;
-        message.flags = self.flags.clone();
+        message.flags = self.flags;
         message.created_at = Some(self.created_at);
         message.updated_at = Some(self.updated_at);
         Ok(message)
@@ -1427,7 +1427,7 @@ impl AuditEntity {
             ip_address: self.ip_address.clone(),
             context: self.context.clone(),
             message: self.message.clone(),
-            created_at: self.created_at.clone(),
+            created_at: self.created_at,
         }
     }
 }
@@ -1489,7 +1489,7 @@ impl ACLEntity {
 
 impl PartialEq for ACLEntity {
     fn eq(&self, other: &Self) -> bool {
-        self.acl_id.to_string() == other.acl_id.to_string()
+        self.acl_id == other.acl_id
     }
 }
 
@@ -1513,9 +1513,9 @@ fn encrypt_with<T>(
 {
     let plain_json = serde_json::to_string(value)?;
     let enc_val_resp = crypto::encrypt(EncryptRequest::from_string(
-        &salt,
+        salt,
         pepper,
-        &secret_key,
+        secret_key,
         ctx.hash_algorithm.clone(),
         ctx.crypto_algorithm.clone(),
         &plain_json,
@@ -1546,7 +1546,7 @@ fn decrypt_with(
 
     // serializing strings adds quotes so removing them here.
     let plain_str = dec_res.payload_string()?;
-    if plain_str.starts_with("\"") && plain_str.ends_with("\"") {
+    if plain_str.starts_with('\"') && plain_str.ends_with('\"') {
         Ok(plain_str[1..plain_str.len() - 1].to_string())
     } else {
         dec_res.payload_string()
