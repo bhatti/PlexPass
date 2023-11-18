@@ -10,21 +10,21 @@ JWT_TOKEN = ''
 SERVER='https://localhost:8443'
 
 DATA1 = """Type,name,url,username,password,note,totp,category
-Login,Youtube,https://www.youtube.com/,youlogin,youpassword,tempor incididunt ut labore et,,
-Login,Amazon      ,https://www.amazon.com/,amlogin1,ampassword1,sit amet, consectetur adipiscing,,
-Login,Bank of America ,https://www.boa.com/,mylogin3,mypassword3,Excepteur sint occaecat cupidatat non,,
-Login,Twitter     ,https://www.twitter.com/,mylogin3,mypassword3,eiusmod tempor incididunt ut,,
-Login,AT&T,https://www.att.com/,mylogin4,mypassword4,mynote4,,
-Login,All State Insurance,https://www.allstate.com/,mylogin5,mypassword5,do eiusmod tempor incididunt ut,,
-Login,Microsoft,https://www.microsoft.com/,mylogin7,mypassword7,ed do eiusmod tempor incididunt ut,,
+Login,Youtube,https://www.youtube.com/,youlogin,youpassword,tempor incididunt ut labore et,JBSWY3DPEHPK3PXP,
+Login,Amazon      ,https://www.amazon.com/,amlogin1,ampassword1,sit amet, consectetur adipiscing,JBSWY3DPEHPK3PXP,
+Login,Bank of America ,https://www.boa.com/,mylogin3,mypassword3,Excepteur sint occaecat cupidatat non,JBSWY3DPEHPK3PXP,
+Login,Twitter     ,https://www.twitter.com/,mylogin3,mypassword3,eiusmod tempor incididunt ut,JBSWY3DPEHPK3PXP,
+Login,AT&T,https://www.att.com/,mylogin4,mypassword4,mynote4,JBSWY3DPEHPK3PXP,
+Login,All State Insurance,https://www.allstate.com/,mylogin5,mypassword5,do eiusmod tempor incididunt ut,JBSWY3DPEHPK3PXP,
+Login,Microsoft,https://www.microsoft.com/,mylogin7,mypassword7,ed do eiusmod tempor incididunt ut,JBSWY3DPEHPK3PXP,
 Secure Note,Personal Note name,,,,My Secure Note,,
 Secure Note,Social Note name1,,,,My Secure Note1,,
 Secure Note,Work Note name2,,,,My Secure Note2,,
 Secure Note,Reminder Note name3,,,,My Secure Note3,,
 Secure Note,TODO Note name4,,,,My Secure Note4,,
 Secure Note,Plan Note name5,,,,My Secure Note5,,
-Login,Netflix,https://www.netflix.com/,mylogin6,mypassword6,mynote6,,
-Login,Facebook,https://www.facebook.com/,mylogin8,mypassword8,mynote8,,
+Login,Netflix,https://www.netflix.com/,mylogin6,mypassword6,mynote6,JBSWY3DPEHPK3PXP,
+Login,Facebook,https://www.facebook.com/,mylogin8,mypassword8,mynote8,JBSWY3DPEHPK3PXP,
 Login,Twitch,https://twitch.tv/,mylogin6,mypassword6,mynote6,,"""
 
 

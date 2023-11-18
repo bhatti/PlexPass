@@ -1,8 +1,12 @@
+let otpIntervalId;
+let clipboardTimer;
+let otpDuration = 30; // Duration of OTP in seconds
+let otpTimeLeft = otpDuration;
+
 async function viewAccount(id) {
     const account = await fetchAccount(id);
     const modalBody = document.querySelector('#viewAccountModal .modal-body');
     const favorite = account.favorite ? 'checked' : '';
-    console.log('account', account);
     let customFields = '';
     if (account.form_fields) {
         customFields += `<table class="table table-striped-columns table-sm">`;
@@ -13,6 +17,36 @@ async function viewAccount(id) {
             </tr>`;
         }
         customFields += `</table>`;
+    }
+    let otpData = '';
+    if (account.otp) {
+        otpData += `
+        <tr>
+            <td><strong>OTP Secret:</strong></td><td> <span id="viewOtp">${account.otp || ''}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Generated OTP:</strong></td><td> 
+                <div class="row align-items-center">
+                </div>
+               
+                <div class="col">
+                    <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
+                        <span id="viewGeneratedOtp">${account.generated_otp}</span>
+                    </div>
+                </div> 
+                <!-- Progress Bar -->
+                <div class="col">
+                    <div class="progress">
+                        <div id="otpTimer" class="progress-bar" role="progressbar" style="width: 100%;"></div>
+                    </div>
+                </div>
+                &nbsp;
+                <div class="col-auto">
+                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
+                </div>
+            </td>
+        </tr>
+        `;
     }
 
     let advisories = '';
@@ -56,7 +90,7 @@ async function viewAccount(id) {
             <td><strong>Email:</strong></td><td> <span id="viewEmail">${account.email || ''}</span></td>
         </tr>
         <tr>
-            <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.url || ''}</span></td>
+            <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.website_url || ''}</span></td>
         </tr>
         <tr>
             <td><strong>Category:</strong></td><td> <span id="viewCategory">${account.category || ''}</span></td>
@@ -64,6 +98,7 @@ async function viewAccount(id) {
         <tr>
             <td><strong>Tags:</strong></td><td> <span id="viewTags">${account.tags || ''}</span></td>
         </tr>
+        ${otpData}
         <tr>
             <td><strong>Notes:</strong></td><td> <span id="viewNotes">${account.notes || ''}</span></td>
         </tr>
@@ -81,10 +116,81 @@ async function viewAccount(id) {
             ${customFields}
         </div>
     `;
-
     // Show modal
-    const viewModal = new bootstrap.Modal(document.getElementById('viewAccountModal'));
+    const viewModalElem = document.getElementById('viewAccountModal');
+    const viewModal = new bootstrap.Modal(viewModalElem);
+
+    if (document.getElementById('viewGeneratedOtp')) {
+        viewModalElem.addEventListener('show.bs.modal', function (e) {
+            startFetchingOTP();
+        });
+
+        // Event listener for when the modal is closed
+        viewModalElem.addEventListener('hide.bs.modal', function (e) {
+            stopFetchingOTP();
+        });
+    }
     await viewModal.show();
+}
+
+function  copyOtpToClipboard(){
+    const otp = document.getElementById('viewGeneratedOtp').textContent;
+    copyToClipboard(otp);
+}
+
+function resetProgressBar() {
+    document.getElementById('otpTimer').style.width = '100%';
+}
+
+function updateProgressBar() {
+    const percentage = (otpTimeLeft / otpDuration) * 100;
+    document.getElementById('otpTimer').style.width = percentage + '%';
+}
+
+function fetchOTP() {
+    const secret = document.getElementById('viewOtp').textContent;
+    // Replace 'your_api_endpoint' with the actual API endpoint
+    fetch('/ui/otp/generate?otp_secret=' + secret)
+        .then(response => response.json())
+        .then(data => {
+            otpTimeLeft = otpDuration;
+            resetProgressBar();
+            if (data && data.otp_code) {
+                document.getElementById('viewGeneratedOtp').textContent = data.otp_code;
+            } else {
+                console.error('didnt receive otp', data);
+                stopFetchingOTP();
+            }
+        })
+        .catch(error => {
+            stopFetchingOTP();
+            console.error('Error fetching OTP:', error)
+        });
+}
+
+// Function to start fetching OTP
+function startFetchingOTP() {
+    stopFetchingOTP();
+    if (otpIntervalId) clearInterval(otpIntervalId);
+    otpIntervalId = setInterval(function() {
+        if (new Date().getSeconds() % 30 == 0) {
+            fetchOTP();
+        } else if (otpTimeLeft > 0) {
+            otpTimeLeft--;
+            updateProgressBar();
+        } else {
+            fetchOTP();
+        }
+    }, 1000);
+    fetchOTP();
+}
+
+// Function to stop fetching OTP
+function stopFetchingOTP() {
+    if (otpIntervalId) {
+        clearInterval(otpIntervalId);
+        otpIntervalId = null;
+    }
 }
 
 async function editAccount(id) {
@@ -107,15 +213,40 @@ async function addAccount(vault_id) {
         username: '',
         password: '',
         phone: '',
-        url: '',
+        website_url: '',
         category: '',
         tags: '',
+        otp : '',
         notes: '',
         form_fields: {},
     };
 
     await showAccountForm(account);
 }
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        clearClipboardAfterDelay(text, 30000);  // 30 seconds delay
+    }).catch(function(er) {
+        console.error('Could not copy text: ', err);
+    });
+}
+
+function clearClipboardAfterDelay(text, delay) {
+    if (clipboardTimer) {
+        clearTimeout(clipboardTimer);
+    }
+    clipboardTimer = setTimeout(function() {
+        navigator.clipboard.readText().then(clipboardContent => {
+            if (clipboardContent === text) {
+                navigator.clipboard.writeText('');  // Clear the clipboard
+            }
+        }).catch(function(error) {
+            console.error('Error reading clipboard:', error);
+        });
+    }, delay);
+}
+
 
 async function showAccountForm(account) {
     const favorite = account.favorite ? 'checked' : '';
@@ -138,7 +269,7 @@ async function showAccountForm(account) {
                     <div class="form-group mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="favorite" name="favorite">
                         <label class="form-check-label" for="favorite" ${favorite}>Favorite</label>
-                    </div> 
+                    </div>
                     <div class="form-group mb-3">
                         <label for="description" class="form-label">Description:</label>
                         <input type="text" class="form-control" id="description" name="description" value="${account.description || ''}">
@@ -160,18 +291,22 @@ async function showAccountForm(account) {
                         <input type="tel" class="form-control" name="phone" value="${account.phone || ''}">
                     </div>
                     <div class="form-group mb-3">
-                        <label for="url" class="form-label">Website URL:</label>
-                        <input type="url" class="form-control" id="url" name="url" value="${account.url || ''}">
-                    </div>                                        
+                        <label for="website_url" class="form-label">Website URL:</label>
+                        <input type="url" class="form-control" id="website_url" name="website_url" value="${account.url || ''}">
+                    </div>
                     <div class="form-group mb-3">
                         <label for="editCategory" class="form-label">Category: </label>
                         <select class="form-select" id="editCategory" name="category">
                           ${category_opts}
-                        </select>                        
+                        </select>
                     </div>
                     <div class="form-group mb-3">
                         <label>Tags (separated by commas):</label>
                         <input type="text" class="form-control" name="tags" value="${account.tags || ''}" placeholder="Add tags...">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>OTP Secret (Base32):</label>
+                        <input type="text" class="form-control" name="otp" value="${account.otp || ''}" placeholder="Base32 TOTP secret">
                     </div>
                     <div class="form-group mb-3">
                         <label for="notes" class="form-label">Notes:</label>
@@ -183,7 +318,7 @@ async function showAccountForm(account) {
                     <div class="form-group mb-3" id="customFieldsEdit">
                     </div>
 
-                    <button class="btn btn-info mb-3" type="button" onclick="addCustomField()">+ Add Custom Field</button>                    
+                    <button class="btn btn-info mb-3" type="button" onclick="addCustomField()">+ Add Custom Field</button>
     `;
 
     const customFieldsContainer = document.getElementById('customFieldsEdit');
@@ -441,13 +576,6 @@ function togglePasswordVisibility() {
         accountPassword.type = 'password';
         passwordButtonSpan.innerText = "Show";
     }
-}
-
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function () {
-    }, function (err) {
-        console.error('Could not copy text: ', err);
-    });
 }
 
 async function fetchAccount(id) {

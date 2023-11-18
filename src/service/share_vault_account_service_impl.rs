@@ -139,7 +139,7 @@ mod tests {
 
         // User 2 should also be able to update and accounts for write permissions.
         for mut account in all.records {
-            account.details.url = Some(Uuid::new_v4().to_string());
+            account.details.website_url = Some(Uuid::new_v4().to_string());
             assert_eq!(1, account_service.update_account(&ctx2, &account).await.unwrap());
             assert_eq!(1, account_service.delete_account(&ctx2, &account.details.account_id).await.unwrap());
         }

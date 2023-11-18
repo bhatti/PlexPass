@@ -28,7 +28,8 @@ The PlexPass is designed based on following tenets and features:
 *   Tagging and Organization: It provides users with the ability to organize entries using tags, categories, or folders for a seamless user experience.
 *   Secure Notes: It stores encrypted notes and additional form-filled data.
 *   Search and Filter Options: It provides intuitive search and filter capabilities.
-*   Local Authentication: PlexPass will support standards such as [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP) and [Yubikey](https://www.yubico.com/). 
+*   Multi-Factor Authentication: PlexPass supports MFA based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP) and other standards.
+*   Local Authentication: PlexPass will support standards such as [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on hardware keys such as [Yubikey](https://www.yubico.com/). 
 
 ## 2.0 Cryptography
 ----------------
@@ -586,12 +587,13 @@ The architectural considerations for the design and implementation of PlexPass �
 7.  Extensibility and Flexibility: PlexPass design considered future extensions to allow for additional features such as shared vaults and multi-factor authentication to be added without major overhauls.
 8.  Internationalization and Localization: PlexPass employs the Fluent library, a modern localization system designed for natural-sounding translations. This ensures that PlexPass user-interface is linguistically and culturally accessible to users worldwide.
 9.  Cross-Platform Compatibility: PlexPass design ensured compatibility across different operating systems and devices, enabling users to access their password vaults from any platform.
-10.  Privacy by Design: User privacy was safeguarded by adopting principles like minimal data retention and ensuring that sensitive information, such as master passwords, is never stored in a file or persistent database.
-11.  Asynchronous Processing: PlexPass uses asynchronous processing for any computational intenstive tasks such as password analysis so that UI and APIs are highly responsive.
-12.  Data Portability: PlexPass empowers users with full control over their data by offering comprehensive import and export features, facilitating effortless backup and data management.
-13.  Robust Error Handling and Logging: PlexPass applies comprehensive logging, auditing and error-handling mechanisms to facilitate troubleshooting and enhance the security audit trail.
-14.  Compliance with Best Practices: PlexPass design adhered to industry best practices and standards for password management and data protection regulations throughout the development process.
-15.  Health Metrics: PlexPass incorporates Prometheus, a powerful open-source monitoring and alerting toolkit, to publish and manage its API and business service metrics. This integration plays a crucial role in maintaining the reliability and efficiency of the system through enhanced monitoring capabilities.
+10. Authorization and Access Control: PlexPass rigorously upholds stringent ownership and access control measures, guaranteeing that encrypted private data remains inaccessible without appropriate authentication. Furthermore, it ensures that other users can access shared Vaults and Accounts solely when they have been explicitly authorized with the necessary read or write permissions.
+11.  Privacy by Design: User privacy was safeguarded by adopting principles like minimal data retention and ensuring that sensitive information, such as master passwords, is never stored in a file or persistent database.
+12.  Asynchronous Processing: PlexPass uses asynchronous processing for any computational intenstive tasks such as password analysis so that UI and APIs are highly responsive.
+13.  Data Portability: PlexPass empowers users with full control over their data by offering comprehensive import and export features, facilitating effortless backup and data management.
+14.  Robust Error Handling and Logging: PlexPass applies comprehensive logging, auditing and error-handling mechanisms to facilitate troubleshooting and enhance the security audit trail.
+15.  Compliance with Best Practices: PlexPass design adhered to industry best practices and standards for password management and data protection regulations throughout the development process.
+16.  Health Metrics: PlexPass incorporates Prometheus, a powerful open-source monitoring and alerting toolkit, to publish and manage its API and business service metrics. This integration plays a crucial role in maintaining the reliability and efficiency of the system through enhanced monitoring capabilities.
 
 ## 11.0 User Guide
 ---------------
@@ -1095,7 +1097,7 @@ You can create an Account using REST API as follows:
 curl -v -k -X POST https://localhost:8443/api/v1/vaults 
 	--header "Content-Type: application/json; charset=UTF-8" 
     --header "Authorization: Bearer $AUTH_TOKEN" 
-    -d '{"vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "label": "Amazon", "username": "harry", "password": "**", "url": "https://www.amazon.com", "email": "harry@bitvault.com"}'
+    -d '{"vault_id": "44c0f4bc-8aca-46ac-a80a-9bd25c8f06aa", "label": "Amazon", "username": "harry", "password": "**", "website_url": "https://www.amazon.com", "email": "harry@bitvault.com"}'
 ```
 
 #### 11.11.3 Docker CLI
@@ -1167,10 +1169,11 @@ Which will show account details such as:
   "username": "bob",
   "password": "**",
   "email": "bob@bitvault.com",
-  "url": "https://amazon.com",
+  "wesbite_url": "https://amazon.com",
   "category": "Shopping",
   "tags": ["Family"],
-  "otp": null,
+  "otp": "JBSWY3DPEHPK3PXP",
+  "generated_otp": ***,
   "icon": null,
   "form_fields": {"CreditCard": "***"},
   "notes": null,
@@ -1935,7 +1938,59 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1
     --vault-id $vault_id --target-username charlie
 ```
 
-### 11.32 Security Dashboad and Auditing
+### 11.32 Generating OTP code
+
+PlexPass allows generating OTP code based on base-32 secret.
+
+#### 11.32.1 Command Line
+
+You can generate otp for a particular account using based on CLI as follows:
+
+```bash
+./target/release/plexpass -j true --master-username eddie --master-password *** generate-otp --account-id $account_id
+```
+
+or using secret as follows:
+
+```bash
+./target/release/plexpass -j true --master-username eddie --master-password *** generate-otp --otp-secret "JBSWY3DPEHPK3PXP"
+```
+
+#### 11.32.2 REST API
+
+The OTP will be included with account API if you have previously setup otp-secret, e.g.,
+
+```bash
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id
+```
+
+or, generate otp using a secret
+
+```bash
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/otp/generate -d '{"otp_secret": "***"}'
+```
+
+#### 11.32.3 Docker CLI
+
+You can generate otp for a particular account using based on Docker CLI as follows:
+
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username eddie --master-password *** generate-otp --account-id $account_id
+```
+
+or using secret as follows:
+
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true  --master-username eddie --master-password *** generate-otp --otp-secret "JBSWY3DPEHPK3PXP"
+```
+
+### 11.33 Security Dashboad and Auditing
 
 The PlexPass web application includes a security dashboard to monitor health of all passwords and allows users to view audit logs for all changes to their accounts, e.g.,
 
@@ -1966,5 +2021,6 @@ The design principles and architectural framework outlined above showcase PlexPa
 14.  **Reduced Attack Surface**: By not relying on cloud connectivity, offline managers are not susceptible to online attacks targeting cloud storage.
 15.  **Control over Data**: Users have complete control over their data, including how it’s stored and backed up.
 16.  **Potentially Lower Risk of Service Shutdown**: Since the data is stored locally, the user’s access to their passwords is not contingent on the continued operation of a third-party service.
+17.  **Multi-Factor Authentication**: PlexPass supports Multi-Factor Authentication based on One-Time-Passwords (OTP) and other standards.
 
-PlexPass plans to incorporate standards such as FIDO, WebAuthN, OTP, and YubiKey for authentication enhances security beyond just password protection, aligning with the latest industry standards for secure access. In summary, PlexPass, with its extensive features, represents a holistic and advanced approach to password management. You can download it freely from [https://github.com/bhatti/PlexPass](https://github.com/bhatti/PlexPass) and provide your feedback.
+PlexPass plans to incorporate standards such as FIDO, WebAuthN, and YubiKey for authentication enhances security beyond just password protection, aligning with the latest industry standards for secure access. In summary, PlexPass, with its extensive features, represents a holistic and advanced approach to password management. You can download it freely from [https://github.com/bhatti/PlexPass](https://github.com/bhatti/PlexPass) and provide your feedback.

@@ -16,7 +16,7 @@ exit
     "description": null,
     "username": "samuel",
     "email": "samuel@io.com",
-    "url": null,
+    "website_url": null,
     "category": null,
     "tags": [],
     "favicon": null,

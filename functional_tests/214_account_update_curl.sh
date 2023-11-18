@@ -3,7 +3,7 @@
 vault_id=`./207_vault_all_curl.sh|jq '.[].vault_id'|head -1|sed "s/\"//g"`
 account_id=`./212_account_all_curl.sh|jq '.accounts[].account_id'|head -1|sed "s/\"//g"`
 source 202_user_signin_curl.sh
-curl -v -k -X PUT https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id --header "Content-Type: application/json; charset=UTF-8" --header "Authorization: Bearer $AUTH_TOKEN"  -d '{"vault_id": "xxx", "account_id": "xxx", "username": "harry", "password": "harry", "url": "https://www.homedepot.com", "email": "harry@bitvault.com"}'
+curl -v -k -X PUT https://localhost:8443/api/v1/vaults/$vault_id/accounts/$account_id --header "Content-Type: application/json; charset=UTF-8" --header "Authorization: Bearer $AUTH_TOKEN"  -d '{"vault_id": "xxx", "account_id": "xxx", "username": "harry", "password": "harry", "website_url": "https://www.homedepot.com", "email": "harry@bitvault.com"}'
 
 exit
 {
@@ -19,7 +19,7 @@ exit
   "username": "bob",
   "password": "Bob#12Books%",
   "email": "bob@bitvault.com",
-  "url": "books.io",
+  "website_url": "books.io",
   "category": null,
   "tags": [],
   "otp": null,

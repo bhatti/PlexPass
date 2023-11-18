@@ -12,8 +12,8 @@ pub(crate) struct CSVRecord {
     type_: String,
     #[serde(alias = "label", alias = "title")]
     name: String, // label
-    #[serde(alias = "website")]
-    url: Option<String>,
+    #[serde(alias = "website", alias = "url")]
+    website_url: Option<String>,
     username: Option<String>,
     password: Option<String>,
     email: Option<String>,
@@ -34,7 +34,7 @@ impl CSVRecord {
         Self {
             type_: account.details.kind.to_string(),
             name : account.details.label.clone().unwrap_or("".into()),
-            url: account.details.url.clone(),
+            website_url: account.details.website_url.clone(),
             username: account.details.username.clone(),
             email: account.details.email.clone(),
             password: account.credentials.password.clone(),
@@ -78,7 +78,7 @@ impl CSVRecord {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
-        account.details.url = self.url.clone();
+        account.details.website_url = self.website_url.clone();
         account.details.category = self.category.clone();
         if let Some(tags) = &self.tags {
             account.details.tags = tags.as_str().split("[,;]").map(|s|s.to_string()).collect::<Vec<String>>();

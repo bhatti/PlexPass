@@ -36,11 +36,11 @@ class AccountsTest(unittest.TestCase):
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + JWT_TOKEN,
         }
-        data = {'vault_id': VAULT_ID, 'label': 'Costco', 'username': 'alice', 'password': 'Alice#12Wonderland%', 'url': 'https://www.costco.com', 'email': 'alice@bitvault.com'}
+        data = {'vault_id': VAULT_ID, 'label': 'Costco', 'username': 'alice', 'password': 'Alice#12Wonderland%', 'website_url': 'https://www.costco.com', 'email': 'alice@bitvault.com'}
         resp = requests.post(SERVER + '/api/v1/vaults/' + VAULT_ID + '/accounts', json = data, headers = headers, verify = False)
         self.assertTrue(resp.status_code == 200 or resp.status_code == 409)
 
-        data = {'vault_id': VAULT_ID, 'label': 'Tester', 'username': 'bob', 'password': 'Bob#12Books%', 'url': 'https://oreilly.com', 'email': 'bob@bitvault.com'}
+        data = {'vault_id': VAULT_ID, 'label': 'Tester', 'username': 'bob', 'password': 'Bob#12Books%', 'website_url': 'https://oreilly.com', 'email': 'bob@bitvault.com'}
         resp = requests.post(SERVER + '/api/v1/vaults/' + VAULT_ID + '/accounts', json = data, headers = headers, verify = False)
         self.assertTrue(resp.status_code == 200 or resp.status_code == 409)
 
@@ -72,7 +72,7 @@ class AccountsTest(unittest.TestCase):
             'Authorization': 'Bearer ' + JWT_TOKEN,
         }
 
-        data = {'vault_id': VAULT_ID, 'account_id': ACCOUNT_ID, 'version': VERSION, 'username': 'alice', 'password': 'Alice#12Wonderland%', 'email': 'alice@wonder.land', 'url': 'https://disney.com'}
+        data = {'vault_id': VAULT_ID, 'account_id': ACCOUNT_ID, 'version': VERSION, 'username': 'alice', 'password': 'Alice#12Wonderland%', 'email': 'alice@wonder.land', 'website_url': 'https://disney.com'}
         resp = requests.put(SERVER + '/api/v1/vaults/' + VAULT_ID + '/accounts/' + ACCOUNT_ID, json = data, headers = headers, verify = False)
         self.assertEqual(200, resp.status_code)
 

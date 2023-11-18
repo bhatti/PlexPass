@@ -11,11 +11,14 @@ pub(crate) mod import_export_service_impl;
 pub(crate) mod encryption_service_impl;
 pub(crate) mod share_vault_account_service_impl;
 pub(crate) mod audit_service_impl;
+pub(crate) mod otp_service_impl;
 
 use crate::dao::models::UserContext;
 use crate::domain::models::{Account, AccountSummary, AuditLog, EncodingScheme, ImportResult, Lookup, LookupKind, Message, MessageKind, PaginatedResult, PassResult, PasswordInfo, PasswordPolicy, PasswordSimilarity, ProgressStatus, Setting, SettingKind, User, UserToken, Vault, VaultAnalysis, VaultKind};
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path;
+use crate::controller::models::AccountResponse;
 
 #[async_trait]
 pub trait UserService {
@@ -311,15 +314,34 @@ pub trait ShareVaultAccountService {
     ) -> PassResult<(usize, usize)>;
 }
 
-/// AuditLogService interface for showing audit logs
+/// AuditLogService interface for showing audit logs.
 #[async_trait]
 pub trait AuditLogService {
     async fn find(&self,
-            ctx: &UserContext,
-            predicates: HashMap<String, String>,
-            offset: i64,
-            limit: usize,
+                  ctx: &UserContext,
+                  predicates: HashMap<String, String>,
+                  offset: i64,
+                  limit: usize,
     ) -> PassResult<PaginatedResult<AuditLog>>;
+}
+
+/// OTPService interface for managing one-time-passwords.
+#[async_trait]
+pub trait OTPService {
+    /// Generate OTP
+    async fn generate(&self, ctx: &UserContext, secret: &str) -> PassResult<u32>;
+    /// Extract OTP secret from QRCode
+    async fn convert_from_qrcode(&self, ctx: &UserContext, image_data: &[u8]) -> PassResult<Vec<AccountResponse>>;
+    /// Create QRCode image for OTP secrets
+    async fn convert_to_qrcode(&self, ctx: &UserContext,
+                               secrets: Vec<&str>,
+    ) -> PassResult<Vec<u8>>;
+    /// Extract OTP secret from QRCode file
+    async fn convert_from_qrcode_file(&self, ctx: &UserContext,
+                                      in_path: &Path) -> PassResult<Vec<AccountResponse>>;
+    /// Create QRCode image file for OTP secrets
+    async fn convert_to_qrcode_file(&self, ctx: &UserContext, secrets: Vec<&str>,
+                                    out_path: &Path) -> PassResult<()>;
 }
 
 

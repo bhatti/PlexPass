@@ -397,7 +397,7 @@ mod tests {
 
         // User 2 should also be able to update and accounts for write permissions.
         for mut account in res4.records {
-            account.details.url = Some(Uuid::new_v4().to_string());
+            account.details.website_url = Some(Uuid::new_v4().to_string());
             assert_eq!(1, account_repo.update(&ctx2, &account).await.unwrap());
             assert_eq!(1, account_repo.delete(&ctx2, &account.details.account_id).await.unwrap());
         }
@@ -513,7 +513,7 @@ mod tests {
 
         // User 2 should not be able to update and accounts for read permissions.
         for mut account in res4.records {
-            account.details.url = Some(Uuid::new_v4().to_string());
+            account.details.website_url = Some(Uuid::new_v4().to_string());
             assert!(account_repo.update(&ctx2, &account).await.is_err());
             assert!(account_repo.delete(&ctx2, &account.details.account_id).await.is_err());
         }

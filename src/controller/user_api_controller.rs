@@ -11,7 +11,10 @@ pub async fn get_user(
     path: web::Path<String>,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let id = path.into_inner();
+    let mut id = path.into_inner();
+    if id == "me" {
+        id = auth.context.user_id.clone();
+    }
     let (_, user) = service_locator.user_service.get_user(&auth.context, &id).await?;
     Ok(HttpResponse::Ok().json(user))
 }
@@ -46,7 +49,10 @@ pub async fn delete_user(
     path: web::Path<String>,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let id = path.into_inner();
+    let mut id = path.into_inner();
+    if id == "me" {
+        id = auth.context.user_id.clone();
+    }
     let _ = service_locator.user_service.delete_user(&auth.context, &id).await?;
     Ok(HttpResponse::Ok().finish())
 }
@@ -58,7 +64,10 @@ pub async fn update_user(
     payload: web::Json<UpdateUserRequest>,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let id = path.into_inner();
+    let mut id = path.into_inner();
+    if id == "me" {
+        id = auth.context.user_id.clone();
+    }
     let mut user = payload.to_user();
     user.user_id = id.clone();
     let _ = service_locator

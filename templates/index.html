@@ -108,7 +108,7 @@
                         <img width="16" height="16" src="{{account.favicon()}}">
                         {% endif %}
                         {% if account.has_url() %}
-                        <a href="{{account.url()}}">{{account.label_description()}}</a>
+                        <a href="{{account.website_url()}}">{{account.label_description()}}</a>
                         {% else %}
                         {{account.label_description()}}
                         {% endif %}

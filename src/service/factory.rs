@@ -11,10 +11,11 @@ use crate::service::password_service_impl::PasswordServiceImpl;
 use crate::service::setting_service_impl::SettingServiceImpl;
 use crate::service::user_service_impl::UserServiceImpl;
 use crate::service::vault_service_impl::VaultServiceImpl;
-use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService};
+use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, OTPService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService};
 use crate::service::audit_service_impl::AuditLogServiceImpl;
 use crate::service::encryption_service_impl::EncryptionServiceImpl;
 use crate::service::import_export_service_impl::ImportExportServiceImpl;
+use crate::service::otp_service_impl::OTPServiceImpl;
 use crate::service::share_vault_account_service_impl::ShareVaultAccountServiceImpl;
 use crate::store::factory::create_hsm_store;
 
@@ -157,6 +158,16 @@ pub async fn create_audit_log_service(
     Ok(Arc::new(AuditLogServiceImpl::new(
         config,
         create_audit_repository(config).await?,
+        default_registry(),
+    )?))
+}
+
+// factory to method to create otp-service
+pub async fn create_otp_service(
+    config: &PassConfig,
+) -> PassResult<Arc<dyn OTPService + Send + Sync>> {
+    Ok(Arc::new(OTPServiceImpl::new(
+        config,
         default_registry(),
     )?))
 }

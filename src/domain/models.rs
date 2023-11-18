@@ -590,7 +590,7 @@ pub struct AccountSummary {
     // The email of the account.
     pub email: Option<String>,
     // The url of the account.
-    pub url: Option<String>,
+    pub website_url: Option<String>,
     // The category of the account.
     pub category: Option<String>,
     // The tags of the account.
@@ -633,7 +633,7 @@ impl AccountSummary {
             description: None,
             username: None,
             email: None,
-            url: None,
+            website_url: None,
             category: None,
             tags: Default::default(),
             favicon: None,
@@ -670,7 +670,7 @@ impl AccountSummary {
         if self.email().to_lowercase().contains(&lq) {
             return true;
         }
-        if self.url().to_lowercase().contains(&lq) {
+        if self.website_url().to_lowercase().contains(&lq) {
             return true;
         }
         if format!("{:?}", &self.advisories).to_lowercase().contains(&lq) {
@@ -700,7 +700,7 @@ impl AccountSummary {
     }
 
     pub fn has_url(&self) -> bool {
-        self.url.is_some()
+        self.website_url.is_some()
     }
 
     pub fn risk_bg_color(&self) -> String {
@@ -714,7 +714,7 @@ impl AccountSummary {
     }
 
     pub fn favicon(&self) -> String {
-        if let Some(u) = &self.url {
+        if let Some(u) = &self.website_url {
             if let Ok(mut u) = url::Url::parse(u) {
                 if let Ok(mut path) = u.path_segments_mut() {
                     path.clear();
@@ -734,8 +734,8 @@ impl AccountSummary {
         self.email.clone().unwrap_or("".into())
     }
 
-    pub fn url(&self) -> String {
-        self.url.clone().unwrap_or("".into())
+    pub fn website_url(&self) -> String {
+        self.website_url.clone().unwrap_or("".into())
     }
 }
 
@@ -754,8 +754,8 @@ impl Display for AccountSummary {
         if let Some(email) = &self.email {
             buf.push_str(email);
         }
-        if let Some(url) = &self.url {
-            buf.push_str(url);
+        if let Some(website_url) = &self.website_url {
+            buf.push_str(website_url);
         }
         write!(f, "{}", buf)
     }
@@ -833,7 +833,7 @@ pub struct AccountCredentials {
     // The form-fields of the account.
     pub form_fields: HashMap<String, String>,
     pub notes: Option<String>,
-    // otp
+    // otp base32-secret
     pub otp: Option<String>,
     pub past_passwords: HashSet<String>,
     pub password_policy: PasswordPolicy,
@@ -982,7 +982,7 @@ impl Account {
             label: self.details.label.clone(),
             username: self.details.username.clone(),
             email: self.details.email.clone(),
-            url: self.details.url.clone(),
+            website_url: self.details.website_url.clone(),
             advisories: self.details.advisories.clone(),
             credentials_updated_at: self.details.credentials_updated_at,
             analyzed_at: self.details.analyzed_at,
@@ -1004,7 +1004,7 @@ impl Display for Account {
         if let Some(email) = &self.details.email {
             buf.push_str(email);
         }
-        if let Some(url) = &self.details.url {
+        if let Some(url) = &self.details.website_url {
             buf.push_str(url);
         }
 
@@ -1045,7 +1045,7 @@ pub struct AccountPasswordSummary {
     // The email of the account.
     pub email: Option<String>,
     // The url of the account.
-    pub url: Option<String>,
+    pub website_url: Option<String>,
     pub advisories: HashMap<Advisory, String>,
     // The metadata for date when password was changed.
     pub credentials_updated_at: Option<NaiveDateTime>,
@@ -2500,7 +2500,6 @@ impl PartialEq for VaultAnalysis {
 mod tests {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
-    use askama::filters::format;
 
     use crate::domain::models::{Account, AccountKind, AccountRisk, CryptoAlgorithm, DecryptRequest, DecryptResponse, EncodingScheme, EncryptRequest, EncryptResponse, HashAlgorithm, HSMProvider, Lookup, LookupKind, Message, MessageKind, NameValue, PassConfig, PasswordPolicy, PasswordStrength, PBKDF2_HMAC_SHA256_ITERATIONS, Roles, Setting, SettingKind, User, UserKeyParams, Vault, VaultKind};
 
@@ -2575,7 +2574,7 @@ mod tests {
         assert_eq!(None, account.details.description);
         assert_eq!(None, account.details.username);
         assert_eq!(None, account.details.email);
-        assert_eq!(None, account.details.url);
+        assert_eq!(None, account.details.website_url);
         assert_eq!(None, account.credentials.password);
         assert_eq!(None, account.credentials.password_sha1);
         assert_eq!(None, account.credentials.notes);
@@ -2592,7 +2591,7 @@ mod tests {
     fn test_should_validate_account() {
         let mut account = Account::new("vault", AccountKind::Login);
         account.details.username = Some("user".into());
-        account.details.url = Some("url".into());
+        account.details.website_url = Some("url".into());
         account.credentials.password = Some("pass".into());
         assert!(account.validate().is_err());
         account.before_save();

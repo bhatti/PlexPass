@@ -4,14 +4,16 @@ use std::future::{Ready, ready};
 
 use actix_multipart::Multipart;
 use actix_web::{FromRequest, HttpMessage};
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use futures::stream::StreamExt;
+use otpauth::TOTP;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::dao::models::{UserContext};
 use crate::domain::error::PassError;
 use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, NameValue, PaginatedResult, PassResult, PasswordPolicy, User, UserToken, Vault, VaultAnalysis, VaultKind};
+use crate::utils::safe_parse_string_date;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Authenticated {
@@ -261,12 +263,12 @@ pub struct CreateAccountRequest {
     // The email of the account.
     pub email: Option<String>,
     // The url of the account.
-    pub url: Option<String>,
+    pub website_url: Option<String>,
     // The category of the account.
     pub category: Option<String>,
     // The tags of the account.
     pub tags: Option<Vec<String>>,
-    // otp
+    // otp - base32 - secret
     pub otp: Option<String>,
     // icon
     pub icon: Option<String>,
@@ -308,7 +310,7 @@ impl CreateAccountRequest {
             username: None,
             password: None,
             email: None,
-            url: None,
+            website_url: None,
             category: None,
             tags: vec![].into(),
             otp: None,
@@ -345,7 +347,7 @@ impl CreateAccountRequest {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
-        account.details.url = self.url.clone();
+        account.details.website_url = self.website_url.clone();
         account.details.category = self.category.clone();
         account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
@@ -410,13 +412,15 @@ pub struct AccountResponse {
     // The email of the account.
     pub email: Option<String>,
     // The url of the account.
-    pub url: Option<String>,
+    pub website_url: Option<String>,
     // The category of the account.
     pub category: Option<String>,
     // The tags of the account.
     pub tags: Option<Vec<String>>,
-    // otp
+    // otp base32 secret
     pub otp: Option<String>,
+    // generated_otp
+    pub generated_otp: Option<u32>,
     // icon
     pub icon: Option<String>,
     // The form-fields of the account.
@@ -451,7 +455,7 @@ pub struct AccountResponse {
 
 impl AccountResponse {
     pub fn new(account: &Account) -> Self {
-        Self {
+        let mut res = Self {
             vault_id: account.vault_id.clone(),
             account_id: account.details.account_id.clone(),
             version: account.details.version,
@@ -464,10 +468,11 @@ impl AccountResponse {
             username: account.details.username.clone(),
             password: account.credentials.password.clone(),
             email: account.details.email.clone(),
-            url: account.details.url.clone(),
+            website_url: account.details.website_url.clone(),
             category: account.details.category.clone(),
             tags: Some(account.details.tags.clone()),
             otp: account.credentials.otp.clone(),
+            generated_otp: None,
             icon: account.details.icon.clone(),
             form_fields: Some(account.credentials.form_fields.clone()),
             notes: account.credentials.notes.clone(),
@@ -489,7 +494,11 @@ impl AccountResponse {
             analyzed_at: account.details.analyzed_at,
             created_at: account.created_at,
             updated_at: account.updated_at,
+        };
+        if let Some(ref otp) = res.otp {
+            res.generated_otp = Option::from(TOTP::new(otp).generate(30, Utc::now().timestamp() as u64));
         }
+        res
     }
 }
 
@@ -558,12 +567,12 @@ pub struct UpdateAccountRequest {
     // The email of the account.
     pub email: Option<String>,
     // The url of the account.
-    pub url: Option<String>,
+    pub website_url: Option<String>,
     // The categories of the account.
     pub category: Option<String>,
     // The tags of the account.
     pub tags: Option<Vec<String>>,
-    // otp
+    // otp base32 - secret
     pub otp: Option<String>,
     // icon
     pub icon: Option<String>,
@@ -608,7 +617,7 @@ impl UpdateAccountRequest {
             username: None,
             password: None,
             email: None,
-            url: None,
+            website_url: None,
             category: None,
             tags: None,
             otp: None,
@@ -647,7 +656,7 @@ impl UpdateAccountRequest {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
-        account.details.url = self.url.clone();
+        account.details.website_url = self.website_url.clone();
         account.details.category = self.category.clone();
         account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
@@ -715,18 +724,19 @@ impl Account {
                 "description" => account.details.description = Some(value),
                 "username" => account.details.username = Some(value),
                 "email" => account.details.email = Some(value),
-                "url" => account.details.url = Some(value),
+                "url" => account.details.website_url = Some(value),
+                "website_url" => account.details.website_url = Some(value),
                 "category" => account.details.category = Some(value),
                 "tags" => account.details.tags = value.as_str().split("[,;]").map(|s| s.to_string()).collect::<Vec<String>>(),
                 "password" => account.credentials.password = Some(value),
                 "notes" => account.credentials.notes = Some(value),
+                "otp" => account.credentials.otp = Some(value),
+                "icon" => account.details.icon = Some(value),
+                "renew_interval_days" => account.details.renew_interval_days = Some(value.parse::<i32>().unwrap_or(0)),
+                "expires_at" => account.details.expires_at = safe_parse_string_date(Option::from(value)),
                 "custom_name" => custom_names.push(value),
                 "custom_value" => custom_values.push(value),
                 _ => {}
-                // otp: None,
-                // icon: None,
-                // renew_interval_days: None,
-                // expires_at: None,
             };
         }
         if new_rec {
@@ -761,6 +771,12 @@ pub struct ShareVaultParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareAccountParams {
     pub target_username: String,
+}
+
+/// GenerateOTPRequest
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GenerateOTPRequest {
+    pub otp_secret: String,
 }
 
 // GeneratePasswordRequest request to generate password

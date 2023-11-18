@@ -17,7 +17,7 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use time::Duration;
 
 use crate::auth::auth_middleware;
-use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller};
+use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, otp_api_controller, otp_ui_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller};
 use crate::controller::auth_ui_controller::{handle_user_signin, handle_user_signout, handle_user_signup, user_signin};
 use crate::controller::vault_ui_controller::home_page;
 use crate::domain::error::PassError;
@@ -202,6 +202,9 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.service(share_api_controller::share_vault)
         .service(share_api_controller::share_account);
 
+    // otp-controller
+    service_config.service(otp_api_controller::generate_otp);
+
     // audit-logs-controller
     service_config.service(audit_api_controller::audit_logs);
 
@@ -242,6 +245,9 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.route("/ui/categories", web::get().to(categories_ui_controller::categories_page));
     service_config.route("/ui/categories/{name}", web::post().to(categories_ui_controller::create_category));
     service_config.route("/ui/categories/{name}", web::delete().to(categories_ui_controller::delete_category));
+
+    // otp
+    service_config.route("/ui/otp/generate", web::get().to(otp_ui_controller::generate_otp));
 
     // ui audit logs
     service_config.route("/ui/audit_logs", web::get().to(audit_ui_controller::audit_logs));

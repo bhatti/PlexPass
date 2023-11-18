@@ -159,7 +159,7 @@ pub enum CommandActions {
         email: Option<String>,
         /// The url of the account.
         #[arg(long)]
-        url: Option<String>,
+        website_url: Option<String>,
         /// The category of the account.
         #[arg(long)]
         category: Option<String>,
@@ -221,7 +221,7 @@ pub enum CommandActions {
 
         /// The url of the account.
         #[arg(long)]
-        url: Option<String>,
+        website_url: Option<String>,
 
         /// The category of the account.
         #[arg(long)]
@@ -422,6 +422,14 @@ pub enum CommandActions {
         #[arg(long)]
         q: String,
     },
+    GenerateOTP{
+        /// account-id
+        #[arg(long)]
+        account_id: Option<String>,
+        /// otp_secret
+        #[arg(long)]
+        otp_secret: Option<String>,
+    },
     ShareVault{
         /// vault-id
         #[arg(long)]
@@ -523,7 +531,7 @@ impl Args {
                 username,
                 password,
                 email,
-                url,
+                website_url,
                 category,
                 tags,
                 otp,
@@ -541,7 +549,7 @@ impl Args {
                     username,
                     password,
                     email,
-                    url,
+                    website_url,
                     category,
                     tags,
                     otp,
@@ -562,7 +570,7 @@ impl Args {
                 username,
                 password,
                 email,
-                url,
+                website_url,
                 category,
                 tags,
                 otp,
@@ -580,7 +588,7 @@ impl Args {
                     username,
                     password,
                     email,
-                    url,
+                    website_url,
                     category,
                     tags,
                     otp,
@@ -656,7 +664,7 @@ impl Args {
                      username: &Option<String>,
                      password: &Option<String>,
                      email: &Option<String>,
-                     url: &Option<String>,
+                     website_url: &Option<String>,
                      category: &Option<String>,
                      tags: &Option<Vec<String>>,
                      otp: &Option<String>,
@@ -678,7 +686,7 @@ impl Args {
         account.details.description = description.clone();
         account.details.username = username.clone();
         account.details.email = email.clone();
-        account.details.url = url.clone();
+        account.details.website_url = website_url.clone();
         account.details.category = category.clone();
         account.details.tags = tags.clone().unwrap_or_default();
         account.details.icon = icon.clone();

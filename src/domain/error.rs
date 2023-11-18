@@ -6,6 +6,8 @@ use std::fmt::{Display, Formatter};
 use std::num::ParseIntError;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
+use image::ImageError;
+use rqrr::DeQRError;
 use unic_langid::LanguageIdentifierError;
 
 //
@@ -223,6 +225,30 @@ impl From<csv::Error> for PassError {
 impl From<ParseIntError> for PassError {
     fn from(err: ParseIntError) -> Self {
         PassError::runtime(format!("int parsing failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<ImageError> for PassError {
+    fn from(err: ImageError) -> Self {
+        PassError::runtime(format!("image encoding failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<DeQRError> for PassError {
+    fn from(err: DeQRError) -> Self {
+        PassError::runtime(format!("qrcode encoding failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<url::ParseError> for PassError {
+    fn from(err: url::ParseError) -> Self {
+        PassError::runtime(format!("url parsing failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<String> for PassError {
+    fn from(err: String) -> Self {
+        PassError::runtime(format!("string error failed {:?}", err).as_str(), None)
     }
 }
 

@@ -11,7 +11,7 @@ use std::io::Write;
 use clap::Parser;
 use env_logger::Builder;
 
-use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_password_command, generate_private_public_keys_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
+use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_otp_command, generate_password_command, generate_private_public_keys_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
 use plexpass::domain::args::{Args, CommandActions};
 
 use crate::plexpass::domain::models::PassConfig;
@@ -480,6 +480,19 @@ async fn main() -> std::io::Result<()> {
                 log::info!("compromised {:?}", compromised);
             }
         }
+        CommandActions::GenerateOTP { account_id, otp_secret } => {
+            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
+            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let otp_code = generate_otp_command::execute(
+                config, &master_username, &master_password, account_id, otp_secret)
+                .await.expect("could not generate otp code");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("otp_code", otp_code)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("otp code: {:?}", otp_code);
+            }
+        }
         CommandActions::AnalyzeVaultPasswords { vault_id } => {
             let master_username = args.master_username.clone().expect("Please specify username with --master-username");
             let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
@@ -504,7 +517,7 @@ async fn main() -> std::io::Result<()> {
                 log::info!("analysis: {:?}", analysis);
             }
         }
-        CommandActions::SearchUsernames {q} => {
+        CommandActions::SearchUsernames { q } => {
             let master_username = args.master_username.clone().expect("Please specify username with --master-username");
             let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
             let usernames = search_users_command::execute(

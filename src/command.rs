@@ -33,3 +33,4 @@ pub mod password_strength_command;
 pub mod analyze_vault_passwords_command;
 pub mod analyze_all_vaults_passwords_command;
 pub mod search_users_command;
+pub mod generate_otp_command;

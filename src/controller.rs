@@ -9,7 +9,6 @@ use actix_web::HttpMessage;
 use actix_web::web::Data;
 
 pub(crate) mod account_api_controller;
-mod errors;
 pub(crate) mod models;
 pub(crate) mod password_api_controller;
 pub(crate) mod user_api_controller;
@@ -29,6 +28,9 @@ pub(crate) mod categories_api_controller;
 pub(crate) mod categories_ui_controller;
 pub(crate) mod audit_api_controller;
 pub(crate) mod audit_ui_controller;
+pub(crate) mod otp_api_controller;
+pub(crate) mod otp_ui_controller;
+mod errors;
 
 // Headers
 pub const AUTHORIZATION: &str = "Authorization";

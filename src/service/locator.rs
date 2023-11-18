@@ -4,8 +4,8 @@ use std::sync::Arc;
 use crate::background::Scheduler;
 
 use crate::domain::models::{PassConfig, PassResult};
-use crate::service::factory::{create_account_service, create_audit_log_service, create_encryption_service, create_import_export_service, create_lookup_service, create_message_service, create_password_service, create_setting_service, create_share_vault_account_service, create_user_service, create_vault_service};
-use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService};
+use crate::service::factory::{create_account_service, create_audit_log_service, create_encryption_service, create_import_export_service, create_lookup_service, create_message_service, create_otp_service, create_password_service, create_setting_service, create_share_vault_account_service, create_user_service, create_vault_service};
+use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, OTPService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService};
 use crate::store::factory::create_hsm_store;
 use crate::store::HSMStore;
 
@@ -23,6 +23,7 @@ pub struct ServiceLocator {
     pub import_export_service: Arc<dyn ImportExportService + Send + Sync>,
     pub encryption_service: Arc<dyn EncryptionService + Send + Sync>,
     pub share_vault_account_service: Arc<dyn ShareVaultAccountService + Send + Sync>,
+    pub otp_service: Arc<dyn OTPService + Send + Sync>,
     pub audit_log_service: Arc<dyn AuditLogService + Send + Sync>,
     pub scheduler: Arc<Scheduler>,
     pub hsm_store: Arc<dyn HSMStore + Send + Sync>,
@@ -44,6 +45,7 @@ impl ServiceLocator {
             encryption_service: create_encryption_service(config).await?,
             share_vault_account_service: create_share_vault_account_service(config).await?,
             audit_log_service: create_audit_log_service(config).await?,
+            otp_service: create_otp_service(config).await?,
             scheduler: Arc::new(Scheduler::new()),
             hsm_store: create_hsm_store(config)?,
         })
