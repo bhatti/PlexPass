@@ -8,19 +8,23 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use base64::engine::general_purpose;
-use chrono::{NaiveDateTime, Utc};
+use chrono::{Duration, NaiveDateTime, Utc};
 use clap::{ValueEnum};
 use hex::FromHexError;
+use itertools::Itertools;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, TokenData, Validation};
+use lazy_static::lazy_static;
+use otpauth::TOTP;
 use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use rand::seq::SliceRandom;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use webauthn_rs::prelude::{AuthenticationResult, CredentialID, Passkey};
 
 use crate::crypto;
-use crate::dao::models::AuditKind;
+use crate::dao::models::{AuditKind, UserContext};
 use crate::domain::error::PassError;
 use crate::utils::words::WORDS;
 
@@ -146,6 +150,7 @@ impl Roles {
         self.mask & ADMIN_USER != 0
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_admin(&mut self) {
         self.mask |= ADMIN_USER;
     }
@@ -211,6 +216,13 @@ impl UserKeyParams {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum SessionStatus {
+    Valid,
+    Invalid,
+    RequiresMFA,
+}
+
 /// LoginSession for tracking authenticated sessions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginSession {
@@ -218,24 +230,69 @@ pub struct LoginSession {
     pub login_session_id: String,
     // The user_id for the user.
     pub user_id: String,
+    // The username of user.
+    pub username: String,
+    // The roles of user.
+    pub roles: i64,
     // The source of the session.
     pub source: Option<String>,
     // The ip-address of the session.
     pub ip_address: Option<String>,
-    pub created_at: Option<NaiveDateTime>,
+    pub mfa_required: bool,
+    pub mfa_verified_at: Option<NaiveDateTime>,
+    pub created_at: NaiveDateTime,
     pub signed_out_at: Option<NaiveDateTime>,
 }
 
 impl LoginSession {
-    pub fn new(user_id: &str) -> Self {
+    pub fn new(user: &User) -> Self {
         Self {
             login_session_id: hex::encode(crypto::generate_secret_key()),
-            user_id: user_id.into(),
+            user_id: user.user_id.clone(),
+            username: user.username.clone(),
+            roles: user.roles.clone().unwrap_or(Roles::new(0)).mask,
             source: None,
             ip_address: None,
-            created_at: Some(Utc::now().naive_utc()),
+            mfa_required: user.mfa_required(),
+            mfa_verified_at: None,
+            created_at: Utc::now().naive_utc(),
             signed_out_at: None,
         }
+    }
+
+    pub fn check_status(&self) -> SessionStatus {
+        if self.signed_out_at != None {
+            return SessionStatus::Invalid;
+        }
+        let now = Utc::now().naive_utc();
+        let eight_hours_ago = now - Duration::hours(8);
+        if self.created_at < eight_hours_ago {
+            return SessionStatus::Invalid;
+        }
+        if self.mfa_required && self.mfa_verified_at == None {
+            if self.expired_mfa() {
+                return SessionStatus::Invalid;
+            }
+            return SessionStatus::RequiresMFA;
+        }
+        SessionStatus::Valid
+    }
+
+    pub fn expired_mfa(&self) -> bool {
+        let now = Utc::now().naive_utc();
+        let three_minutes_ago = now - Duration::minutes(3);
+        return self.created_at < three_minutes_ago;
+    }
+
+    pub fn update_mfa(&mut self) -> bool {
+        if !self.mfa_required {
+            return false;
+        }
+        if !self.expired_mfa() {
+            self.mfa_verified_at = Some(Utc::now().naive_utc());
+            return true
+        }
+        false
     }
 }
 
@@ -253,15 +310,30 @@ pub struct UserToken {
 }
 
 impl UserToken {
-    pub fn new(config: &PassConfig, user: &User, session: &LoginSession) -> UserToken {
+    pub fn from_session(config: &PassConfig, session: &LoginSession) -> UserToken {
         let now = Utc::now().timestamp_nanos() / 1_000_000_000; // nanosecond -> second
         Self {
             iat: now,
             exp: now + (config.jwt_max_age_minutes * 60),
-            user_id: user.user_id.clone(),
-            username: user.username.clone(),
-            roles: user.roles.mask,
+            user_id: session.user_id.clone(),
+            username: session.username.clone(),
+            roles: session.roles,
             login_session: session.login_session_id.clone(),
+        }
+    }
+
+    pub fn from_context(
+        session_id: &str,
+        ctx: &UserContext,
+        jwt_max_age_minutes: i64) -> UserToken {
+        let now = Utc::now().timestamp_nanos() / 1_000_000_000; // nanosecond -> second
+        Self {
+            iat: now,
+            exp: now + (jwt_max_age_minutes * 60),
+            user_id: ctx.user_id.clone(),
+            username: ctx.username.clone(),
+            roles: ctx.roles.clone().unwrap_or(Roles::new(0)).mask,
+            login_session: session_id.to_string(),
         }
     }
 
@@ -293,6 +365,85 @@ pub const USER_SECRET_KEY_NAME: &str = "user_secret_key";
 // file name for database
 pub const DB_FILE_NAME: &str = "PlexPass.sqlite";
 
+/// HardwareSecurityKey abstracts hardware security key such as Yubikey.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HardwareSecurityKey {
+    pub id: String,
+    // The name of key.
+    pub name: String,
+    // The kind of key.
+    pub kind: String,
+    // The secret for hardware key.
+    pub key: Passkey,
+    // recovery code
+    pub recovery_code: String,
+}
+
+impl HardwareSecurityKey {
+    pub fn new(name: &str, key: &Passkey) -> Self {
+        Self {
+            id: key.cred_id().to_string(),
+            name: name.to_string(),
+            kind: "webauthn".into(),
+            key: key.clone(),
+            recovery_code: crypto::generate_recovery_code(12),
+        }
+    }
+
+    // recovery code should be one-time use only
+    pub fn update_recovery(&mut self) {
+        self.recovery_code = crypto::generate_recovery_code(12);
+    }
+}
+
+/// UserLocale abstracts geographical locale for user.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserLocale {
+    // The short name.
+    pub short_name: String,
+    // The display-name of locale
+    pub display_name: String,
+}
+
+lazy_static! {
+    pub static ref DEFAULT_LOCALES: [UserLocale; 5] = [
+        UserLocale::default(),
+        UserLocale::new("es", "Spanish"),
+        UserLocale::new("it", "Italian"),
+        UserLocale::new("fr", "French"),
+        UserLocale::new("de", "German"),
+    ];
+}
+
+impl UserLocale {
+    fn new(short_name: &str, display_name: &str) -> Self {
+        Self {
+            short_name: short_name.into(),
+            display_name: display_name.into(),
+        }
+    }
+    pub fn match_any(name: &Option<String>) -> Option<UserLocale> {
+        if let Some(locale_str) = name {
+            DEFAULT_LOCALES.iter()
+                .find_or_first(|l| &l.display_name == locale_str ||
+                    &l.short_name == locale_str).cloned()
+        } else {
+            None
+        }
+    }
+}
+
+impl Default for UserLocale {
+    fn default() -> Self {
+        Self {
+            short_name: "en_US".into(),
+            display_name: "US English".into(),
+        }
+    }
+}
+
+pub const MAX_ICON_LENGTH: usize = 81920;
+
 /// User represents an actor who uses password manager.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -303,19 +454,25 @@ pub struct User {
     // The username of user.
     pub username: String,
     // The roles of user.
-    pub roles: Roles,
+    pub roles: Option<Roles>,
     // The name of user.
     pub name: Option<String>,
     // The email of user.
     pub email: Option<String>,
     // The locale of user.
-    pub locale: Option<String>,
+    pub locale: Option<UserLocale>,
     // The light-mode of user.
     pub light_mode: Option<bool>,
     // The icon of user.
     pub icon: Option<String>,
+    // The notifications enabled.
+    pub notifications: Option<bool>,
+    // hardware keys
+    pub hardware_keys: Option<HashMap<String, HardwareSecurityKey>>,
+    // otp secret for MFA
+    pub otp_secret: String,
     // The attributes of user.
-    pub attributes: Vec<NameValue>,
+    pub attributes: Option<Vec<NameValue>>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
@@ -326,37 +483,104 @@ impl User {
             user_id: Uuid::new_v4().to_string(),
             version: 0,
             username: username.into(),
-            roles: Roles::new(0),
+            roles: None,
             name: name.clone(),
             email: email.clone(),
             locale: None,
             light_mode: None,
             icon: None,
-            attributes: vec![],
+            notifications: None,
+            hardware_keys: None,
+            otp_secret: crypto::generate_base32_secret(32),
+            attributes: None,
             created_at: Some(Utc::now().naive_utc()),
             updated_at: Some(Utc::now().naive_utc()),
         }
     }
 
+    pub fn set_icon(&mut self, icon: Vec<u8>) {
+        let bytes = if icon.len() > MAX_ICON_LENGTH {
+            icon[0..MAX_ICON_LENGTH].to_vec()
+        } else {
+            icon
+        };
+        self.icon = Some(general_purpose::STANDARD_NO_PAD.encode(bytes));
+    }
+
+    pub fn verify_otp(&self, code: u32) -> bool {
+        let totp = TOTP::new(self.otp_secret.clone());
+        totp.verify(code, 30, Utc::now().timestamp() as u64)
+    }
+
+    pub fn reset_security_keys(&mut self, recovery_code: &str) -> bool {
+        if let Some(keys) = &self.hardware_keys {
+            if keys.iter().any(|(_, v)| v.recovery_code == recovery_code) {
+                // Using empty hashmap so that we can update it otherwise we ignore none
+                self.hardware_keys = Some(HashMap::new());
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn add_security_key(&mut self, name: &str, key: &Passkey) -> HardwareSecurityKey {
+        let mut keys = self.hardware_keys.clone().unwrap_or_default();
+        let hardware_key = HardwareSecurityKey::new(name, key);
+        keys.insert(key.cred_id().to_string(), hardware_key.clone());
+        self.hardware_keys = Some(keys);
+        hardware_key
+    }
+
+    pub fn update_security_keys(&mut self, auth_result: &AuthenticationResult) {
+        // This will update the credential if it's the matching
+        // one. Otherwise it's ignored. That is why it is safe to
+        // iterate this over the full list.
+        let mut keys = self.hardware_keys.clone().unwrap_or_default();
+        for (_, key) in &mut keys {
+            key.key.update_credential(auth_result);
+        }
+        self.hardware_keys = Some(keys);
+    }
+
+    pub fn mfa_required(&self) -> bool {
+        match &self.hardware_keys {
+            Some(keys) => keys.len() > 0,
+            None => false,
+        }
+    }
+
+    pub fn get_security_keys(&self) -> Vec<Passkey> {
+        match &self.hardware_keys {
+            Some(keys) => keys.iter().map(|(_, key)| key.key.clone()).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    pub fn remove_security_key(&mut self, id: &str) {
+        let mut keys = self.hardware_keys.clone().unwrap_or_default();
+        keys.remove(id);
+        self.hardware_keys = Some(keys);
+    }
+
     pub fn update(&mut self, other: &User) {
         self.version = other.version;
-        self.roles = other.roles.clone();
-        if other.name.is_some() {
-            self.name = other.name.clone();
+        // roles must be explicitly copied
+        if other.roles != None {
+            self.roles = other.roles.clone();
         }
-        if other.email.is_some() {
-            self.email = other.email.clone();
+        self.name = other.name.clone();
+        self.email = other.email.clone();
+        self.locale = other.locale.clone();
+        self.light_mode = other.light_mode;
+        self.icon = other.icon.clone();
+        self.notifications = other.notifications;
+        if let Some(keys) = other.clone().hardware_keys {
+            self.hardware_keys = Some(keys);
         }
-        if other.locale.is_some() {
-            self.locale = other.locale.clone();
+        if let Some(attrs) = other.clone().attributes {
+            self.attributes = Some(attrs);
         }
-        if other.light_mode.is_some() {
-            self.light_mode = other.light_mode;
-        }
-        if other.icon.is_some() {
-            self.icon = other.icon.clone();
-        }
-        self.attributes = other.attributes.clone();
+        self.otp_secret = other.otp_secret.clone();
         self.updated_at = Some(Utc::now().naive_utc());
     }
 
@@ -374,6 +598,46 @@ impl User {
         format!("secret_key_{}", username)
     }
 
+    pub fn hardware_keys(&self) -> Vec<HardwareSecurityKey> {
+        match &self.hardware_keys {
+            Some(keys) => keys.iter().map(|(_, key)| key.clone()).collect(),
+            None => Vec::new(),
+        }
+    }
+
+    pub fn hardware_key_ids(&self) -> Option<Vec<CredentialID>> {
+        self.hardware_keys.as_ref().map(|keys|
+            keys.iter().map(|(_, key)| key.key.cred_id().clone()).collect()
+        )
+    }
+    pub fn name_string(&self) -> String {
+        self.name.clone().unwrap_or("".to_string())
+    }
+    pub fn email_string(&self) -> String {
+        self.email.clone().unwrap_or("".to_string())
+    }
+    pub fn locale_string(&self) -> String {
+        self.locale.clone().unwrap_or_default().display_name.to_string()
+    }
+    pub fn icon_string(&self) -> String {
+        if let Some(icon) = self.clone().icon {
+            format!("data:image/png;base64,{}", icon)
+        } else {
+            "/assets/images/user.png".to_string()
+        }
+    }
+    pub fn is_light_mode(&self) -> bool {
+        self.light_mode.unwrap_or(false)
+    }
+    pub fn light_string(&self) -> String {
+        if self.light_mode.unwrap_or(false) { "Light".into() } else { "Dark".into() }
+    }
+    pub fn is_notifications_on(&self) -> bool {
+        self.notifications.unwrap_or(false)
+    }
+    pub fn notifications_string(&self) -> String {
+        if self.notifications.unwrap_or(false) { "Enabled".into() } else { "Disabled".into() }
+    }
     pub fn validate(&self) -> PassResult<()> {
         if self.username.is_empty() {
             return Err(PassError::validation("username is not defined", None));
@@ -1171,6 +1435,23 @@ impl Vault {
         }
     }
 
+    pub fn set_icon(&mut self, icon: Vec<u8>) {
+        let bytes = if icon.len() > MAX_ICON_LENGTH {
+            icon[0..MAX_ICON_LENGTH].to_vec()
+        } else {
+            icon
+        };
+        self.icon = Some(general_purpose::STANDARD_NO_PAD.encode(bytes));
+    }
+
+    pub fn icon_string(&self) -> String {
+        if let Some(icon) = self.clone().icon {
+            format!("data:image/png;base64,{}", icon)
+        } else {
+            "/assets/images/vault.png".to_string()
+        }
+    }
+
     pub fn total_accounts(&self) -> usize {
         if let Some(entries) = &self.entries {
             entries.len()
@@ -1253,7 +1534,7 @@ impl PassConfig {
         let _ = dotenv::dotenv(); // ignore errors
         let data_dir = std::env::var("DATA_DIR").unwrap_or("PlexPassData".into());
 
-        let domain = std::env::var("DOMAIN").unwrap_or("plexpass-server".into());
+        let domain = std::env::var("DOMAIN").unwrap_or("localhost".into());
         let hsm_provider = Self::get_default_hsm();
         let http_port = std::env::var("HTTP_PORT").unwrap_or("8080".into());
         let https_port = std::env::var("HTTPS_PORT").unwrap_or("8443".into());
@@ -1261,11 +1542,11 @@ impl PassConfig {
         let jwt_key = std::env::var("JWT_KEY").unwrap_or(device_pepper_key.clone());
         let hibp_api_key: Option<String> = if let Ok(val) = std::env::var("HIBP_API_KEY") { Some(val) } else { None };
         let session_timeout_minutes: i64 = std::env::var("SESSION_TIMEOUT_MINUTES")
-            .unwrap_or("86400".into())
+            .unwrap_or("480".into())
             .parse()
             .unwrap();
         let jwt_max_age_minutes: i64 = std::env::var("JWT_MAX_AGE_MINUTES")
-            .unwrap_or("1440".into())
+            .unwrap_or("10000".into())
             .parse()
             .unwrap();
         let session_key = if let Ok((_, session_key)) = crypto::generate_private_key_from_secret(&device_pepper_key) {
@@ -2520,7 +2801,6 @@ mod tests {
         assert_eq!(None, user.name);
         assert_ne!(None, user.created_at);
         assert_ne!(None, user.updated_at);
-        assert!(user.attributes.is_empty());
     }
 
     #[test]

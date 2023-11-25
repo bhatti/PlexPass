@@ -1,18 +1,16 @@
-use std::collections::HashMap;
-use crate::domain::models::{PassConfig, PassResult, Vault};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{PassResult, Vault};
 
+/// Update a vault.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     vault: &mut Vault,
     ) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
-    let old_vault = service_locator.vault_service.get_vault(&ctx, &vault.vault_id).await?;
+    let old_vault = args_ctx.service_locator.vault_service.get_vault(
+        &args_ctx.user_context, &vault.vault_id).await?;
     vault.owner_user_id = old_vault.owner_user_id.clone();
     vault.version = old_vault.version;
-    let size = service_locator.vault_service.update_vault(&ctx, vault).await?;
+    let size = args_ctx.service_locator.vault_service.update_vault(
+        &args_ctx.user_context, vault).await?;
     Ok(size)
 }

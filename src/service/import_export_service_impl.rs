@@ -158,7 +158,7 @@ Login,Twitch,https://twitch.tv/,mylogin6,mypassword6,mynote6,,"""
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
         // creating user with strong password
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
         let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
@@ -214,7 +214,7 @@ Login,Twitch,https://twitch.tv/,mylogin6,mypassword6,mynote6,,"""
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
         // creating user with strong password
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
         let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);

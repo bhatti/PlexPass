@@ -1,6 +1,7 @@
 use crate::domain::models::{PassConfig, PassResult, PasswordPolicy};
 use crate::service::locator::ServiceLocator;
 
+/// Generate a password.
 pub async fn execute(
     config: PassConfig,
     policy: &PasswordPolicy,

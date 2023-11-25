@@ -9,6 +9,7 @@ use std::string::FromUtf8Error;
 use image::ImageError;
 use rqrr::DeQRError;
 use unic_langid::LanguageIdentifierError;
+use webauthn_rs::prelude::WebauthnError;
 
 //
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -249,6 +250,18 @@ impl From<url::ParseError> for PassError {
 impl From<String> for PassError {
     fn from(err: String) -> Self {
         PassError::runtime(format!("string error failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<WebauthnError> for PassError {
+    fn from(err: WebauthnError) -> Self {
+        PassError::runtime(format!("webauthn error failed {:?}", err).as_str(), None)
+    }
+}
+
+impl From<uuid::Error> for PassError {
+    fn from(err: uuid::Error) -> Self {
+        PassError::runtime(format!("uuid error failed {:?}", err).as_str(), None)
     }
 }
 

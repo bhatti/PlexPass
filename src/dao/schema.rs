@@ -76,8 +76,12 @@ diesel::table! {
     login_sessions (login_session_id) {
         login_session_id -> Text,
         user_id -> Text,
+        username -> Text,
+        roles -> BigInt,
         source -> Nullable<Text>,
         ip_address -> Nullable<Text>,
+        mfa_required -> Bool,
+        mfa_verified_at -> Nullable<Timestamp>,
         created_at -> Timestamp,
         signed_out_at -> Nullable<Timestamp>,
     }
@@ -129,7 +133,6 @@ diesel::table! {
         user_id -> Text,
         version -> BigInt,
         username -> Text,
-        roles -> BigInt,
         salt -> Text,
         nonce -> Text,
         encrypted_value -> Text,
@@ -164,7 +167,6 @@ diesel::table! {
 
 diesel::joinable!(accounts -> vaults (vault_id));
 diesel::joinable!(acls -> users (acl_user_id));
-diesel::joinable!(archived_accounts -> crypto_keys (crypto_key_id));
 diesel::joinable!(archived_accounts -> vaults (vault_id));
 diesel::joinable!(audit_records -> users (user_id));
 diesel::joinable!(crypto_keys -> users (user_id));

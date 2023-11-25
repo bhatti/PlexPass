@@ -1,7 +1,9 @@
-use actix_web::{delete, Error, get, HttpRequest, HttpResponse, put, web};
+use actix_web::{delete, Error, get, HttpRequest, HttpResponse, post, put, web};
+use actix_web::web::Bytes;
 use serde::Deserialize;
 
-use crate::controller::models::{Authenticated, UpdateUserRequest};
+use crate::controller::models::{Authenticated, UpdateUserRequest, UserResponse};
+use crate::domain::models::EncodingScheme;
 use crate::service::locator::ServiceLocator;
 use crate::utils::is_private_ip;
 
@@ -16,7 +18,7 @@ pub async fn get_user(
         id = auth.context.user_id.clone();
     }
     let (_, user) = service_locator.user_service.get_user(&auth.context, &id).await?;
-    Ok(HttpResponse::Ok().json(user))
+    Ok(HttpResponse::Ok().json(UserResponse::new(&user)))
 }
 
 #[derive(Deserialize)]
@@ -76,3 +78,33 @@ pub async fn update_user(
         .await?;
     Ok(HttpResponse::Ok().finish())
 }
+
+#[post("/api/v1/users/asymmetric_encrypt/{username}")]
+pub async fn asymmetric_user_encrypt(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>,
+    body: Bytes,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let username = path.into_inner();
+    let res = service_locator.user_service.asymmetric_user_encrypt(
+        &auth.context,
+        &username,
+        body.to_vec(),
+        EncodingScheme::Base64).await?;
+    Ok(HttpResponse::Ok().body(Bytes::from(res)))
+}
+
+#[post("/api/v1/users/asymmetric_decrypt")]
+pub async fn asymmetric_user_decrypt(
+    service_locator: web::Data<ServiceLocator>,
+    body: Bytes,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let res = service_locator.user_service.asymmetric_user_decrypt(
+        &auth.context,
+        body.to_vec(),
+        EncodingScheme::Base64).await?;
+    Ok(HttpResponse::Ok().body(Bytes::from(res)))
+}
+

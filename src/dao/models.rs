@@ -5,7 +5,7 @@ use std::fmt::Display;
 use crate::crypto;
 use crate::dao::schema::*;
 use crate::domain::error::PassError;
-use crate::domain::models::{Account, CryptoAlgorithm, DecryptRequest, EncryptRequest, HashAlgorithm, LoginSession, Lookup, LookupKind, Message, PassResult, Roles, Setting, SettingKind, User, UserKeyParams, Vault, PBKDF2_HMAC_SHA256_ITERATIONS, VaultKind, EncodingScheme, AuditLog};
+use crate::domain::models::{Account, CryptoAlgorithm, DecryptRequest, EncryptRequest, HashAlgorithm, LoginSession, Lookup, LookupKind, Message, PassResult, Roles, Setting, SettingKind, User, UserKeyParams, Vault, PBKDF2_HMAC_SHA256_ITERATIONS, VaultKind, EncodingScheme, AuditLog, ADMIN_USER};
 use chrono::{NaiveDateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct UserContext {
     // The user_id for the user.
     pub user_id: String,
     // The roles for the user.
-    pub roles: Roles,
+    pub roles: Option<Roles>,
     // The pepper key for the user.
     pub pepper: String,
     // The secret_key generated from the user password and user pepper.
@@ -36,7 +36,7 @@ impl UserContext {
     pub fn new(
         username: &str,
         user_id: &str,
-        roles: Roles,
+        roles: Option<Roles>,
         pepper: &str,
         secret_key: &str,
         hash_algorithm: HashAlgorithm,
@@ -58,7 +58,7 @@ impl UserContext {
         username: &str,
         user_id: &str,
         master_password: &str,
-        roles: Roles,
+        roles: Option<Roles>,
         salt: &str,
         pepper: &str,
         hash_algorithm: HashAlgorithm,
@@ -104,7 +104,7 @@ impl UserContext {
             username,
             user_id,
             master_password,
-            Roles::new(0),
+            None,
             salt,
             pepper,
             HashAlgorithm::Pbkdf2HmacSha256 {
@@ -116,7 +116,7 @@ impl UserContext {
 
     pub(crate) fn as_admin(&self) -> Self {
         let mut copy = self.clone();
-        copy.roles.set_admin();
+        copy.roles = Some(Roles::new(ADMIN_USER));
         copy
     }
 
@@ -150,7 +150,13 @@ impl UserContext {
     }
 
     pub(crate) fn is_admin(&self) -> bool {
-        !self.user_id.is_empty() && !self.username.is_empty() && self.roles.is_admin()
+        if self.user_id.is_empty() || self.username.is_empty() {
+            return false;
+        }
+        if let Some(roles) = &self.roles {
+            return roles.is_admin()
+        }
+        false
     }
 
     pub(crate) fn decrypted_user_private_key(
@@ -181,8 +187,6 @@ pub struct UserEntity {
     pub version: i64,
     // The username of user.
     pub username: String,
-    // The roles of user.
-    pub roles: i64,
     // The salt for encryption.
     pub salt: String,
     // The nonce for encryption.
@@ -199,7 +203,6 @@ impl UserEntity {
             user_id: user.user_id.clone(),
             version: 0,
             username: user.username.clone(),
-            roles: user.roles.mask,
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -256,7 +259,6 @@ impl UserEntity {
 
         let mut user: User = serde_json::from_str(&decrypted_user_json)?;
         user.version = self.version;
-        user.roles = Roles::new(self.roles);
         user.created_at = Some(self.created_at);
         user.updated_at = Some(self.updated_at);
         Ok(user)
@@ -327,10 +329,16 @@ pub struct LoginSessionEntity {
     pub login_session_id: String,
     // The user_id for the user.
     pub user_id: String,
+    // The username of user.
+    pub username: String,
+    // The roles of user.
+    pub roles: i64,
     // The source of the session.
     pub source: Option<String>,
     // The ip-address of the session.
     pub ip_address: Option<String>,
+    pub mfa_required: bool,
+    pub mfa_verified_at: Option<NaiveDateTime>,
     pub created_at: NaiveDateTime,
     pub signed_out_at: Option<NaiveDateTime>,
 }
@@ -340,20 +348,28 @@ impl LoginSessionEntity {
         Self {
             login_session_id: login_session.login_session_id.clone(),
             user_id: login_session.user_id.clone(),
+            username: login_session.username.clone(),
+            roles: login_session.roles.clone(),
             source: login_session.source.clone(),
             ip_address: login_session.ip_address.clone(),
+            mfa_required: login_session.mfa_required.clone(),
+            mfa_verified_at: login_session.mfa_verified_at.clone(),
             created_at: Utc::now().naive_utc(),
-            signed_out_at: None,
+            signed_out_at: login_session.signed_out_at.clone(),
         }
     }
     pub fn to_login_session(&self) -> LoginSession {
         LoginSession {
             login_session_id: self.login_session_id.clone(),
             user_id: self.user_id.clone(),
+            username: self.username.clone(),
+            roles: self.roles.clone(),
             source: self.source.clone(),
             ip_address: self.ip_address.clone(),
-            created_at: Some(self.created_at),
-            signed_out_at: self.signed_out_at,
+            mfa_required: self.mfa_required.clone(),
+            mfa_verified_at: self.mfa_verified_at.clone(),
+            created_at: self.created_at.clone(),
+            signed_out_at: self.signed_out_at.clone(),
         }
     }
 }

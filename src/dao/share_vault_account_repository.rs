@@ -4,9 +4,8 @@ use std::sync::Arc;
 use crate::crypto;
 
 use crate::dao::models::{CryptoKeyEntity, UserContext};
-use crate::dao::{DbConnection, DbPool, ShareVaultAccountRepository, UserVaultRepository, UserRepository, CryptoKeyRepository, AuditRepository, VaultRepository, AccountRepository, MessageRepository};
+use crate::dao::{DbConnection, DbPool, ShareVaultAccountRepository, UserVaultRepository, UserRepository, CryptoKeyRepository, AuditRepository, VaultRepository, AccountRepository, MessageRepository, UserLookupRepository};
 use crate::dao::account_repository_impl::AccountRepositoryImpl;
-use crate::dao::user_repository_impl::UserRepositoryImpl;
 use crate::dao::vault_repository_impl::VaultRepositoryImpl;
 use crate::domain::error::PassError;
 use crate::domain::models::{PassResult, Message, MessageKind, ShareVaultPayload, ShareAccountPayload, READ_FLAG};
@@ -19,6 +18,7 @@ pub(crate) struct ShareVaultAccountRepositoryImpl {
     vault_repository: Arc<dyn VaultRepository + Send + Sync>,
     user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
     user_repository: Arc<dyn UserRepository + Send + Sync>,
+    user_lookup_repository: Arc<dyn UserLookupRepository + Send + Sync>,
     crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
     audit_repository: Arc<dyn AuditRepository + Send + Sync>,
 }
@@ -30,6 +30,7 @@ impl ShareVaultAccountRepositoryImpl {
                       vault_repository: Arc<dyn VaultRepository + Send + Sync>,
                       user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
                       user_repository: Arc<dyn UserRepository + Send + Sync>,
+                      user_lookup_repository: Arc<dyn UserLookupRepository + Send + Sync>,
                       crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
                       audit_repository: Arc<dyn AuditRepository + Send + Sync>,
     ) -> Self {
@@ -40,6 +41,7 @@ impl ShareVaultAccountRepositoryImpl {
             vault_repository,
             user_vault_repository,
             user_repository,
+            user_lookup_repository,
             crypto_key_repository,
             audit_repository,
         }
@@ -66,8 +68,7 @@ impl ShareVaultAccountRepositoryImpl {
     }
 
     fn get_user_id(&self, _ctx: &UserContext, username: &str) -> PassResult<String> {
-        let mut conn = self.connection()?;
-        UserRepositoryImpl::lookup_userid_by_username(username, &mut conn)
+        self.user_lookup_repository.lookup_userid_by_username(username)
     }
 
     async fn handle_shared_vaults(&self, ctx: &&UserContext) -> PassResult<usize> {
@@ -267,8 +268,7 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
     }
 
     async fn lookup_usernames(&self, ctx: &UserContext, q: &str) -> PassResult<Vec<String>> {
-        let mut conn = self.connection()?;
-        let mut usernames = UserRepositoryImpl::lookup_usernames(q, &mut conn)?;
+        let mut usernames = self.user_lookup_repository.lookup_usernames(q)?;
         if let Some(index) = usernames.iter().position(|x| *x == ctx.username) {
             usernames.remove(index);
         }

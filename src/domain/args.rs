@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use crate::domain::models::{Account, AccountKind, CryptoAlgorithm, HashAlgorithmTypes, PasswordPolicy, User, Vault, VaultKind};
+use crate::dao::models::UserContext;
+use crate::domain::error::PassError;
+use crate::domain::models::{Account, AccountKind, CryptoAlgorithm, HashAlgorithmTypes, PassConfig, PassResult, PasswordPolicy, SessionStatus, User, UserLocale, Vault, VaultKind};
+use crate::service::locator::ServiceLocator;
 use crate::utils::safe_parse_string_date;
 
 #[derive(Subcommand, Debug, Clone)]
@@ -84,7 +87,7 @@ pub enum CommandActions {
 
         // The icon of user.
         #[arg(long)]
-        icon: Option<String>,
+        icon: Option<Vec<u8>>,
     },
     DeleteUser {
         /// Optional user-id if user is admin and can see other users.
@@ -283,24 +286,23 @@ pub enum CommandActions {
         #[arg(long)]
         q: Option<String>,
     },
-    CreateCategory{
+    CreateCategory {
         /// name
         #[arg(long)]
         name: String,
     },
-    DeleteCategory{
+    DeleteCategory {
         /// name
         #[arg(long)]
         name: String,
     },
-    GetCategories{
-    },
-    GeneratePrivatePublicKeys{
+    GetCategories {},
+    GeneratePrivatePublicKeys {
         /// password
         #[arg(long)]
         password: Option<String>,
     },
-    AsymmetricEncrypt{
+    AsymmetricEncrypt {
         /// public key
         #[arg(long)]
         public_key: String,
@@ -311,7 +313,7 @@ pub enum CommandActions {
         #[arg(long)]
         out_path: PathBuf,
     },
-    AsymmetricDecrypt{
+    AsymmetricDecrypt {
         /// secret key
         #[arg(long)]
         secret_key: String,
@@ -322,7 +324,26 @@ pub enum CommandActions {
         #[arg(long)]
         out_path: PathBuf,
     },
-    SymmetricEncrypt{
+    AsymmetricUserEncrypt {
+        /// public key of target-username will be used
+        #[arg(long)]
+        target_username: String,
+        /// path to file to encrypt
+        #[arg(long)]
+        in_path: PathBuf,
+        /// path to encrypted file
+        #[arg(long)]
+        out_path: PathBuf,
+    },
+    AsymmetricUserDecrypt {
+        /// path to file to decrypt
+        #[arg(long)]
+        in_path: PathBuf,
+        /// path to decrypted file
+        #[arg(long)]
+        out_path: PathBuf,
+    },
+    SymmetricEncrypt {
         /// symmetric secret key
         #[arg(long)]
         secret_key: String,
@@ -333,7 +354,7 @@ pub enum CommandActions {
         #[arg(long)]
         out_path: PathBuf,
     },
-    SymmetricDecrypt{
+    SymmetricDecrypt {
         /// symmetric secret key
         #[arg(long)]
         secret_key: String,
@@ -392,17 +413,17 @@ pub enum CommandActions {
         #[arg(long)]
         exclude_ambiguous: Option<bool>,
     },
-    PasswordCompromised{
+    PasswordCompromised {
         /// password
         #[arg(long)]
         password: String,
     },
-    PasswordStrength{
+    PasswordStrength {
         /// password
         #[arg(long)]
         password: String,
     },
-    EmailCompromised{
+    EmailCompromised {
         /// email
         #[arg(long)]
         email: String,
@@ -410,19 +431,18 @@ pub enum CommandActions {
         #[arg(long)]
         hibp_api_key: Option<String>,
     },
-    AnalyzeVaultPasswords{
+    AnalyzeVaultPasswords {
         /// vault-id
         #[arg(long)]
         vault_id: String,
     },
-    AnalyzeAllVaultsPasswords {
-    },
+    AnalyzeAllVaultsPasswords {},
     SearchUsernames {
         /// q
         #[arg(long)]
         q: String,
     },
-    GenerateOTP{
+    GenerateAccountOTP {
         /// account-id
         #[arg(long)]
         account_id: Option<String>,
@@ -430,7 +450,22 @@ pub enum CommandActions {
         #[arg(long)]
         otp_secret: Option<String>,
     },
-    ShareVault{
+    GenerateUserOTP {
+        /// otp_secret
+        #[arg(long)]
+        otp_secret: Option<String>,
+    },
+    GenerateAPIToken {
+        /// duration of token
+        #[arg(long)]
+        jwt_max_age_minutes: Option<i64>,
+    },
+    ResetMultiFactorAuthentication {
+        /// recovery_code
+        #[arg(long)]
+        recovery_code: String,
+    },
+    ShareVault {
         /// vault-id
         #[arg(long)]
         vault_id: String,
@@ -441,7 +476,7 @@ pub enum CommandActions {
         #[arg(long)]
         read_only: Option<bool>,
     },
-    ShareAccount{
+    ShareAccount {
         /// vault-id
         #[arg(long)]
         vault_id: String,
@@ -493,26 +528,36 @@ pub struct Args {
     #[arg(long)]
     pub master_password: Option<String>,
 
+    /// The otp-code of user.
+    #[arg(long)]
+    pub otp_code: Option<u32>,
+
     /// Sets a custom config file
     #[arg(short, long, value_name = "FILE")]
     pub config: Option<PathBuf>,
 }
 
 impl Args {
+    pub async fn to_args_context(&self, config: &PassConfig) -> PassResult<ArgsContext> {
+        ArgsContext::auth_new(config, self).await
+    }
+
     pub fn to_user(&self) -> Option<User> {
         let username = self.master_username.clone().expect("Please specify username with --master-username");
         match &self.action {
             CommandActions::CreateUser { name, email, locale, light_mode } => {
                 let mut user = User::new(&username, name.clone(), email.clone());
-                user.locale = locale.clone();
+                user.locale = UserLocale::match_any(locale);
                 user.light_mode = *light_mode;
                 Some(user)
             }
             CommandActions::UpdateUser { name, email, locale, light_mode, icon } => {
                 let mut user = User::new(&username, name.clone(), email.clone());
-                user.locale = locale.clone();
+                user.locale = UserLocale::match_any(locale);
                 user.light_mode = *light_mode;
-                user.icon = icon.clone();
+                if let Some(icon) = icon {
+                    user.set_icon(icon.clone());
+                }
                 Some(user)
             }
             _ => {
@@ -627,7 +672,7 @@ impl Args {
 
     pub fn to_policy(&self) -> Option<PasswordPolicy> {
         match &self.action {
-            CommandActions::GeneratePassword{
+            CommandActions::GeneratePassword {
                 random,
                 min_uppercase,
                 min_lowercase,
@@ -703,3 +748,35 @@ impl Args {
         account
     }
 }
+
+pub struct ArgsContext {
+    pub config: PassConfig,
+    pub user_context: UserContext,
+    pub user: User,
+    pub session_id: String,
+    pub service_locator: ServiceLocator,
+}
+
+impl ArgsContext {
+    pub async fn auth_new(config: &PassConfig, args: &Args) -> PassResult<Self> {
+        let master_username = args.master_username.clone().expect("Please specify username with --master-username.");
+        let master_password = args.master_password.clone().expect("Please specify master password with --master-password.");
+        let service_locator = ServiceLocator::new(&config).await?;
+        let (ctx, user, token, session_status) = service_locator.auth_service.signin_user(
+            &master_username, &master_password, args.otp_code.clone(), HashMap::new()).await?;
+
+        if session_status == SessionStatus::RequiresMFA {
+            return Err(PassError::authentication(
+                "could not verify otp, please use settings section in the WebApp to find the otp-code."));
+        }
+
+        Ok(ArgsContext {
+            config: config.clone(),
+            user_context: ctx.clone(),
+            user: user.clone(),
+            session_id: token.login_session.clone(),
+            service_locator: service_locator.clone(),
+        })
+    }
+}
+

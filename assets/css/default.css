@@ -39,3 +39,33 @@
     padding: 10px;
 }
 
+body.light-mode {
+    background-color: #fff;
+    color: #333;
+}
+
+body.dark-mode {
+    background-color: #333;
+    color: #fff;
+}
+
+.form-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 350px;
+    width: 100%;
+}
+
+@media (max-width: 576px) {
+    .nav-tabs {
+        font-size: 0.8rem;
+    }
+    .form-label {
+        font-size: 0.9rem;
+    }
+    .btn {
+        font-size: 0.9rem;
+    }
+}

@@ -67,9 +67,9 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user1 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx1, _) = user_service.signup_user(&user1, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let ctx1 = user_service.register_user(&user1, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
         let user2 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx2, _) = user_service.signup_user(&user2, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let ctx2 = user_service.register_user(&user2, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         for _i in 0..5 {
             // WHEN creating an message

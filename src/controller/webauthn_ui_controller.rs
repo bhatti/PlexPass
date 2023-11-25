@@ -1,21 +1,19 @@
 // FIDO2 is an authentication standard that includes the WebAuthn and CTAP
 // (Client-to-Authenticator Protocol) specifications.
 
+use std::collections::HashMap;
 use actix_session::Session;
-use actix_web::web::{Data, Json, Path};
-use actix_web::HttpResponse;
-use log::{debug, info};
-use tokio::sync::Mutex;
-use uuid::Uuid;
+use actix_web::web::{Json};
+use actix_web::{http, HttpResponse, Responder, web, Error};
 use webauthn_rs::prelude::{
-    CreationChallengeResponse, PasskeyRegistration, PublicKeyCredential,
+    CreationChallengeResponse, PublicKeyCredential,
     RegisterPublicKeyCredential, RequestChallengeResponse,
 };
-use webauthn_rs::Webauthn;
 
-use crate::auth::webauthn_startup::UserData;
-use crate::domain::error::PassError;
-use crate::domain::models::PassResult;
+use crate::controller::models::{Authenticated, QueryRecoveryCode, QuerySecurityKeyId};
+use crate::controller::USER_SESSION_KEY;
+use crate::domain::models::{HardwareSecurityKey, PassResult};
+use crate::service::locator::ServiceLocator;
 
 // The first step a client (user) will carry out is requesting a credential to be
 // registered. We need to provide a challenge for this. The work flow will be:
@@ -72,61 +70,11 @@ use crate::domain::models::PassResult;
 // In this step, we are responding to the start reg(istration) request, and providing
 // the challenge to the browser.
 pub(crate) async fn start_register(
-    username: Path<String>,
-    session: Session,
-    webauthn_users: Data<Mutex<UserData>>,
-    webauthn: Data<Webauthn>,
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated,
 ) -> PassResult<Json<CreationChallengeResponse>> {
-    info!("Start register");
-
-    // We get the username from the URL, but you could get this via form submission or
-    // some other process. In some parts of Webauthn, you could also use this as a "display name"
-    // instead of a username. Generally you should consider that the user *can* and *will* change
-    // their username at any time.
-
-    // Since a user's username could change at anytime, we need to bind to a unique id.
-    // We use uuid's for this purpose, and you should generate these randomly. If the
-    // username does exist and is found, we can match back to our unique id. This is
-    // important in authentication, where presented credentials may *only* provide
-    // the unique id, and not the username!
-
-    let user_unique_id = {
-        let users_guard = webauthn_users.lock().await;
-        users_guard
-            .name_to_id
-            .get(username.as_str())
-            .copied()
-            .unwrap_or_else(Uuid::new_v4)
-    };
-
-    // Remove any previous registrations that may have occurred from the session.
-    session.remove("reg_state");
-
-    // If the user has any other credentials, we exclude these here so they can't be duplicate registered.
-    // It also hints to the browser that only new credentials should be "blinked" for interaction.
-    let exclude_credentials = {
-        let users_guard = webauthn_users.lock().await;
-        users_guard
-            .keys
-            .get(&user_unique_id)
-            .map(|keys| keys.iter().map(|sk| sk.cred_id().clone()).collect())
-    };
-
-    let (ccr, reg_state) = webauthn
-        .start_passkey_registration(user_unique_id, &username, &username, exclude_credentials)
-        .map_err(|e| {
-            debug!("challenge_register -> {:?}", e);
-            PassError::authentication(&format!("unknown error {}", e))
-        })?;
-
-    // Note that due to the session store in use being a server side memory store, this is
-    // safe to store the reg_state into the session since it is not client controlled and
-    // not open to replay attacks. If this was a cookie store, this would be UNSAFE.
-    session
-        .insert("reg_state", (username.as_str(), user_unique_id, reg_state))
-        .expect("Failed to insert");
-
-    info!("Registration Successful!");
+    let ccr = service_locator.auth_service.start_register_key(&auth.context).await?;
+    // NOTE: We shouldn't store reg_state in session because we are using cookies store.
     Ok(Json(ccr))
 }
 
@@ -138,36 +86,14 @@ pub(crate) async fn start_register(
 // to verify these and persist them.
 
 pub(crate) async fn finish_register(
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated,
     req: Json<RegisterPublicKeyCredential>,
-    session: Session,
-    webauthn_users: Data<Mutex<UserData>>,
-    webauthn: Data<Webauthn>,
-) -> PassResult<HttpResponse> {
-    let (username, user_unique_id, reg_state): (String, Uuid, PasskeyRegistration) =
-        session.get("reg_state")?.unwrap();
-
-    session.remove("reg_state");
-
-    let sk = webauthn
-        .finish_passkey_registration(&req, &reg_state)
-        .map_err(|e| {
-            debug!("challenge_register -> {:?}", e);
-            PassError::authentication(&format!("bad request {:?}", e))
-        })?;
-
-    let mut users_guard = webauthn_users.lock().await;
-
-    //TODO: This is where we would store the credential in a db, or persist them in some other way.
-
-    users_guard
-        .keys
-        .entry(user_unique_id)
-        .and_modify(|keys| keys.push(sk.clone()))
-        .or_insert_with(|| vec![sk.clone()]);
-
-    users_guard.name_to_id.insert(username, user_unique_id);
-
-    Ok(HttpResponse::Ok().finish())
+    query: web::Query<HashMap<String, String>>,
+) -> PassResult<Json<HardwareSecurityKey>> {
+    let name = query.get("name").unwrap_or(&req.id).clone();
+    let hardware_key = service_locator.auth_service.finish_register_key(&auth.context, &name, &req).await?;
+    Ok(Json(hardware_key))
 }
 
 // 4. Now that our public key has been registered, we can authenticate a user and verify
@@ -200,49 +126,12 @@ pub(crate) async fn finish_register(
 // The user indicates the wish to start authentication and we need to provide a challenge.
 
 pub(crate) async fn start_authentication(
-    username: Path<String>,
-    session: Session,
-    webauthn_users: Data<Mutex<UserData>>,
-    webauthn: Data<Webauthn>,
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated,
 ) -> PassResult<Json<RequestChallengeResponse>> {
-    info!("Start Authentication");
-    // We get the username from the URL, but you could get this via form submission or
-    // some other process.
-
-    // Remove any previous authentication that may have occurred from the session.
-    session.remove("auth_state");
-
-    // Get the set of keys that the user possesses
-    let users_guard = webauthn_users.lock().await;
-
-    // Look up their unique id from the username
-    let user_unique_id = users_guard
-        .name_to_id
-        .get(username.as_str())
-        .copied()
-        .ok_or(PassError::not_found("user not found"))?;
-
-    let allow_credentials = users_guard
-        .keys
-        .get(&user_unique_id)
-        .ok_or(PassError::authentication("no credentials"))?;
-
-    let (rcr, auth_state) = webauthn
-        .start_passkey_authentication(allow_credentials)
-        .map_err(|e| {
-            debug!("challenge_authenticate -> {:?}", e);
-            PassError::authentication(&format!("unknown error {:?}", e))
-        })?;
-
-    // Drop the mutex to allow the mut borrows below to proceed
-    drop(users_guard);
-
-    // Note that due to the session store in use being a server side memory store, this is
-    // safe to store the auth_state into the session since it is not client controlled and
-    // not open to replay attacks. If this was a cookie store, this would be UNSAFE.
-    session.insert("auth_state", (user_unique_id, auth_state))?;
-
-    Ok(Json(rcr))
+    let ccr = service_locator.auth_service.start_key_authentication(&auth.context).await?;
+    // NOTE: We shouldn't store reg_state in session because we are using cookies store.
+    Ok(Json(ccr))
 }
 
 // 5. The browser and user have completed their part of the processing. Only in the
@@ -251,41 +140,39 @@ pub(crate) async fn start_authentication(
 // this is an authentication failure.
 
 pub(crate) async fn finish_authentication(
-    auth: Json<PublicKeyCredential>,
-    session: Session,
-    webauthn_users: Data<Mutex<UserData>>,
-    webauthn: Data<Webauthn>,
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated,
+    cred: Json<PublicKeyCredential>,
 ) -> PassResult<HttpResponse> {
-    let (user_unique_id, auth_state) = session
-        .get("auth_state")?
-        .ok_or(PassError::authentication("corrupt session"))?;
+    service_locator.auth_service.finish_key_authentication(
+        &auth.context, &auth.user_token.login_session, &cred).await?;
+    Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/")).finish())
+}
 
-    session.remove("auth_state");
+pub async fn recover_mfa(
+    service_locator: web::Data<ServiceLocator>,
+    params: web::Form<QueryRecoveryCode>,
+    auth: Authenticated,
+    session: Session,
+) -> Result<impl Responder, Error> {
+    service_locator.auth_service.reset_mfa_keys(
+        &auth.context, &params.recovery_code, &auth.user_token.login_session).await?;
+    let _ = session.remove(USER_SESSION_KEY);
+    Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/")).finish())
+}
 
-    let auth_result = webauthn
-        .finish_passkey_authentication(&auth, &auth_state)
-        .map_err(|_e| {
-            PassError::authentication("bad request")
-        })?;
-
-    let mut users_guard = webauthn_users.lock().await;
-
-    // Update the credential counter, if possible.
-    users_guard
-        .keys
-        .get_mut(&user_unique_id)
-        .map(|keys| {
-            keys.iter_mut().for_each(|sk| {
-                // This will update the credential if it's the matching
-                // one. Otherwise it's ignored. That is why it is safe to
-                // iterate this over the full list.
-                sk.update_credential(&auth_result);
-            })
-        })
-        .ok_or(PassError::authentication("no credentials"))?;
-
-    info!("Authentication Successful!");
-    Ok(HttpResponse::Ok().finish())
+pub async fn unregister_mfa_key(
+    service_locator: web::Data<ServiceLocator>,
+    params: web::Query<QuerySecurityKeyId>,
+    auth: Authenticated,
+) -> Result<impl Responder, Error> {
+    let (_, mut user) = service_locator.user_service.get_user(&auth.context, &auth.context.user_id).await?;
+    user.remove_security_key(&params.id);
+    let _ = service_locator
+        .user_service
+        .update_user(&auth.context, &user)
+        .await?;
+    Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/ui/users/profile")).finish())
 }
 
 #[cfg(test)]
@@ -303,6 +190,3 @@ mod tests {
         //assert!(false);
     }
 }
-
-//#[actix_web::main]
-//async fn main() -> std::io::Result<()> {}

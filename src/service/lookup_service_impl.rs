@@ -137,7 +137,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx, _) = user_service.signup_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
 
         // WHEN creating a lookup
         let lookup = Lookup::new(&user.user_id, LookupKind::TAG, "name");
@@ -166,7 +166,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN creating an lookup
         let lookup = Lookup::new(&user.user_id, LookupKind::CATEGORY, "name1");
@@ -201,7 +201,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx, _) = user_service.signup_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "Bakcru5h&r]fIt@", HashMap::new()).await.unwrap();
 
         let kinds = [LookupKind::CATEGORY, LookupKind::TAG];
         for i in 0..10 {

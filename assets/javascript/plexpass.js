@@ -18,36 +18,7 @@ async function viewAccount(id) {
         }
         customFields += `</table>`;
     }
-    let otpData = '';
-    if (account.otp) {
-        otpData += `
-        <tr>
-            <td><strong>OTP Secret:</strong></td><td> <span id="viewOtp">${account.otp || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Generated OTP:</strong></td><td> 
-                <div class="row align-items-center">
-                </div>
-               
-                <div class="col">
-                    <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
-                        <span id="viewGeneratedOtp">${account.generated_otp}</span>
-                    </div>
-                </div> 
-                <!-- Progress Bar -->
-                <div class="col">
-                    <div class="progress">
-                        <div id="otpTimer" class="progress-bar" role="progressbar" style="width: 100%;"></div>
-                    </div>
-                </div>
-                &nbsp;
-                <div class="col-auto">
-                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
-                </div>
-            </td>
-        </tr>
-        `;
-    }
+    let otpData = buildOtpSection(account.otp, account.generated_otp);
 
     let advisories = '';
     if (account.advisories) {
@@ -133,7 +104,40 @@ async function viewAccount(id) {
     await viewModal.show();
 }
 
-function  copyOtpToClipboard(){
+function buildOtpSection(otp, generatedOtp) {
+    if (!otp) {
+        return '';
+    }
+    return `
+        <tr>
+            <td><strong>OTP Secret:</strong></td><td> <span id="viewOtp">${otp || ''}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Generated OTP:</strong></td><td> 
+                <div class="row align-items-center">
+                </div>
+               
+                <div class="col">
+                    <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
+                        <span id="viewGeneratedOtp">${generatedOtp}</span>
+                    </div>
+                </div> 
+                <!-- Progress Bar -->
+                <div class="col">
+                    <div class="progress">
+                        <div id="otpTimer" class="progress-bar" role="progressbar" style="width: 100%;"></div>
+                    </div>
+                </div>
+                &nbsp;
+                <div class="col-auto">
+                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
+                </div>
+            </td>
+        </tr>
+        `;
+}
+
+function copyOtpToClipboard() {
     const otp = document.getElementById('viewGeneratedOtp').textContent;
     copyToClipboard(otp);
 }
@@ -168,11 +172,19 @@ function fetchOTP() {
         });
 }
 
+function handleFetchingOTP() {
+    if (document.hidden) {
+        stopFetchingOTP();
+    } else {
+        startFetchingOTP();
+    }
+}
+
 // Function to start fetching OTP
 function startFetchingOTP() {
     stopFetchingOTP();
     if (otpIntervalId) clearInterval(otpIntervalId);
-    otpIntervalId = setInterval(function() {
+    otpIntervalId = setInterval(function () {
         if (new Date().getSeconds() % 30 == 0) {
             fetchOTP();
         } else if (otpTimeLeft > 0) {
@@ -216,7 +228,7 @@ async function addAccount(vault_id) {
         website_url: '',
         category: '',
         tags: '',
-        otp : '',
+        otp: '',
         notes: '',
         form_fields: {},
     };
@@ -225,9 +237,9 @@ async function addAccount(vault_id) {
 }
 
 function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
+    navigator.clipboard.writeText(text).then(function () {
         clearClipboardAfterDelay(text, 30000);  // 30 seconds delay
-    }).catch(function(er) {
+    }).catch(function (er) {
         console.error('Could not copy text: ', err);
     });
 }
@@ -236,15 +248,18 @@ function clearClipboardAfterDelay(text, delay) {
     if (clipboardTimer) {
         clearTimeout(clipboardTimer);
     }
-    clipboardTimer = setTimeout(function() {
-        navigator.clipboard.readText().then(clipboardContent => {
-            if (clipboardContent === text) {
-                navigator.clipboard.writeText('');  // Clear the clipboard
-            }
-        }).catch(function(error) {
-            console.error('Error reading clipboard:', error);
-        });
-    }, delay);
+    // readText not supported on firefox
+    if (navigator.clipboard.readText) {
+        clipboardTimer = setTimeout(function () {
+            navigator.clipboard.readText().then(clipboardContent => {
+                if (clipboardContent === text) {
+                    navigator.clipboard.writeText('');  // Clear the clipboard
+                }
+            }).catch(function (error) {
+                console.error('Error reading clipboard:', error);
+            });
+        }, delay);
+    }
 }
 
 
@@ -896,3 +911,190 @@ function showToast(message, callback) {
         }
     }, 1000);
 }
+
+async function removeMFAKey(id) {
+    if (confirm('Are you sure you want to delete multi-factor authentication key?')) {
+        try {
+            // Send the credentials to the server
+            await fetch('/ui/webauthn/unregister?id=' + id, {
+                method: 'POST'
+            });
+            showToast('removed multi-factor authentication key', () => {
+                location.reload();
+            })
+        } catch (error) {
+            console.error('Error removing MFA key:', error);
+        }
+    }
+}
+
+function arrayBufferToBase64(buffer) {
+    let binary = '';
+    let bytes = new Uint8Array(buffer);
+    let len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);
+}
+
+function base64UrlToBase64(base64Url) {
+    // Replace "-" with "+" and "_" with "/"
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    // Pad with "=" to make the length a multiple of 4 if necessary
+    while (base64.length % 4) {
+        base64 += '=';
+    }
+    return base64;
+}
+
+function base64UrlToArrayBuffer(base64url) {
+    var padding = '='.repeat((4 - base64url.length % 4) % 4);
+    var base64 = (base64url + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+
+    var rawData = window.atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+
+    for (var i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray.buffer;
+}
+
+async function signinMFA(options) {
+    try {
+        if (!options) {
+            // Fetch options for authentication from the server
+            const response = await fetch('/ui/webauthn/login_start');
+            options = await response.json();
+        }
+
+        // Convert challenge from Base64URL to ArrayBuffer
+        options.publicKey.challenge = base64UrlToArrayBuffer(options.publicKey.challenge);
+
+        // Convert id from Base64URL to ArrayBuffer for each allowed credential
+        if (options.publicKey.allowCredentials) {
+            for (let cred of options.publicKey.allowCredentials) {
+                cred.id = base64UrlToArrayBuffer(cred.id);
+            }
+        }
+
+        // Request an assertion
+        const assertion = await navigator.credentials.get(options);
+
+        // Send the assertion to the server for verification
+        let response = await fetch('/ui/webauthn/login_finish', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(assertion)
+        });
+        if (response.ok) {
+            showToast('Login successful.', () => {
+                document.location = '/';
+            })
+        }
+    } catch (err) {
+        console.error('Error during authentication:', err);
+    }
+}
+
+async function showRegisterMFAKey() {
+    const editModal = new bootstrap.Modal(document.getElementById('addMfaKeyModal'));
+    await editModal.show();
+}
+
+async function registerMFAKey() {
+    const keyName = document.getElementById('mfaKeyName').value;
+    try {
+        let response = await fetch('/ui/webauthn/register_start');
+        let options = await response.json();
+
+        console.log(JSON.stringify(options));
+        // Convert challenge from Base64URL to Base64, then to Uint8Array
+        const challengeBase64 = base64UrlToBase64(options.publicKey.challenge);
+        options.publicKey.challenge = Uint8Array.from(atob(challengeBase64), c => c.charCodeAt(0));
+
+        // Convert user ID from Base64URL to Base64, then to Uint8Array
+        const userIdBase64 = base64UrlToBase64(options.publicKey.user.id);
+        options.publicKey.user.id = Uint8Array.from(atob(userIdBase64), c => c.charCodeAt(0));
+
+        //options.challenge = Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0));
+        //options.user.id = Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0));
+
+        // Convert each excludeCredentials id from Base64URL to ArrayBuffer
+        if (options.publicKey.excludeCredentials) {
+            for (let cred of options.publicKey.excludeCredentials) {
+                cred.id = base64UrlToArrayBuffer(cred.id);
+            }
+        }
+
+        // Create a new credential
+        const newCredential = await navigator.credentials.create(options);
+
+        // Prepare data to be sent to the server
+        const credentialForServer = {
+            id: newCredential.id,
+            rawId: arrayBufferToBase64(newCredential.rawId),
+            response: {
+                attestationObject: arrayBufferToBase64(newCredential.response.attestationObject),
+                clientDataJSON: arrayBufferToBase64(newCredential.response.clientDataJSON)
+            },
+            type: newCredential.type
+        };
+
+        // Send the new credential to the server for verification and storage
+        response = await fetch('/ui/webauthn/register_finish?name=' + keyName, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(credentialForServer)
+        });
+        let savedKey = await response.json();
+        const registerMFAKeyDiv = document.getElementById('registerMFAKeyDiv');
+
+        registerMFAKeyDiv.innerHTML = `
+        <div class="alert alert-success" role="alert">
+            <h4 class="alert-heading">Multi-Factor Authentication Key Added</h4>
+            <p>Your multi-factor authentication key has been successfully added. In case you encounter issues signing in with multi-factor authentication, please use the following recovery code:</p>
+            <hr>
+            <p class="mb-0"><strong>Recovery Code:</strong> <span id="recoveryCode">${savedKey.recovery_code}</span></p>
+            <button type="button" class="btn btn-primary" onclick="copyToClipboard('${savedKey.recovery_code}')">Copy to Clipboard</button>
+            <p class="text-danger mt-2"><strong>Notice:</strong> This recovery code will not be displayed again. Please store it in a safe place.</p>
+        </div>`;
+
+        const registerMFAKeyButton = document.getElementById('registerMFAKeyButton');
+        registerMFAKeyButton.innerText = 'Close';
+        registerMFAKeyButton.onclick = function () {
+            location.reload();
+        };
+    } catch (err) {
+        console.error('Error during registration:', err);
+    }
+}
+
+async function showEditProfile() {
+    const editModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    await editModal.show();
+}
+
+async function showAPIToken(id) {
+    const tokenModal = new bootstrap.Modal(document.getElementById('tokenModal'));
+    const tokenDisplay = document.getElementById('tokenDisplay');
+
+    try {
+        const response = await fetch('/ui/api_token');
+        const data = await response.json();
+        tokenDisplay.textContent = data.token;
+    } catch (error) {
+        console.error('Error fetching token:', error);
+        tokenDisplay.textContent = 'Failed to load token.';
+    }
+    await tokenModal.show();
+}
+
+function copyTokenToClipboard() {
+    const tokenDisplay = document.getElementById('tokenDisplay').textContent;
+    copyToClipboard(tokenDisplay);
+}
+

@@ -1,18 +1,16 @@
-use std::collections::HashMap;
-use crate::domain::models::{PassConfig, PassResult, User};
-use crate::service::locator::ServiceLocator;
+use crate::controller::models::UserResponse;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{PassResult};
 
+/// Get a user object.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
-    id: Option<String>) -> PassResult<User> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, user, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
+    args_ctx: &ArgsContext,
+    id: Option<String>) -> PassResult<UserResponse> {
     if let Some(id) = id {
-        let (_, user) = service_locator.user_service.get_user(&ctx, &id).await?;
-        Ok(user)
+        let (_, user) = args_ctx.service_locator.user_service.get_user(
+            &args_ctx.user_context, &id).await?;
+        Ok(UserResponse::new(&user))
     } else {
-        Ok(user)
+        Ok(UserResponse::new(&args_ctx.user))
     }
 }

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::domain::models::{EncodingScheme, PassConfig, PassResult};
 use crate::service::locator::ServiceLocator;
 
+/// Asymmetric encryption command.
 pub async fn execute(
     config: PassConfig,
     public_key: &str,

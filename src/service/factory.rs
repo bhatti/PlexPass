@@ -2,7 +2,7 @@ use prometheus::default_registry;
 use std::sync::Arc;
 use crate::background::Scheduler;
 
-use crate::dao::factory::{create_account_repository, create_audit_repository, create_login_session_repository, create_lookup_repository, create_message_repository, create_setting_repository, create_share_vault_account_repository, create_user_repository, create_vault_repository};
+use crate::dao::factory::{create_account_repository, create_audit_repository, create_login_session_repository, create_lookup_repository, create_message_repository, create_setting_repository, create_share_vault_account_repository, create_user_lookup_repository, create_user_repository, create_vault_repository};
 use crate::domain::models::{PassConfig, PassResult};
 use crate::service::account_service_impl::AccountServiceImpl;
 use crate::service::lookup_service_impl::LookupServiceImpl;
@@ -11,12 +11,13 @@ use crate::service::password_service_impl::PasswordServiceImpl;
 use crate::service::setting_service_impl::SettingServiceImpl;
 use crate::service::user_service_impl::UserServiceImpl;
 use crate::service::vault_service_impl::VaultServiceImpl;
-use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, OTPService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService};
+use crate::service::{AccountService, AuditLogService, EncryptionService, ImportExportService, LookupService, MessageService, OTPService, PasswordService, SettingService, ShareVaultAccountService, UserService, VaultService, AuthenticationService};
 use crate::service::audit_service_impl::AuditLogServiceImpl;
 use crate::service::encryption_service_impl::EncryptionServiceImpl;
 use crate::service::import_export_service_impl::ImportExportServiceImpl;
 use crate::service::otp_service_impl::OTPServiceImpl;
 use crate::service::share_vault_account_service_impl::ShareVaultAccountServiceImpl;
+use crate::service::authentication_service_impl::AuthenticationServiceImpl;
 use crate::store::factory::create_hsm_store;
 
 // factory to method to create user-service
@@ -25,18 +26,15 @@ pub async fn create_user_service(
 ) -> PassResult<Arc<dyn UserService + Send + Sync>> {
     let hsm_store = create_hsm_store(config)?;
     let user_repository = create_user_repository(config).await?;
+    let user_lookup_repository = create_user_lookup_repository(config).await?;
     let vault_repository = create_vault_repository(config).await?;
-    let login_session_repository = create_login_session_repository(config).await?;
-    let share_vault_account_repository = create_share_vault_account_repository(config).await?;
-    let password_service = create_password_service(config).await?;
     Ok(Arc::new(UserServiceImpl::new(
         config,
         hsm_store,
         user_repository,
+        user_lookup_repository,
         vault_repository,
-        login_session_repository,
-        share_vault_account_repository,
-        password_service,
+        create_encryption_service(config).await?,
         default_registry(),
     )?))
 }
@@ -168,6 +166,21 @@ pub async fn create_otp_service(
 ) -> PassResult<Arc<dyn OTPService + Send + Sync>> {
     Ok(Arc::new(OTPServiceImpl::new(
         config,
+        default_registry(),
+    )?))
+}
+
+// factory to method to create webauthn-service
+pub async fn create_auth_service(
+    config: &PassConfig,
+) -> PassResult<Arc<dyn AuthenticationService + Send + Sync>> {
+    Ok(Arc::new(AuthenticationServiceImpl::new(
+        config,
+        create_hsm_store(config)?,
+        create_user_repository(config).await?,
+        create_login_session_repository(config).await?,
+        create_share_vault_account_repository(config).await?,
+        create_password_service(config).await?,
         default_registry(),
     )?))
 }

@@ -1,0 +1,30 @@
+{% extends "unauth_base.html" %}
+{% block title %} Multi-factor Signin Recovery {% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title mb-4 text-center">Enter Recovery Code</h2>
+                    <p class="text-center">If you have lost access to your multi-factor authentication device, you can use your recovery code to reset your MFA settings.</p>
+                    <hr>
+                    <form method="POST" action="/ui/webauthn/recover">
+                        <div class="mb-3">
+                            <label for="recoveryCode" class="form-label">Recovery Code</label>
+                            <input type="text" name="recovery_code" class="form-control" id="recoveryCode" required>
+                        </div>
+                        <div class="alert alert-warning" role="alert">
+                            <strong>Note:</strong> Using this recovery code will reset all your existing MFA keys. You will have the option to set up new keys once you have regained access to your account.
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Submit Recovery Code</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

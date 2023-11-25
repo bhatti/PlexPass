@@ -1,0 +1,41 @@
+{% extends "unauth_base.html" %}
+{% block title %} Multi-factor Signin {% endblock title %}
+{% block header %}
+<style>
+    .container {
+        max-width: 500px;
+        margin-top: 100px;
+    }
+    .security-key-image {
+        width: 150px;
+        height: auto;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock header %}
+
+{% block content %}
+<div class="container text-center border rounded p-4 shadow">
+    <div class="text-center mb-4">
+        <img src="/assets/images/key.png" width="64" height="64" alt="Security Key" class="security-key-image">
+        <h4>Multi-Factor Authentication to PlexPass Password Manager!</h4>
+    </div>
+    <p class="lead">Please insert your security key</p>
+    <p>Touch the button on the security key after inserting it.</p>
+    <div class="spinner-border mt-3" role="status">
+        <span class="visually-hidden">Waiting...</span>
+    </div>
+    <div class="text-center mt-3">
+        <p>Don't have security key? <a href="/ui/webauthn/recover">Authenticate with Recovery codes</a></p>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block footer %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        signinMFA(JSON.parse('{{ ccr|safe }}'));
+    }, false);
+</script>
+{% endblock footer %}

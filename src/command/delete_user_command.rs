@@ -1,17 +1,13 @@
-use std::collections::HashMap;
-use crate::domain::models::{PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{PassResult};
 
+/// Delete a user.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     id: Option<String>) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
     if let Some(id) = id {
-        service_locator.user_service.delete_user(&ctx, &id).await
+        args_ctx.service_locator.user_service.delete_user(&args_ctx.user_context, &id).await
     } else {
-        service_locator.user_service.delete_user(&ctx, &ctx.user_id).await
+        args_ctx.service_locator.user_service.delete_user(&args_ctx.user_context, &args_ctx.user.user_id).await
     }
 }

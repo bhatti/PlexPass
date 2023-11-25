@@ -5,8 +5,10 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 use tokio::time;
 
+type Tasks = DashMap<String, (JoinHandle<()>, oneshot::Sender<()>)>;
+
 pub struct Scheduler {
-    tasks: Arc<DashMap<String, (JoinHandle<()>, oneshot::Sender<()>)>>,
+    tasks: Arc<Tasks>,
 }
 
 impl Default for Scheduler {

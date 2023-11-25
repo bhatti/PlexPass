@@ -4,75 +4,87 @@ Usage: plexpass [OPTIONS] <COMMAND>
 
 Commands:
   server
-          
+
   get-user
-          
+
   create-user
-          
+
   update-user
-          
+
   delete-user
-          
+
   create-vault
-          
+
   update-vault
-          
+
   delete-vault
-          
+
   get-vault
-          
+
   get-vaults
-          
+
   create-account
-          
+
   update-account
-          
+
   get-account
-          
+
   get-accounts
-          
+
   delete-account
-          
+
   query-audit-logs
-          
+
   create-category
-          
+
   delete-category
-          
+
   get-categories
-          
+
   generate-private-public-keys
-          
+
   asymmetric-encrypt
-          
+
   asymmetric-decrypt
-          
+
+  asymmetric-user-encrypt
+
+  asymmetric-user-decrypt
+
   symmetric-encrypt
-          
+
   symmetric-decrypt
-          
+
   import-accounts
-          
+
   export-accounts
-          
+
   generate-password
-          
+
   password-compromised
-          
+
   password-strength
-          
+
   email-compromised
-          
+
   analyze-vault-passwords
-          
+
   analyze-all-vaults-passwords
-          
+
   search-usernames
-          
+
+  generate-account-otp
+
+  generate-user-otp
+
+  generate-api-token
+
+  reset-multi-factor-authentication
+
   share-vault
-          
+
   share-account
-          
+
   help
           Print this message or the help of the given subcommand(s)
 
@@ -91,6 +103,8 @@ Options:
           The username of local user
       --master-password <MASTER_PASSWORD>
           The master-password of user
+      --otp-code <OTP_CODE>
+          The otp-code of user
   -c, --config <FILE>
           Sets a custom config file
   -h, --help

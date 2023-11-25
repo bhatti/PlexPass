@@ -1,6 +1,7 @@
 use crate::domain::models::{PassConfig, PassResult};
 use crate::service::locator::ServiceLocator;
 
+/// Check if a password is compromised.
 pub async fn execute(
     config: PassConfig,
     password: &str,

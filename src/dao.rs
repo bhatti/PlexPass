@@ -29,6 +29,7 @@ mod schema;
 mod user_vault_repository_impl;
 mod audit_repository_impl;
 mod acl_repository_impl;
+mod user_lookup_repository_impl;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 pub type DbConnection = PooledConnection<ConnectionManager<SqliteConnection>>;
@@ -86,16 +87,25 @@ pub trait UserRepository: Repository<User, UserEntity> {}
 #[async_trait]
 pub trait ACLRepository: Repository<ACLEntity, ACLEntity> {}
 
+/// Repository interface for UserLookup.
+pub trait UserLookupRepository {
+    fn lookup_usernames(&self, q: &str) -> PassResult<Vec<String>>;
+    fn lookup_userid_by_username(&self, match_username: &str) -> PassResult<String>;
+}
+
 /// Repository interface for LoginSession.
 pub trait LoginSessionRepository {
     // create login session
     fn create(&self, session: &LoginSession) -> PassResult<usize>;
 
-    // get crypto_key by id
-    fn get(&self, id: &str) -> PassResult<LoginSession>;
+    // get session by user-id and session-id
+    fn get(&self, user_id: &str, session_id: &str) -> PassResult<LoginSession>;
 
-    // delete an existing crypto_key.
-    fn delete(&self, id: &str) -> PassResult<usize>;
+    // update session by id
+    fn mfa_succeeded(&self, user_id: &str, session_id: &str) -> PassResult<LoginSession>;
+
+    // signout an existing session
+    fn signout(&self, user_id: &str, session_id: &str) -> PassResult<usize>;
 
     // delete_by_user_id delete all user audits
     fn delete_by_user_id(&self,

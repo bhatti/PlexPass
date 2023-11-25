@@ -1,6 +1,7 @@
 use crate::domain::models::{PassConfig, PassResult};
 use crate::service::locator::ServiceLocator;
 
+/// Generate private and public keys for Asymmetric encryption.
 pub async fn execute(
     config: PassConfig,
     password: &Option<String>,

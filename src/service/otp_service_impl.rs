@@ -30,6 +30,7 @@ impl OTPServiceImpl {
         })
     }
 
+    #[allow(dead_code)]
     async fn decode_otp(content: &str) -> PassResult<Vec<AccountResponse>> {
         let mut accounts = Vec::new();
         // Split the content and parse each URI
@@ -38,11 +39,11 @@ impl OTPServiceImpl {
         // otpauth://TYPE/LABEL?PARAMETERS
         for uri in uris {
             // Parse the URL
-            let url = Url::parse(&uri)?;
+            let url = Url::parse(uri)?;
             // Extract the secret from query parameters
             if let Some(secret) = url.query_pairs()
                 .find(|(key, _)| key == "secret")
-                .map(|(_, value)| value.to_owned()) {
+                .map(|(_, value)| value.into_owned()) {
                 let mut account = AccountResponse::new(
                     &Account::new("", AccountKind::Login));
                 account.label = Some(url.domain().unwrap_or("").to_string());
@@ -57,12 +58,13 @@ impl OTPServiceImpl {
 
 #[async_trait]
 impl OTPService for OTPServiceImpl {
-    async fn generate(&self, _ctx: &UserContext, secret: &str) -> PassResult<u32> {
+    async fn generate_otp(&self, secret: &str) -> PassResult<u32> {
         Ok(TOTP::new(secret).generate(30, Utc::now().timestamp() as u64))
     }
 
     async fn convert_from_qrcode(&self, _ctx: &UserContext,
                                  _image_data: &[u8]) -> PassResult<Vec<AccountResponse>> {
+        let _ = self.metrics.new_metric("convert_from_qrcode");
         let accounts = Vec::new();
         // let img = image::load_from_memory(image_data)?;
         // let luma_img = img.to_luma8();
@@ -80,6 +82,7 @@ impl OTPService for OTPServiceImpl {
 
     async fn convert_to_qrcode(&self, _ctx: &UserContext,
                                secrets: Vec<&str>) -> PassResult<Vec<u8>> {
+        let _ = self.metrics.new_metric("convert_to_qrcode");
         let combined_secrets = secrets.join("\n");
         let code = QrCode::new(combined_secrets).map_err(|e| e.to_string())?;
         let __image: ImageBuffer<Luma<u8>, Vec<u8>> = code.render::<Luma<u8>>().build();
@@ -94,6 +97,7 @@ impl OTPService for OTPServiceImpl {
     /// Extract OTP secret from QRCode file
     async fn convert_from_qrcode_file(&self, ctx: &UserContext,
                                       in_path: &Path) -> PassResult<Vec<AccountResponse>> {
+        let _ = self.metrics.new_metric("convert_from_qrcode_file");
         let image_data = fs::read(in_path)?;
         self.convert_from_qrcode(ctx, &image_data).await
     }
@@ -102,6 +106,7 @@ impl OTPService for OTPServiceImpl {
     async fn convert_to_qrcode_file(&self,
                                     ctx: &UserContext, secrets: Vec<&str>,
                                     out_path: &Path) -> PassResult<()> {
+        let _ = self.metrics.new_metric("convert_to_qrcode_file");
         let image_data = self.convert_to_qrcode(ctx, secrets).await?;
         fs::write(out_path, image_data)?;
         Ok(())
@@ -110,7 +115,6 @@ impl OTPService for OTPServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::dao::models::UserContext;
     use crate::domain::models::PassConfig;
     use crate::service::factory::create_otp_service;
     use crate::service::otp_service_impl::OTPServiceImpl;
@@ -120,10 +124,7 @@ mod tests {
         let config = PassConfig::new();
         // GIVEN otp-service
         let otp_service = create_otp_service(&config).await.unwrap();
-        let ctx = UserContext::default_new(
-            "", "", "", "", "")
-            .expect("could not create user context");
-        let code = otp_service.generate(&ctx, "JBSWY3DPEHPK3PXP").await.unwrap();
+        let code = otp_service.generate_otp("JBSWY3DPEHPK3PXP").await.unwrap();
         assert!(code > 0);
     }
 

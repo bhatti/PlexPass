@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use serde::Serialize;
 use crate::controller::models::{Authenticated, SigninUserRequest, SigninUserResponse, SignupUserRequest, SignupUserResponse};
 use crate::dao::models::CONTEXT_IP_ADDRESS;
-use crate::domain::models::UserToken;
+use crate::domain::error::PassError;
+use crate::domain::models::{SessionStatus, UserToken};
 use crate::service::locator::ServiceLocator;
 
 const ACCESS_TOKEN: &str = "ACCESS_TOKEN";
@@ -15,12 +16,13 @@ pub async fn signup_user(
     payload: web::Json<SignupUserRequest>,
 ) -> Result<HttpResponse, Error> {
     let context = build_context_with_ip_address(req);
-    let (ctx, token) = service_locator
+    let ctx = service_locator
         .user_service
-        .signup_user(&payload.to_user(), &payload.master_password, context)
+        .register_user(&payload.to_user(), &payload.master_password, context)
         .await?;
     let res = SignupUserResponse::new(&ctx.user_id);
-    ok_response_with_token(&service_locator, &token, res)
+    Ok(HttpResponse::Ok()
+        .json(res))
 }
 
 #[post("/api/v1/auth/signin")]
@@ -30,10 +32,23 @@ pub async fn signin_user(
     payload: web::Json<SigninUserRequest>,
 ) -> Result<HttpResponse, Error> {
     let context = build_context_with_ip_address(req);
-    let (ctx, _user, token) = service_locator
-        .user_service
-        .signin_user(&payload.username, &payload.master_password, context)
+    let (ctx, user, token, session_status) = service_locator
+        .auth_service
+        .signin_user(&payload.username, &payload.master_password, payload.otp_code.clone(), context)
         .await?;
+    if session_status == SessionStatus::RequiresMFA {
+        if let Some(otp_code) = &payload.otp_code {
+            if !user.verify_otp(otp_code.clone()) {
+                return Err(
+                    Error::from(
+                        PassError::authentication("could not verify otp-code, please use the Web application for generated otp-code.")));
+            }
+        } else {
+            return Err(
+                Error::from(
+                    PassError::authentication("signin requires multi-factor authentication, please add parameter for otp_code based that can be seen form the Web application.")));
+        }
+    }
     let res = SigninUserResponse::new(&ctx.user_id);
     ok_response_with_token(&service_locator, &token, res)
 }
@@ -44,7 +59,7 @@ pub async fn signout_user(
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
     service_locator
-        .user_service
+        .auth_service
         .signout_user(&auth.context, &auth.user_token.login_session)
         .await?;
     Ok(HttpResponse::Ok().finish())

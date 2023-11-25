@@ -14,11 +14,12 @@ use crate::dao::setting_repository_impl::SettingRepositoryImpl;
 use crate::dao::user_repository_impl::UserRepositoryImpl;
 use crate::dao::user_vault_repository_impl::UserVaultRepositoryImpl;
 use crate::dao::vault_repository_impl::VaultRepositoryImpl;
-use crate::dao::{common, invoke_with_retry_attempts, CryptoKeyRepository, LoginSessionRepository, LookupRepository, MessageRepository, RetryableRepository, SettingRepository, UserRepository, UserVaultRepository, AuditRepository, ShareVaultAccountRepository, RetryableShareVaultAccountRepository, ACLRepository};
+use crate::dao::{common, invoke_with_retry_attempts, CryptoKeyRepository, LoginSessionRepository, LookupRepository, MessageRepository, RetryableRepository, SettingRepository, UserRepository, UserVaultRepository, AuditRepository, ShareVaultAccountRepository, RetryableShareVaultAccountRepository, ACLRepository, UserLookupRepository};
 use crate::dao::{AccountRepository, DbPool, VaultRepository};
 use crate::dao::acl_repository_impl::ACLRepositoryImpl;
 use crate::dao::audit_repository_impl::AuditRepositoryImpl;
 use crate::dao::share_vault_account_repository::ShareVaultAccountRepositoryImpl;
+use crate::dao::user_lookup_repository_impl::UserLookupRepositoryImpl;
 use crate::domain::models::{PassConfig, PassResult};
 
 lazy_static! {
@@ -82,7 +83,14 @@ pub async fn create_vault_repository(
     )))
 }
 
-// factory to method to create retryable user-vault repository
+// factory to method to create user-lookup repository
+pub async fn create_user_lookup_repository(
+    _config: &PassConfig,
+) -> PassResult<Arc<dyn UserLookupRepository + Send + Sync>> {
+    Ok(Arc::new(UserLookupRepositoryImpl::new(POOL.clone())))
+}
+
+// factory to method to create user-vault repository
 pub async fn create_user_vault_repository(
     _config: &PassConfig,
 ) -> PassResult<Arc<dyn UserVaultRepository + Send + Sync>> {
@@ -165,6 +173,7 @@ pub async fn create_share_vault_account_repository(
             create_vault_repository(config).await?,
             create_user_vault_repository(config).await?,
             create_user_repository(config).await?,
+            create_user_lookup_repository(config).await?,
             create_crypto_key_repository(config).await?,
             create_audit_repository(config).await?,
         )),

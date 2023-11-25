@@ -10,22 +10,24 @@ use otpauth::TOTP;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::dao::models::{UserContext};
+use crate::dao::models::UserContext;
 use crate::domain::error::PassError;
-use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, NameValue, PaginatedResult, PassResult, PasswordPolicy, User, UserToken, Vault, VaultAnalysis, VaultKind};
+use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, MAX_ICON_LENGTH, NameValue, PaginatedResult, PassResult, PasswordPolicy, Roles, User, UserLocale, UserToken, Vault, VaultAnalysis, VaultKind};
 use crate::utils::safe_parse_string_date;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Authenticated {
     pub user_token: UserToken,
     pub context: UserContext,
+    pub requires_mfa: bool,
 }
 
 impl Authenticated {
-    pub fn new(user_token: UserToken, context: UserContext) -> Self {
+    pub fn new(user_token: UserToken, context: UserContext, requires_mfa: bool) -> Self {
         Self {
             user_token,
             context,
+            requires_mfa,
         }
     }
 }
@@ -64,9 +66,11 @@ impl SignupUserRequest {
     pub fn to_user(&self) -> User {
         let mut u = User::new(&self.username, self.name.clone(), self.email.clone());
         if let Some(attrs) = &self.attributes {
+            let mut attributes = vec![];
             for (k, v) in attrs {
-                u.attributes.push(NameValue::new("", k, v));
+                attributes.push(NameValue::new("", k, v));
             }
+            u.attributes = Some(attributes);
         }
         u
     }
@@ -94,6 +98,8 @@ pub struct SigninUserRequest {
     pub username: String,
     // The master-password of user.
     pub master_password: String,
+    // otp-code user.
+    pub otp_code: Option<u32>,
 }
 
 /// SigninUserResponse represents response for signing in a user.
@@ -125,11 +131,13 @@ pub struct UpdateUserRequest {
     // The email of user.
     pub email: Option<String>,
     // The locale of user.
-    pub locale: Option<String>,
+    pub locale: Option<UserLocale>,
     // The light-mode of user.
     pub light_mode: Option<bool>,
     // The icon of user.
-    pub icon: Option<String>,
+    pub icon: Option<Vec<u8>>,
+    // The notifications enabled.
+    pub notifications: Option<bool>,
     // The attributes of user.
     pub attributes: Option<HashMap<String, String>>,
 }
@@ -141,12 +149,17 @@ impl UpdateUserRequest {
         u.version = self.version;
         u.locale = self.locale.clone();
         u.light_mode = self.light_mode;
-        u.icon = self.icon.clone();
-        if let Some(attrs) = &self.attributes {
-            for (k, v) in attrs {
-                u.attributes.push(NameValue::new("", k, v));
-            }
+        if let Some(icon) = &self.icon {
+            u.set_icon(icon.clone());
         }
+        if let Some(attrs) = &self.attributes {
+            let mut attributes = vec![];
+            for (k, v) in attrs {
+                attributes.push(NameValue::new("", k, v));
+            }
+            u.attributes = Some(attributes);
+        }
+        u.notifications = self.notifications;
         u
     }
 }
@@ -159,13 +172,15 @@ pub struct CreateVaultRequest {
     // The kind of vault.
     pub kind: Option<VaultKind>,
     // icon of vault.
-    pub icon: Option<String>,
+    pub icon: Option<Vec<u8>>,
 }
 
 impl CreateVaultRequest {
     pub fn to_vault(&self, user_id: &str) -> Vault {
         let mut vault = Vault::new(user_id, &self.title, self.kind.clone().unwrap_or(VaultKind::Logins));
-        vault.icon = self.icon.clone();
+        if let Some(icon) = &self.icon {
+            vault.set_icon(icon.clone());
+        }
         vault
     }
 }
@@ -195,6 +210,8 @@ pub struct VaultResponse {
     pub title: String,
     // The kind of vault.
     pub kind: VaultKind,
+    // The icon of vault.
+    pub icon: String,
     pub analysis: VaultAnalysis,
     // The metadata for date when passwords for the vault were analyzed.
     pub analyzed_at: Option<NaiveDateTime>,
@@ -210,6 +227,7 @@ impl VaultResponse {
             owner_user_id: vault.owner_user_id.clone(),
             title: vault.title.clone(),
             kind: vault.kind.clone(),
+            icon: vault.icon_string(),
             analysis: vault.analysis.clone().unwrap_or_default(),
             analyzed_at: vault.analyzed_at,
             created_at: vault.created_at,
@@ -230,7 +248,7 @@ pub struct UpdateVaultRequest {
     // The kind of vault.
     pub kind: Option<VaultKind>,
     // icon of vault.
-    pub icon: Option<String>,
+    pub icon: Option<Vec<u8>>,
 }
 
 impl UpdateVaultRequest {
@@ -238,7 +256,9 @@ impl UpdateVaultRequest {
         let mut vault = Vault::new(user_id, &self.title, self.kind.clone().unwrap_or(VaultKind::Logins));
         vault.vault_id = self.vault_id.clone();
         vault.version = self.version;
-        vault.icon = self.icon.clone();
+        if let Some(icon) = &self.icon {
+            vault.set_icon(icon.clone());
+        }
         vault
     }
 }
@@ -381,6 +401,67 @@ impl CreateAccountRequest {
         }
         account.credentials.password_policy = password_policy;
         account
+    }
+}
+
+/// UserResponse maps attributes from User object
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserResponse {
+    // id of the user.
+    pub user_id: String,
+    // The version of the user in database.
+    pub version: i64,
+    // The username of user.
+    pub username: String,
+    // The roles of user.
+    pub roles: Option<Roles>,
+    // The name of user.
+    pub name: Option<String>,
+    // The email of user.
+    pub email: Option<String>,
+    // The locale of user.
+    pub locale: Option<UserLocale>,
+    // The light-mode of user.
+    pub light_mode: Option<bool>,
+    // The icon of user.
+    pub icon: Option<String>,
+    // The notifications enabled.
+    pub notifications: Option<bool>,
+    // hardware keys
+    pub hardware_keys: HashMap<String, String>,
+    // otp secret for MFA
+    pub otp_secret: String,
+    // generated otp
+    pub generated_otp: String,
+    // The attributes of user.
+    pub attributes: Option<Vec<NameValue>>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
+}
+
+impl UserResponse {
+    pub fn new(user: &User) -> Self {
+        let hardware_keys = user.hardware_keys.clone().map_or(HashMap::new(), |keys| {
+            keys.into_iter().map(|(k, v)| (k, v.name)).collect()
+        });
+        UserResponse {
+            user_id: user.user_id.clone(),
+            version: user.version.clone(),
+            username: user.username.clone(),
+            roles: user.roles.clone(),
+            name: user.name.clone(),
+            email: user.email.clone(),
+            locale: user.locale.clone(),
+            light_mode: user.light_mode.clone(),
+            icon: user.icon.clone(),
+            notifications: user.notifications.clone(),
+            hardware_keys,
+            otp_secret: user.otp_secret.clone(),
+            generated_otp: TOTP::new(&user.otp_secret).generate(30, Utc::now().timestamp() as u64).to_string(),
+            attributes: user.attributes.clone(),
+            created_at: user.created_at.clone(),
+            updated_at: user.updated_at.clone(),
+        }
     }
 }
 
@@ -760,6 +841,48 @@ impl Account {
     }
 }
 
+impl User {
+    pub async fn from_multipart(payload: &mut Multipart,
+                                user_id: &str, username: &str,
+                                roles: &Option<Roles>) -> PassResult<Self> {
+        let mut user = User::new(username, None, None);
+        user.user_id = user_id.to_string();
+        user.roles = roles.clone();
+        while let Some(item) = payload.next().await {
+            let mut field = item?;
+            let content_disposition = field.content_disposition().clone();
+            let name = content_disposition.get_name().unwrap();
+            let mut value = String::new();
+            if name == "icon" {
+                let mut bytes = vec![];
+                while let Some(chunk) = field.next().await {
+                    let data = chunk?;
+                    bytes.extend_from_slice(&data);
+                    if bytes.len() > MAX_ICON_LENGTH {
+                        break;
+                    }
+                }
+                user.set_icon(bytes);
+            } else {
+                while let Some(chunk) = field.next().await {
+                    value += &String::from_utf8(chunk?.to_vec()).unwrap();
+                }
+                value = value.trim().to_string();
+            }
+            match name {
+                "version" => user.version = value.parse::<i64>()?,
+                "name" => user.name = Some(value),
+                "email" => user.email = Some(value),
+                "locale" => user.locale = UserLocale::match_any(&Some(value)),
+                "themeOptions" => user.light_mode = Some(value == "light"),
+                "notificationOptions" => user.notifications = Some(value == "on"),
+                _ => {}
+            };
+        }
+        Ok(user)
+    }
+}
+
 /// ShareVaultParams parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShareVaultParams {
@@ -818,6 +941,25 @@ impl GeneratePasswordRequest {
         }
         policy
     }
+}
+
+/// QuerySecurityKeyParams parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuerySecurityKeyParams {
+    pub name: String,
+    pub key: String,
+}
+
+/// QuerySecurityKeyId parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuerySecurityKeyId {
+    pub id: String,
+}
+
+/// QueryRecoveryCode parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryRecoveryCode {
+    pub recovery_code: String,
 }
 
 /// QueryAuditParams parameters

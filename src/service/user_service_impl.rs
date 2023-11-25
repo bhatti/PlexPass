@@ -1,20 +1,22 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::domain::models::{DEFAULT_VAULT_NAMES, PasswordPolicy, PasswordStrength, UserToken, Vault, VaultKind};
+use crate::domain::models::{DEFAULT_VAULT_NAMES, EncodingScheme, PasswordPolicy, PasswordStrength, Vault, VaultKind};
 use async_trait::async_trait;
+use chrono::Utc;
+use otpauth::TOTP;
 use prometheus::Registry;
 
 use crate::crypto;
-use crate::dao::models::{CONTEXT_IP_ADDRESS, UserContext};
-use crate::dao::{LoginSessionRepository, ShareVaultAccountRepository, UserRepository, VaultRepository};
+use crate::dao::models::{UserContext};
+use crate::dao::{UserLookupRepository, UserRepository, VaultRepository};
 use crate::domain::error::PassError;
 use crate::domain::models::{
-    LoginSession, PassConfig, PassResult, Roles, User, UserKeyParams, USER_KEY_PARAMS_NAME,
+    PassConfig, PassResult, User, USER_KEY_PARAMS_NAME,
     USER_SECRET_KEY_NAME,
 };
 use crate::locales::safe_localized_message;
-use crate::service::{PasswordService, UserService};
+use crate::service::{EncryptionService, UserService};
 use crate::store::HSMStore;
 use crate::utils::current_time_ms;
 use crate::utils::metrics::PassMetrics;
@@ -24,10 +26,9 @@ pub(crate) struct UserServiceImpl {
     config: PassConfig,
     hsm_store: Arc<dyn HSMStore + Send + Sync>,
     user_repository: Arc<dyn UserRepository + Send + Sync>,
+    user_lookup_repository: Arc<dyn UserLookupRepository + Send + Sync>,
     vault_repository: Arc<dyn VaultRepository + Send + Sync>,
-    login_session_repository: Arc<dyn LoginSessionRepository + Send + Sync>,
-    share_vault_account_repository: Arc<dyn ShareVaultAccountRepository + Send + Sync>,
-    password_service: Arc<dyn PasswordService + Send + Sync>,
+    encryption_service: Arc<dyn EncryptionService + Send + Sync>,
     metrics: PassMetrics,
 }
 
@@ -36,39 +37,30 @@ impl UserServiceImpl {
         config: &PassConfig,
         hsm_service: Arc<dyn HSMStore + Send + Sync>,
         user_repository: Arc<dyn UserRepository + Send + Sync>,
+        user_lookup_repository: Arc<dyn UserLookupRepository + Send + Sync>,
         vault_repository: Arc<dyn VaultRepository + Send + Sync>,
-        login_session_repository: Arc<dyn LoginSessionRepository + Send + Sync>,
-        share_vault_account_repository: Arc<dyn ShareVaultAccountRepository + Send + Sync>,
-        password_service: Arc<dyn PasswordService + Send + Sync>,
+        encryption_service: Arc<dyn EncryptionService + Send + Sync>,
         registry: &Registry,
     ) -> PassResult<Self> {
         Ok(Self {
             config: config.clone(),
             hsm_store: hsm_service,
             user_repository,
+            user_lookup_repository,
             vault_repository,
-            login_session_repository,
-            share_vault_account_repository,
-            password_service,
+            encryption_service,
             metrics: PassMetrics::new("user_service", registry)?,
         })
-    }
-
-    fn add_user_session(&self, context: HashMap<String, String>, user: &User) -> PassResult<UserToken> {
-        let mut login_session = LoginSession::new(&user.user_id);
-        login_session.ip_address = context.get(CONTEXT_IP_ADDRESS).cloned();
-        let _ = self.login_session_repository.create(&login_session)?;
-        Ok(UserToken::new(&self.config, user, &login_session))
     }
 }
 
 #[async_trait]
 impl UserService for UserServiceImpl {
     // Signup a new user
-    async fn signup_user(&self,
-                         user: &User,
-                         master_password: &str,
-                         context: HashMap<String, String>, ) -> PassResult<(UserContext, UserToken)> {
+    async fn register_user(&self,
+                           user: &User,
+                           master_password: &str,
+                           context: HashMap<String, String>, ) -> PassResult<UserContext> {
         let _ = current_time_ms();
         let metric = self.metrics.new_metric("signup_user");
         let password_info = PasswordPolicy::password_info(master_password);
@@ -77,7 +69,7 @@ impl UserService for UserServiceImpl {
             let err_msg = safe_localized_message(
                 "weak-master-password",
                 Some(&["info", &password_info.to_string(),
-                           "sample_password", &sample_password]));
+                    "sample_password", &sample_password]));
             return Err(PassError::validation(&err_msg, None));
         }
 
@@ -129,77 +121,9 @@ impl UserService for UserServiceImpl {
             USER_KEY_PARAMS_NAME,
             ctx.to_user_key_params(&salt).serialize()?.as_str(),
         )?;
-        self.hsm_store
-            .set_property(&user.username, USER_SECRET_KEY_NAME, &ctx.secret_key)?;
 
-        let token = self.add_user_session(context, user)?;
         log::info!("Signed up {} in {:?}", &user.user_id, metric.elapsed());
-        Ok((ctx, token))
-    }
-
-    // signin and retrieve the user.
-    async fn signin_user(
-        &self,
-        username: &str,
-        master_password: &str,
-        context: HashMap<String, String>,
-    ) -> PassResult<(UserContext, User, UserToken)> {
-        let metric = self.metrics.new_metric("signin_user");
-        let key_params_str = self.hsm_store
-            .get_property(username, USER_KEY_PARAMS_NAME).
-            map_err(|_| PassError::authentication(safe_localized_message("auth-error", None).as_str()))?;
-        let key_params = UserKeyParams::deserialize(&key_params_str)?;
-
-        let secret_key = UserContext::build_secret_key(
-            &key_params.salt,
-            &key_params.pepper,
-            master_password,
-            self.config.hash_algorithm(),
-        )?;
-        let mut ctx = UserContext::new(
-            username,
-            &key_params.user_id,
-            Roles::new(0),
-            &key_params.pepper,
-            &secret_key,
-            self.config.hash_algorithm(),
-            self.config.crypto_algorithm(),
-        );
-
-        // Finding user by id
-        let user = match self.user_repository.get(&ctx, &ctx.user_id).await {
-            Ok(user) => { user }
-            Err(err) => {
-                if let PassError::Crypto { .. } = err {
-                    return Err(PassError::authentication("failed to validate credentials"));
-                }
-                return Err(err);
-            }
-        };
-
-        ctx.roles = user.roles.clone();
-        let token = self.add_user_session(context, &user)?;
-
-        self.share_vault_account_repository.handle_shared_vaults_accounts(&ctx).await?;
-
-        let _ = self.password_service.schedule_analyze_all_vault_passwords(&ctx).await?;
-
-        // Storing secret key temporarily while the login session is active
-        self.hsm_store
-            .set_property(username, USER_SECRET_KEY_NAME, &secret_key)?;
-
-        log::info!("Signin {} in {:?}", &ctx.user_id, metric.elapsed());
-        Ok((ctx, user, token))
-    }
-
-    // logout user by username.
-    async fn signout_user(&self, ctx: &UserContext, login_session_id: &str) -> PassResult<()> {
-        let _ = self.metrics.new_metric("signout_user");
-        let _ = self.login_session_repository.delete(login_session_id)?;
-        // clear secret key in HSM
-        self.hsm_store
-            .set_property(&ctx.username, USER_SECRET_KEY_NAME, "")?;
-        Ok(())
+        Ok(ctx)
     }
 
     async fn get_user(&self, ctx: &UserContext, id: &str) -> PassResult<(UserContext, User)> {
@@ -238,6 +162,40 @@ impl UserService for UserServiceImpl {
             .set_property(&ctx.username, USER_SECRET_KEY_NAME, "");
         Ok(size)
     }
+    // encrypt asymmetric
+    async fn asymmetric_user_encrypt(&self,
+                                     ctx: &UserContext,
+                                     target_username: &str,
+                                     data: Vec<u8>,
+                                     encoding: EncodingScheme,
+    ) -> PassResult<Vec<u8>> {
+        // Querying target user crypto key as admin
+        let target_user_crypto_key = {
+            let ctx = ctx.as_admin(); // keeping scope of modified context small
+            let target_user_id = self.user_lookup_repository
+                .lookup_userid_by_username(target_username)?;
+            self.user_repository.get_crypto_key(&ctx, &target_user_id).await?
+        };
+        self.encryption_service.asymmetric_encrypt(&target_user_crypto_key.public_key, data, encoding)
+    }
+
+    // decrypt asymmetric
+    async fn asymmetric_user_decrypt(&self,
+                                     ctx: &UserContext,
+                                     data: Vec<u8>,
+                                     encoding: EncodingScheme,
+    ) -> PassResult<Vec<u8>> {
+       let user_crypto_key = self.user_repository.get_crypto_key(ctx, &ctx.user_id).await?;
+        let decrypted_private_ky =
+            user_crypto_key.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
+        self.encryption_service.asymmetric_decrypt(&decrypted_private_ky, data, encoding)
+    }
+
+    async fn generate_user_otp(&self, ctx: &UserContext) -> PassResult<u32> {
+        let user = self.user_repository.get(ctx, &ctx.user_id).await?;
+        Ok(TOTP::new(&user.otp_secret).generate(30, Utc::now().timestamp() as u64))
+    }
+
 }
 
 #[cfg(test)]
@@ -258,47 +216,15 @@ mod tests {
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
 
         // WHEN signing up a new user with weak password THEN it should fail
-        assert!(user_service.signup_user(&user, "password", HashMap::new()).await.is_err());
+        assert!(user_service.register_user(&user, "password", HashMap::new()).await.is_err());
 
         // WHEN signing up a new user with strong password
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // THEN it should succeed
         assert_eq!(ctx.username, user.username);
         assert_eq!(ctx.user_id, user.user_id);
         assert_ne!("", ctx.user_id);
-        assert_ne!("", ctx.pepper);
-        assert_ne!("", ctx.secret_key);
-    }
-
-    #[tokio::test]
-    async fn test_should_signin_user() {
-        let mut config = PassConfig::new();
-        config.hsm_provider = HSMProvider::EncryptedFile.to_string();
-        // GIVEN user-service
-        let user_service = create_user_service(&config).await.unwrap();
-
-        let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-
-        // AND user is already signed up
-        let _ = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
-
-        // THEN Sign in should succeed
-        let _ = user_service
-            .signin_user(&user.username, "cru5h&r]fIt@$@v!or", HashMap::new())
-            .await
-            .unwrap();
-
-        // WHEN signing in as an existing user
-        let (ctx, _, _) = user_service
-            .signin_user(&user.username, "cru5h&r]fIt@$@v!or", HashMap::new())
-            .await
-            .unwrap();
-
-        // THEN it should succeed
-        assert_eq!(ctx.username, user.username);
-        assert_eq!(ctx.user_id, user.user_id);
-        assert_eq!(ctx.roles, user.roles);
         assert_ne!("", ctx.pepper);
         assert_ne!("", ctx.secret_key);
     }
@@ -314,7 +240,7 @@ mod tests {
         // AND user is already signed up
         let mut user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
 
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
 
         // WHEN retrieving as an existing user
         let (ctx, _) = user_service.get_user(&ctx, &user.user_id).await.unwrap();

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "authenticated_base.html" %}
 
 {% block title %} Your Personal Password Manager {% endblock title %}
 
@@ -17,7 +17,7 @@
         <!-- Sidebar -->
         <div class="col-2 bg-light d-flex flex-column justify-content-between">
             <!-- Top Navigation Buttons -->
-            <div class="text-center">
+            <div class="text-left">
                 <b><span class="fa fa-bars"></span>&nbsp;PlexPass Vaults</b>
                 <nav class="sidenav">
                 </nav>
@@ -27,11 +27,13 @@
                         {% for vault in vaults %}
                         {% if selected_vault_id == vault.vault_id %}
                         <li class="nav-item">
-                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">{{vault.title}}</a>
+                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
+                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
                         </li>
                         {% else %}
                         <li class="nav-item">
-                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link">{{vault.title}}</a>
+                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link">
+                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
                         </li>
                         {% endif %}
                         {% endfor %}
@@ -40,7 +42,7 @@
                 </div>
                 <hr/>
                 <nav class="sidenav">
-                    <a class="nav-link active" aria-current="page" href="#">[{{username}}]</a>
+                    <a class="nav-link active" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
                     <a class="nav-link" href="/ui/signout"><span class="fa sign-out"></span>&nbsp;Signout</a>
                 </nav>
             </div>
@@ -305,6 +307,7 @@
         </div>
     </div>
 </div>
+
 {% endblock extra_content %}
 
 {% block footer %}

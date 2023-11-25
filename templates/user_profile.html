@@ -1,0 +1,254 @@
+{% extends "authenticated_base.html" %}
+{% block title %} User Settings {% endblock title %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Top Section -->
+</div>
+<div class="container mt-3">
+    <h2 class="text-center">User Settings</h2>
+    <div class="container mt-5">
+        <div class="card">
+            {% if false %}
+            <div class="card-header">
+                User Profile
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <table class="table table-striped-columns">
+                    <tr>
+                        <td><strong>Avatar:</strong></td>
+                        <td><img src="{{user.icon_string()}}" id="userAvatarDisplay" alt="Avatar" style="width: 100px; height: 100px;"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td><span id="userIDDisplay">{{user.user_id}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Username:</strong></td>
+                        <td><span id="usernameDisplay">{{user.username}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Name:</strong></td>
+                        <td><span id="nameDisplay">{{user.name_string()}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Email:</strong></td>
+                        <td><span id="emailDisplay">{{user.email_string()}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Locale:</strong></td>
+                        <td><span id="localeDisplay">{{user.locale_string()}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Theme:</strong></td>
+                        <td><span id="themeDisplay">{{user.light_string()}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Notifications:</strong></td>
+                        <td><span id="notificationsDisplay">{{user.notifications_string()}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>OTP Secret:</strong></td>
+                        <td><span id="viewOtp">{{user.otp_secret}}</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Generated OTP:</strong></td>
+                        <td>
+                            <div class="row align-items-center">
+                                <div class="col d-flex align-items-center">
+                                    <div id="otp" class="alert alert-primary me-2" role="alert" style="font-size: 1.5rem; flex-grow: 1;">
+                                        <span id="viewGeneratedOtp"></span>
+                                    </div>
+                                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="col">
+                                <div class="progress">
+                                    <div id="otpTimer" class="progress-bar" role="progressbar"
+                                         style="width: 100%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <p>Security-Keys for multi-factor authentication:
+                <ul>
+                    {% for mfa in user.hardware_keys() %}
+                    <li>{{mfa.name}}
+                        &nbsp;<button class="btn btn-danger float-end" onclick="removeMFAKey('{{mfa.id}}')">Remove
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                </p>
+                <button id="addSecurityKeyBtn" onclick="showRegisterMFAKey()" class="btn btn-secondary float-end">Add
+                    MFA Security Key
+                </button>
+            </div>
+            <div class="card-footer text-center">
+                <button id="editProfileBtn" onclick="showEditProfile()" class="btn btn-primary float-center">Edit
+                    Profile
+                </button>
+                <button id="addAPITokenBtn" onclick="showAPIToken()" class="btn btn-secondary float-end">Generate
+                    API Token (JWT)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_content %}
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProfileModalLabel">Edit Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProfileForm" method="POST" action="/ui/users/profile" enctype=multipart/form-data>
+                    <div class="mb-3">
+                        <label for="profileName" class="form-label">Name</label>
+                        <input type="hidden" name="version" value="{{user.version}}">
+                        <input type="text" name="name" value="{{user.name_string()}}" class="form-control"
+                               id="profileName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="profileEmail" class="form-label">Email</label>
+                        <input type="email" name="email" value="{{user.email_string()}}" class="form-control"
+                               id="profileEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label for="profileLocale" class="form-label">Locale</label>
+                        <select class="form-select" name="locale" id="profileLocale">
+                            {% for locale in locales %}
+                            <option value="{{locale.short_name}}"
+                                    {% if user.locale_string()== locale.display_name %}
+                                    selected
+                                    {% endif %}
+                            >{{locale.display_name}}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Theme</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="themeOptions" id="lightTheme"
+                                   value="light"
+                                   {% if user.is_light_mode() %}
+                                   checked
+                                   {% endif %}
+                            >
+                            <label class="form-check-label" for="lightTheme">Light</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="themeOptions" id="darkTheme" value="dark"
+                                   {% if !user.is_light_mode() %}
+                                   checked
+                                   {% endif %}
+                            >
+                            <label class="form-check-label" for="darkTheme">Dark</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="profileAvatar" class="form-label">Avatar</label>
+                        <input type="file" name="icon" class="form-control" id="profileAvatar">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notifications</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="notificationOptions" id="notificationsOn"
+                                   value="on"
+                                   {% if user.is_notifications_on() %}
+                                   checked
+                                   {% endif %}
+                            >
+                            <label class="form-check-label" for="notificationsOn">On</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="notificationOptions"
+                                   id="notificationsOff" value="off"
+                                   {% if !user.is_notifications_on() %}
+                                   checked
+                                   {% endif %}
+                            >
+                            <label class="form-check-label" for="notificationsOff">Off</label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MFA Modal -->
+<div class="modal fade" id="addMfaKeyModal" tabindex="-1" aria-labelledby="addMfaKeyModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMfaKeyModalLabel">Add Security Key for multi-factor authentication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMfaKeyForm">
+                    <div class="mb-3">
+                        <label for="mfaKeyName" class="form-label">Key Name</label>
+                        <input type="text" class="form-control" id="mfaKeyName" required>
+                    </div>
+                    <div class="mb-3">
+                        <p>Insert your security key into a USB port and then touch it.</p>
+                    </div>
+                    <div id="registerMFAKeyDiv" class="mb-3"></div>
+                    <div class="card-footer text-center">
+                        <button type="button" id="registerMFAKeyButton" onclick="registerMFAKey()"
+                                class="btn btn-primary">Add Key
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Bootstrap Modal -->
+<div class="modal fade" id="tokenModal" tabindex="-1" aria-labelledby="tokenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tokenModalLabel">Your JWT Token</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your generated JWT token:</p>
+                <textarea class="form-control" id="tokenDisplay" rows="5" readonly>Loading...</textarea>
+                <button class="btn btn-primary my-2" onclick="copyTokenToClipboard()">Copy to Clipboard</button>
+                <p>Include this JWT token in the Authorization header of your HTTP requests as follows:</p>
+                <code>Authorization: Bearer YOUR_TOKEN</code>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock extra_content %}
+
+{% block footer %}
+<script>
+    document.addEventListener("visibilitychange", handleFetchingOTP);
+    document.addEventListener('DOMContentLoaded', function() {
+        startFetchingOTP();
+    }, false);
+</script>
+{% endblock footer %}

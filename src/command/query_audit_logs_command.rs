@@ -1,20 +1,21 @@
 use std::collections::HashMap;
-use crate::domain::models::{AuditLog, PaginatedResult, PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{AuditLog, PaginatedResult, PassResult};
 
+/// Shows audit logs.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     offset: &Option<i64>,
     limit: &Option<usize>,
     q: &Option<String>,
 ) -> PassResult<PaginatedResult<AuditLog>> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
     let mut predicates = HashMap::new();
     if let Some(q) = q {
         predicates.insert("q".into(), q.clone());
     }
-    service_locator.audit_log_service.find(&ctx, predicates, offset.unwrap_or(0), limit.unwrap_or(100)).await
+    args_ctx.service_locator.audit_log_service.find(
+        &args_ctx.user_context,
+        predicates,
+        offset.unwrap_or(0),
+        limit.unwrap_or(100)).await
 }

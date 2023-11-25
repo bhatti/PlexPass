@@ -34,13 +34,6 @@ impl AuditLogTemplate {
 
         let end_page = usize::min(start_page + num_pages_to_display - 1, total_pages);
 
-        let x = Self {
-            current_page,
-            total_pages,
-            pages: (start_page..=end_page).collect(),
-            audit_logs: vec![],
-        };
-        println!("xxxxx {:?}", x);
         Self {
             current_page,
             total_pages,

@@ -28,8 +28,7 @@ The PlexPass is designed based on following tenets and features:
 *   Tagging and Organization: It provides users with the ability to organize entries using tags, categories, or folders for a seamless user experience.
 *   Secure Notes: It stores encrypted notes and additional form-filled data.
 *   Search and Filter Options: It provides intuitive search and filter capabilities.
-*   Multi-Factor Authentication: PlexPass supports MFA based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP) and other standards.
-*   Local Authentication: PlexPass will support standards such as [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on hardware keys such as [Yubikey](https://www.yubico.com/). 
+*   Multi-Factor and Local Authentication: PlexPass supports MFA based on [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP), [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) for local authentication based on biometrics and multi-factor authentication based on hardware keys such as [Yubikey](https://www.yubico.com/). 
 
 ## 2.0 Cryptography
 ----------------
@@ -64,7 +63,7 @@ With Envelope Encryption strategy, PlexPass ensures a multi-layered protective b
 
 Following diagram illustrates how data is encrypted with envelop encryption scheme:
 
-![](https://weblog.plexobject.com/images/envelop_enc.png)
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/envelop_enc.png)
 
 Envelop Encryption
 
@@ -256,29 +255,67 @@ Each repository typically adheres to a common Repository interface, ensuring con
 
 The heart of the password manager’s functionality is orchestrated by domain services, each tailored to execute a segment of the application’s core business logic by interacting with data repository interfaces. These services encompass a diverse range of operations integral to the password manager such as:
 
-### 7.1 **UserService**
+### 7.1 **AuthenticationService**
+
+AuthenticationService defiens operations for user sign-in, sign-out and multi-factor authentication such as:
+
+```rust
+#[async_trait]
+pub trait AuthenticationService {
+    // signin and retrieve the user.
+    async fn signin_user(
+        &self,
+        username: &str,
+        master_password: &str,
+        otp_code: Option<u32>,
+        context: HashMap<String, String>,
+    ) -> PassResult<(UserContext, User, UserToken, SessionStatus)>;
+
+    // logout user
+    async fn signout_user(&self, ctx: &UserContext, login_session_id: &str) -> PassResult<()>;
+
+    // start registering MFA key
+    async fn start_register_key(&self,
+                                ctx: &UserContext,
+    ) -> PassResult<CreationChallengeResponse>;
+
+    // finish MFA registration and returns hardware key with recovery code
+    async fn finish_register_key(&self,
+                                 ctx: &UserContext,
+                                 name: &str,
+                                 req: &RegisterPublicKeyCredential) -> PassResult<HardwareSecurityKey>;
+
+    // start MFA signin
+    async fn start_key_authentication(&self,
+                                      ctx: &UserContext,
+    ) -> PassResult<RequestChallengeResponse>;
+
+    // finish MFA signin
+    async fn finish_key_authentication(&self,
+                                       ctx: &UserContext,
+                                       session_id: &str,
+                                       auth: &PublicKeyCredential) -> PassResult<()>;
+    // reset mfa keys
+    async fn reset_mfa_keys(&self,
+                            ctx: &UserContext,
+                            recovery_code: &str,
+                            session_id: &str) -> PassResult<()>;
+}
+```
+
+### 7.2 **UserService**
 
 UserService is entrusted with user management tasks, including registration, updates, and deletion of user profiles. It defines following operations:
 
 ```rust
 [async_trait]
 pub trait UserService {
+
     // signup and create a user.
-    async fn signup_user(&self,
-                         user: &User,
-                         master_password: &str,
-                         context: HashMap<String, String>, ) -> PassResult<(UserContext, UserToken)>;
-
-    // signin and retrieve the user.
-    async fn signin_user(
-        &self,
-        username: &str,
-        master_password: &str,
-        context: HashMap<String, String>,
-    ) -> PassResult<(UserContext, User, UserToken)>;
-
-    // logout user
-    async fn signout_user(&self, ctx: &UserContext, login_session_id: &str) -> PassResult<()>;
+    async fn register_user(&self,
+                           user: &User,
+                           master_password: &str,
+                           context: HashMap<String, String>, ) -> PassResult<UserContext>;
 
     // get user by id.
     async fn get_user(&self, ctx: &UserContext, id: &str) -> PassResult<(UserContext, User)>;
@@ -288,10 +325,28 @@ pub trait UserService {
 
     // delete the user by id.
     async fn delete_user(&self, ctx: &UserContext, id: &str) -> PassResult<usize>;
+
+    // encrypt asymmetric
+    async fn asymmetric_user_encrypt(&self,
+                                     ctx: &UserContext,
+                                     target_username: &str,
+                                     data: Vec<u8>,
+                                     encoding: EncodingScheme,
+    ) -> PassResult<Vec<u8>>;
+
+    // decrypt asymmetric
+    async fn asymmetric_user_decrypt(&self,
+                                     ctx: &UserContext,
+                                     data: Vec<u8>,
+                                     encoding: EncodingScheme,
+    ) -> PassResult<Vec<u8>>;
+
+    /// Generate OTP
+    async fn generate_user_otp(&self, ctx: &UserContext) -> PassResult<u32>;
 }
 ```
 
-### 7.2 **VaultService**
+### 7.3 **VaultService**
 
 VaultService facilitates the creation, modification, and deletion of vaults, in addition to managing access controls. It defines following operations:
 
@@ -323,7 +378,7 @@ pub trait VaultService {
 }
 ```
 
-### 7.3 **AccountService**
+### 7.4 **AccountService**
 
 AccountService oversees the handling of account credentials, ensuring secure storage, retrieval, and management. It defines following operations:
 
@@ -362,7 +417,7 @@ pub trait AccountService {
 }
 ```
 
-### 7.4 **EncryptionService**
+### 7.5 **EncryptionService**
 
 EncryptionService provides the encryption and decryption operations for protecting sensitive data. It defines following operations:
 
@@ -408,7 +463,7 @@ pub trait EncryptionService {
 }
 ```
 
-### 7.5 **ImportExportService**
+### 7.6 **ImportExportService**
 
 ImportExportService allows users to import account data into vaults or export it for backup or other purposes, ensuring data portability. It defines following operations:
 
@@ -439,7 +494,7 @@ pub trait ImportExportService {
 
 Note: The import and export operations may take a long time so it supports a callback function to update user with progress of the operation.
 
-### 7.6 **MessageService**
+### 7.7 **MessageService**
 
 MessageSevice manages the creation, delivery, and processing of messages within the system, whether for notifications or data sharing. It defines following operations:
 
@@ -466,7 +521,7 @@ pub trait MessageService {
 }
 ```
 
-### 7.7 **PasswordService**
+### 7.8 **PasswordService**
 
 PasswordService offers operations for the generation of secure passwords, alongside analytical features to assess password strength and security. It defines following operations:
 
@@ -504,7 +559,7 @@ pub trait PasswordService {
 }
 ```
 
-### 7.8 **ShareVaultAccountService**
+### 7.9 **ShareVaultAccountService**
 
 ShareVaultAccountService handles the intricacies of sharing vaults and accounts, enabling collaborative access among authorized users. It defines following operations:
 
@@ -547,7 +602,65 @@ pub trait ShareVaultAccountService {
 
 PlexPass employs a Public Key Infrastructure (PKI) for secure data sharing, whereby a user’s vault and account keys are encrypted using the intended recipient’s public key. This encrypted data is then conveyed as a message, which is deposited into the recipient’s inbox. Upon the recipient’s next login, they use their private key to decrypt the message. This process of decryption serves to forge a trust link, granting the recipient authorized access to the shared vault and account information, strictly governed by established access control protocols.
 
-### 7.9 **AuditLogService**
+### 7.10 **SettingService**
+
+SettingService allows managing user preferencs and settings with following operations:
+
+ ```rust
+#[async_trait]
+pub trait SettingService {
+    // create a setting.
+    async fn create_setting(&self, ctx: &UserContext, setting: &Setting) -> PassResult<usize>;
+
+    // updates existing setting.
+    async fn update_setting(&self, ctx: &UserContext, setting: &Setting) -> PassResult<usize>;
+
+    // delete the setting by kind and name.
+    async fn delete_setting(
+        &self,
+        ctx: &UserContext,
+        kind: SettingKind,
+        name: &str,
+    ) -> PassResult<usize>;
+
+    // get setting by kind.
+    async fn get_settings(&self, ctx: &UserContext, kind: SettingKind) -> PassResult<Vec<Setting>>;
+
+    // get setting by id.
+    async fn get_setting(
+        &self,
+        ctx: &UserContext,
+        kind: SettingKind,
+        name: &str,
+    ) -> PassResult<Setting>;
+}
+ ```
+
+### 7.11 **OTPService**
+
+OTPService defines operations for managing One-Time-Passwords (OTP):
+
+ ```rust
+#[async_trait]
+pub trait OTPService {
+    /// Generate OTP
+    async fn generate_otp(&self, secret: &str) -> PassResult<u32>;
+    /// Extract OTP secret from QRCode
+    async fn convert_from_qrcode(&self, ctx: &UserContext, image_data: &[u8]) -> PassResult<Vec<AccountResponse>>;
+    /// Create QRCode image for OTP secrets
+    async fn convert_to_qrcode(&self, ctx: &UserContext,
+                               secrets: Vec<&str>,
+    ) -> PassResult<Vec<u8>>;
+    /// Extract OTP secret from QRCode file
+    async fn convert_from_qrcode_file(&self, ctx: &UserContext,
+                                      in_path: &Path) -> PassResult<Vec<AccountResponse>>;
+    /// Create QRCode image file for OTP secrets
+    async fn convert_to_qrcode_file(&self, ctx: &UserContext, secrets: Vec<&str>,
+                                    out_path: &Path) -> PassResult<()>;
+}
+ ```
+
+### 7.12 **AuditLogService**
 
 AuditLogService specializes in the retrieval and querying of audit logs, which are automatically generated to track activities for security monitoring. It defines following operations:
 
@@ -673,7 +786,7 @@ resp = requests.post(SERVER + '/api/v1/auth/signin', json = data,
 
 Once, the server is started, you can point a browser to the server, e.g., https://localhost:8443 and it will show you interface for signin and registration:
 
-![](https://weblog.plexobject.com/images/signup.png)
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/signup.png)
 
 ### 11.3 User Signin
 
@@ -699,15 +812,34 @@ It will show the JWT Token in the response, e.g.,
 
 Alternatively, you can signin to the web application if you have already registered, e.g.,
 
-![](https://weblog.plexobject.com/images/signin.png)
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/signin.png)
 
 Note: Once, you are signed in, you will see all your vaults and accounts as follows but we will skip the Web UI from rest of the user-guide section:
 
-![](https://weblog.plexobject.com/images/home_ui.png)
-
-Home UI
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/home_ui.png)
 
 Note: PlexPass Web application automatically flags weak or compromised passwords with red background color.
+
+#### 11.3.4 Multi-Factor Authentication
+PlexPass supports multi-factor authentication using [One-Time-Password](https://en.wikipedia.org/wiki/One-time_password) (OTP), [FIDO](https://fidoalliance.org/what-is-fido/) and [WebAuthN](https://webauthn.guide/) standards with support of hardware keys such as [Yubikey](https://www.yubico.com/). For example, you can register hardware key in settings tab of the Web application as displayed below:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/register_mfa.png)
+
+Once you registered the security key, you will be prompted for multi-factor authentication as follows:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/signin_mfa.png)
+
+Note: When registering a security key, PlexPass will also display recovery codes to reset multi-factor authentication if you lose your security key and multi-factor authentication will allow you to enter those instead, e.g:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/signin_recover.png)
+
+When you have activated multi-factor authenticaion, the command-line tools and REST API will require passing an OTP code that can viewed in the Settings section of the Web application. Alternatively, you 
+can capture the secret key from the Web application and then generate OTP code as follows:
+```bash
+curl "https://localhost:8443/api/v1/otp/generate" -d '{"otp_secret": "***"}'
+```
+
+And then pass it along with signin parameters, e.g.,
+```bash
+curl "https://localhost:8443/api/v1/auth/signin" -d '{"username": "alice", "master_password": "***", "otp_code": "***"}'
+```
 
 #### 11.4.1 Command Line Help
 
@@ -762,6 +894,10 @@ Commands:
 
   asymmetric-decrypt
 
+  asymmetric-user-encrypt
+
+  asymmetric-user-decrypt
+
   symmetric-encrypt
 
   symmetric-decrypt
@@ -783,6 +919,14 @@ Commands:
   analyze-all-vaults-passwords
 
   search-usernames
+
+  generate-account-otp
+
+  generate-user-otp
+
+  generate-api-token
+
+  reset-multi-factor-authentication
 
   share-vault
 
@@ -806,6 +950,8 @@ Options:
           The username of local user
       --master-password <MASTER_PASSWORD>
           The master-password of user
+      --otp-code <OTP_CODE>
+          The otp-code of user
   -c, --config <FILE>
           Sets a custom config file
   -h, --help
@@ -873,7 +1019,7 @@ You can update your user profile using REST APIs as follows:
 ./target/release/plexpass -j true --master-username charlie 
 	--master-password *** --name "Charles" --email "charlie@mail.com"
 ```
-#### 11.5.2 Docker CLI
+#### 11.5.3 Docker CLI
 
 You can update your user profile using docker CLI as follows:
 ```bash
@@ -882,6 +1028,13 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY
     -j true --master-username charlie 
 	--master-password *** update-user --name "Charles" --email "charlie@mail.com"
 ```
+
+#### 11.5.4 Web UI
+
+You can also update your user profile using web UI as displayed in following screenshot:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/settings.png)
+
+The UI allows you to view/edit user profile, manage security-keys for multi-factor authentication and generate API tokens.
 
 ### 11.6 Creating Vaults
 
@@ -915,7 +1068,7 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY
     create-vault --title MyVault
 ```
 
-### 11.7 Quering Vaults
+### 11.7 Querying Vaults
 
 #### 11.7.1 Command Line
 
@@ -1216,6 +1369,10 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY
     get-account --account-id $account_id
 ```
 
+#### 11.13.4 UI
+Following image illustrates how Account details can be viewed from the PlexPass web application:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/view_account.png)
+
 ### 11.14 Updating an Account by ID
 
 #### 11.14.1 Command Line
@@ -1419,6 +1576,16 @@ You can encrypt data using asymmetric encryption using CLI as follows:
 ```
 In above example, you can first generate asymmetric keys and then encrypt a file using public key and then decrypt it using private key.
 
+Alternatively, if you need to share a file with another user of PlexPass, you can use following command:
+
+```bash
+./target/release/plexpass -j true --master-username charlie --master-password *** \
+    asymmetric-user-encrypt --target-username eddie --in-path accounts.csv --out-path enc_accounts.csv
+./target/release/plexpass -j true --master-username eddie --master-password *** \
+    asymmetric-user-decrypt --in-path enc_accounts.csv --out-path enc_accounts.csv
+
+```
+
 #### 11.20.2 REST API
 
 You can encrypt data using asymmetric encryption using REST API as follows:
@@ -1448,7 +1615,22 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data
     --master-username eddie --master-password *** asymmetric-decrypt 
     --secret-key $prv --in-path base64-encrypted.dat --out-path plaintext-copy.dat
 ```
-### 11.21 Asymmetric Encryption
+
+You can also share encrypted files among users of PlexPass as follows:
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username eddie --master-password *** asymmetric-user-encrypt --target-username charlie
+    --in-path plaintext.dat --out-path base64-encrypted.dat
+    
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data 
+	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass -j true 
+    --master-username charlie --master-password *** asymmetric-decrypt 
+    --in-path base64-encrypted.dat --out-path plaintext-copy.dat
+```
+
+
+### 11.21 Symmetric Encryption
 
 #### 11.21.1 Command Line
 
@@ -1947,13 +2129,19 @@ PlexPass allows generating OTP code based on base-32 secret.
 You can generate otp for a particular account using based on CLI as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie --master-password *** generate-otp --account-id $account_id
+./target/release/plexpass -j true --master-username eddie --master-password *** generate-account-otp --account-id $account_id
 ```
 
 or using secret as follows:
 
 ```bash
-./target/release/plexpass -j true --master-username eddie --master-password *** generate-otp --otp-secret "JBSWY3DPEHPK3PXP"
+./target/release/plexpass -j true --master-username eddie --master-password *** generate-account-otp --otp-secret "JBSWY3DPEHPK3PXP"
+```
+
+An OTP is also defined automatically for each user and You can generate otp for the user using based on CLI as follows:
+
+```bash
+./target/release/plexpass -j true --master-username eddie --master-password *** generate-user-otp 
 ```
 
 #### 11.32.2 REST API
@@ -1980,25 +2168,32 @@ You can generate otp for a particular account using based on Docker CLI as follo
 
 ```bash
 docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username eddie --master-password *** generate-otp --account-id $account_id
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username eddie --master-password *** generate-account-otp --account-id $account_id
 ```
 
 or using secret as follows:
 
 ```bash
 docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
-	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true  --master-username eddie --master-password *** generate-otp --otp-secret "JBSWY3DPEHPK3PXP"
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true  --master-username eddie --master-password *** generate-account-otp --otp-secret "JBSWY3DPEHPK3PXP"
+```
+
+Similarly, you can generate user-otp as follows:
+
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true  --master-username eddie --master-password *** generate-user-otp
 ```
 
 ### 11.33 Security Dashboad and Auditing
 
 The PlexPass web application includes a security dashboard to monitor health of all passwords and allows users to view audit logs for all changes to their accounts, e.g.,
 
-![](https://weblog.plexobject.com/images/dashboard.png)
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/dashboard.png)
 
 Security Dashboard
 
-![](https://weblog.plexobject.com/images/audit.png)
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/audit.png)
 
 12.0 Summary
 ------------
@@ -2021,6 +2216,5 @@ The design principles and architectural framework outlined above showcase PlexPa
 14.  **Reduced Attack Surface**: By not relying on cloud connectivity, offline managers are not susceptible to online attacks targeting cloud storage.
 15.  **Control over Data**: Users have complete control over their data, including how it’s stored and backed up.
 16.  **Potentially Lower Risk of Service Shutdown**: Since the data is stored locally, the user’s access to their passwords is not contingent on the continued operation of a third-party service.
-17.  **Multi-Factor Authentication**: PlexPass supports Multi-Factor Authentication based on One-Time-Passwords (OTP) and other standards.
-
-PlexPass plans to incorporate standards such as FIDO, WebAuthN, and YubiKey for authentication enhances security beyond just password protection, aligning with the latest industry standards for secure access. In summary, PlexPass, with its extensive features, represents a holistic and advanced approach to password management. You can download it freely from [https://github.com/bhatti/PlexPass](https://github.com/bhatti/PlexPass) and provide your feedback.
+17.  **Multi-Factor and Local Authentication**: PlexPass supports Multi-Factor Authentication based on One-Time-Passwords (OTP), FIDO, WebAuthN, and YubiKey for authentication.
+In summary, PlexPass, with its extensive features, represents a holistic and advanced approach to password management while adhering to the latest industry standards for secure access. 

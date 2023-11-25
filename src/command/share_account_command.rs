@@ -1,20 +1,16 @@
-use std::collections::HashMap;
-use crate::domain::models::{PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{PassResult};
 
+/// Shares an account with another user.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     _vault_id: &str,
     account_id: &str,
     target_username: &str,
 ) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
-    let size = service_locator
+    let size = args_ctx.service_locator
         .share_vault_account_service
-        .share_account(&ctx, account_id, target_username)
+        .share_account(&args_ctx.user_context, account_id, target_username)
         .await?;
     Ok(size)
 }

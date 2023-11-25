@@ -84,7 +84,7 @@ impl ACLRepository for ACLRepositoryImpl {}
 impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
     // create acl.
     async fn create(&self, ctx: &UserContext, acl_entity: &ACLEntity) -> PassResult<usize> {
-        if !ctx.roles.is_admin() {
+        if !ctx.is_admin() {
             return Err(PassError::authentication("only admin can create ACL repository"));
         }
         let mut conn = self.connection()?;
@@ -94,7 +94,7 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
 
     // updates existing acl.
     async fn update(&self, ctx: &UserContext, acl_entity: &ACLEntity) -> PassResult<usize> {
-        if !ctx.roles.is_admin() {
+        if !ctx.is_admin() {
             return Err(PassError::authentication("only admin can update ACL repository"));
         }
 
@@ -144,7 +144,7 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
 
     // delete an existing acl.
     async fn delete(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {
-        if !ctx.roles.is_admin() {
+        if !ctx.is_admin() {
             return Err(PassError::authentication("only admin can update ACL repository"));
         }
         let _acl_entity = self.get_entity(ctx, id).await?;

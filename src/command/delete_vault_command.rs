@@ -1,14 +1,11 @@
-use std::collections::HashMap;
-use crate::domain::models::{PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{PassResult};
 
+/// Delete a vault.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     vault_id: &str,
 ) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
-    service_locator.vault_service.delete_vault(&ctx, vault_id).await
+    args_ctx.service_locator.vault_service.delete_vault(
+        &args_ctx.user_context, vault_id).await
 }

@@ -11,7 +11,7 @@ use std::io::Write;
 use clap::Parser;
 use env_logger::Builder;
 
-use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_otp_command, generate_password_command, generate_private_public_keys_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
+use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, asymmetric_user_decrypt_command, asymmetric_user_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_account_otp_command, generate_api_token, generate_password_command, generate_private_public_keys_command, generate_user_otp_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, reset_mfa_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
 use plexpass::domain::args::{Args, CommandActions};
 
 use crate::plexpass::domain::models::PassConfig;
@@ -24,7 +24,7 @@ async fn main() -> std::io::Result<()> {
     Builder::from_env(env_logger::Env::new().default_filter_or("info"))
         .format(|buf, record| {
             // skip logging of any passwords
-            if !regex::Regex::new(r".*password.*").unwrap().is_match(record.args().to_string().as_str()) {
+            if !regex::Regex::new(r".*(password|secret).*").unwrap().is_match(record.args().to_string().as_str()) {
                 writeln!(buf, "{}", record.args())
             } else {
                 Ok(())
@@ -94,12 +94,9 @@ async fn main() -> std::io::Result<()> {
         CommandActions::GetUser {
             user_id,
         } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let user = get_user_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 user_id.clone())
                 .await.expect("failed to get user");
             if args.json_output.unwrap_or(false) {
@@ -109,12 +106,11 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::UpdateUser { .. } => {
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let mut user = args.to_user().expect("Failed to initialize user");
             let size = update_user_command::execute(
-                config,
-                &mut user,
-                &master_password).await.expect("failed to update user");
+                &ctx_args,
+                &mut user).await.expect("failed to update user");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("updated", size == 1)]);
                 println!("{}", serde_json::to_string(&res).unwrap());
@@ -125,12 +121,9 @@ async fn main() -> std::io::Result<()> {
         CommandActions::DeleteUser {
             user_id,
         } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = delete_user_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 user_id.clone()).await.expect("failed to delete user");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("deleted", size == 1)]);
@@ -140,13 +133,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::CreateVault { .. } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let mut vault = args.to_vault().expect("Could not build vault");
             let size = create_vault_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 &mut vault,
             ).await.expect("failed to create vault");
             if args.json_output.unwrap_or(false) {
@@ -159,12 +149,9 @@ async fn main() -> std::io::Result<()> {
         CommandActions::GetVault {
             vault_id,
         } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let vault = get_vault_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
             ).await.expect("failed to get vault");
             if args.json_output.unwrap_or(false) {
@@ -174,12 +161,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::GetVaults {} => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let vaults = get_vaults_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
             ).await.expect("failed to get vaults");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&vaults).unwrap());
@@ -188,13 +172,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::UpdateVault { .. } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let mut vault = args.to_vault().expect("Could not build vault");
             let size = update_vault_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 &mut vault,
             ).await.expect("failed to update vault");
             if args.json_output.unwrap_or(false) {
@@ -207,12 +188,9 @@ async fn main() -> std::io::Result<()> {
         CommandActions::DeleteVault {
             vault_id,
         } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = delete_vault_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
             ).await.expect("failed to delete vault");
             if args.json_output.unwrap_or(false) {
@@ -223,13 +201,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::CreateAccount { .. } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let account = args.to_account().expect("Failed to initialize account");
             let size = create_account_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 &account,
             ).await.expect("failed to create account");
             if args.json_output.unwrap_or(false) {
@@ -240,12 +215,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::GetAccounts { vault_id, q } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let accounts = get_accounts_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
                 q.clone(),
             ).await.expect("failed to get accounts");
@@ -256,12 +228,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::GetAccount { account_id } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let account = get_account_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 account_id,
             ).await.expect("failed to get account");
             if args.json_output.unwrap_or(false) {
@@ -271,13 +240,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::UpdateAccount { .. } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let mut account = args.to_account().expect("Failed to initialize account");
             let size = update_account_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 &mut account,
             ).await.expect("failed to update account");
             if args.json_output.unwrap_or(false) {
@@ -288,12 +254,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::DeleteAccount { account_id } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = delete_account_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 account_id,
             ).await.expect("failed to delete account");
             if args.json_output.unwrap_or(false) {
@@ -304,12 +267,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::CreateCategory { name } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = create_category_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 name,
             ).await.expect("failed to create category");
             if args.json_output.unwrap_or(false) {
@@ -320,12 +280,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::GetCategories {} => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let res = get_categories_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
             ).await.expect("failed to get categories");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&res).unwrap());
@@ -334,12 +291,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::DeleteCategory { name } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = delete_category_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 name,
             ).await.expect("failed to delete category");
             if args.json_output.unwrap_or(false) {
@@ -359,6 +313,29 @@ async fn main() -> std::io::Result<()> {
                 println!("{}", serde_json::to_string(&res).unwrap());
             } else {
                 log::info!("generated private {:?} and public keys {:?}", sk, pk);
+            }
+        }
+        CommandActions::AsymmetricUserEncrypt { target_username, in_path, out_path } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            asymmetric_user_encrypt_command::execute(
+                &ctx_args,
+                target_username,
+                in_path,
+                out_path,
+            ).await.expect("failed to encrypt file for given user's public key");
+            if args.json_output.unwrap_or(false) {} else {
+                log::info!("encrypted {:?} file as {:?}", in_path, out_path);
+            }
+        }
+        CommandActions::AsymmetricUserDecrypt { in_path, out_path } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            asymmetric_user_decrypt_command::execute(
+                &ctx_args,
+                in_path,
+                out_path,
+            ).await.expect("failed to decrypt file with user's private key");
+            if args.json_output.unwrap_or(false) {} else {
+                log::info!("decrypted {:?} file as {:?}", in_path, out_path);
             }
         }
         CommandActions::AsymmetricEncrypt { public_key, in_path, out_path } => {
@@ -406,12 +383,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::ImportAccounts { vault_id, password, in_path } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let res = import_accounts_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
                 password,
                 in_path,
@@ -423,12 +397,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::ExportAccounts { vault_id, password, out_path } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let _ = export_accounts_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
                 password,
                 out_path,
@@ -480,11 +451,12 @@ async fn main() -> std::io::Result<()> {
                 log::info!("compromised {:?}", compromised);
             }
         }
-        CommandActions::GenerateOTP { account_id, otp_secret } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
-            let otp_code = generate_otp_command::execute(
-                config, &master_username, &master_password, account_id, otp_secret)
+        CommandActions::GenerateAccountOTP { account_id, otp_secret } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let otp_code = generate_account_otp_command::execute(
+                &ctx_args,
+                account_id,
+                otp_secret)
                 .await.expect("could not generate otp code");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("otp_code", otp_code)]);
@@ -493,11 +465,50 @@ async fn main() -> std::io::Result<()> {
                 log::info!("otp code: {:?}", otp_code);
             }
         }
+        CommandActions::GenerateUserOTP { otp_secret } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let otp_code = generate_user_otp_command::execute(
+                &ctx_args,
+                otp_secret)
+                .await.expect("could not generate otp code");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("otp_code", otp_code)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("otp code: {:?}", otp_code);
+            }
+        }
+        CommandActions::GenerateAPIToken{ jwt_max_age_minutes } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let token = generate_api_token::execute(
+                &ctx_args,
+                jwt_max_age_minutes)
+                .await.expect("could not generate api token");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("api_token", token)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("api token: {:?}", token);
+            }
+        }
+        CommandActions::ResetMultiFactorAuthentication { recovery_code } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let _ = reset_mfa_command::execute(
+                &ctx_args,
+                recovery_code)
+                .await.expect("could not reset multi-factor authentication");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("reset_multifactor_authentication", true)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("reset multi-factor authentication");
+            }
+        }
         CommandActions::AnalyzeVaultPasswords { vault_id } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let analysis = analyze_vault_passwords_command::execute(
-                config, &master_username, &master_password, vault_id)
+                &ctx_args,
+                vault_id)
                 .await.expect("could not analyze vault passwords");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&analysis).unwrap());
@@ -506,11 +517,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::AnalyzeAllVaultsPasswords {} => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let analysis = analyze_all_vaults_passwords_command::execute(
-                config, &master_username, &master_password)
-                .await.expect("could not analyze all vaults passwords");
+                &ctx_args,
+            ).await.expect("could not analyze all vaults passwords");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&analysis).unwrap());
             } else {
@@ -518,10 +528,10 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::SearchUsernames { q } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let usernames = search_users_command::execute(
-                config, &master_username, &master_password, q)
+                &ctx_args,
+                q)
                 .await.expect("could not search usernames");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&usernames).unwrap());
@@ -530,12 +540,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::ShareVault { vault_id, target_username, read_only } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = share_vault_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
                 target_username,
                 read_only,
@@ -548,12 +555,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::ShareAccount { vault_id, account_id, target_username } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let size = share_account_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 vault_id,
                 account_id,
                 target_username,
@@ -566,12 +570,9 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::QueryAuditLogs { q, offset, limit } => {
-            let master_username = args.master_username.clone().expect("Please specify username with --master-username");
-            let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let audit_logs = query_audit_logs_command::execute(
-                config,
-                &master_username,
-                &master_password,
+                &ctx_args,
                 offset,
                 limit,
                 q,

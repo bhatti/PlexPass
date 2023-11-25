@@ -117,10 +117,10 @@ mod tests {
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
         // Signup with weak password such as `password` should fail
-        assert!(user_service.signup_user(&user, "password", HashMap::new()).await.is_err());
+        assert!(user_service.register_user(&user, "password", HashMap::new()).await.is_err());
 
         // But with strong password should succeed
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
         let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
@@ -175,7 +175,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
         let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
@@ -222,7 +222,7 @@ mod tests {
 
         // Due to referential integrity, we must first create a valid user
         let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
-        let (ctx, _) = user_service.signup_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
 
         // Create dependent vault
         let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);

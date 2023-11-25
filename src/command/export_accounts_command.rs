@@ -1,21 +1,17 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use crate::domain::models::{EncodingScheme, PassConfig, PassResult, ProgressStatus};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{EncodingScheme, PassResult, ProgressStatus};
 
+/// Export all accounts in a vault to a file that can be protected with a password.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     vault_id: &str,
     password: &Option<String>,
     out_path: &PathBuf,
 ) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
-    let (_, bytes_csv) = service_locator.import_export_service.export_accounts(
-        &ctx,
+    let (_, bytes_csv) = args_ctx.service_locator.import_export_service.export_accounts(
+        &args_ctx.user_context,
         vault_id,
         password.clone(),
         EncodingScheme::Base64,

@@ -52,42 +52,70 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         }
     }
 
-    /// get login_session by id
+    /// get login_session by user-id and session-id
     // Note: compare id with only latest record in case user signs in again and invalidate older session.
-    fn get(&self, id: &str) -> PassResult<LoginSession> {
+    fn get(&self, other_user_id: &str, other_session_id: &str) -> PassResult<LoginSession> {
         let mut conn = self.connection()?;
         let mut items = login_sessions
+            .filter(user_id.eq(other_user_id))
             .limit(2)
             .order(login_sessions::created_at.desc())
             .load::<LoginSessionEntity>(&mut conn)?;
 
         if items.is_empty() {
             return Err(PassError::not_found(
-                format!("login_sessions not found for {}", id).as_str(),
+                format!("login_sessions not found for {}", other_session_id).as_str(),
             ));
         }
         let entity = items.remove(0);
-        if entity.login_session_id == id && entity.signed_out_at.is_none() {
+        if entity.login_session_id == other_session_id && entity.signed_out_at.is_none() {
             return Ok(entity.to_login_session())
         }
         return Err(PassError::not_found(
-            format!("login_sessions did not match for {}", id).as_str(),
+            format!("login_sessions did not match for {}", other_session_id).as_str(),
         ));
     }
 
-    // delete an existing login_session.
-    fn delete(&self, id: &str) -> PassResult<usize> {
+    // update session by id
+    fn mfa_succeeded(&self, other_user_id: &str, other_session_id: &str) -> PassResult<LoginSession> {
+        let mut session = self.get(other_user_id, other_session_id)?;
+        if !session.mfa_required {
+            return Err(PassError::validation("mfa is not required", None));
+        }
+        if !session.update_mfa() {
+            return Err(PassError::validation("mfa cannot be updated for stale session", None));
+        }
+
         let mut conn = self.connection()?;
         let size = diesel::update(
-            login_sessions.filter(login_session_id.eq(id).and(signed_out_at.is_null())),
+            login_sessions.filter(login_session_id.eq(other_session_id).and(signed_out_at.is_null())),
         )
-            .set((signed_out_at.eq(Utc::now().naive_utc()), ))
+            .set((mfa_verified_at.eq(Utc::now().naive_utc()), ))
+            .execute(&mut conn)?;
+        if size > 0 {
+            Ok(session)
+        } else {
+            Err(PassError::database(
+                format!("failed to update mfa status for login session {}", other_session_id, ).as_str(),
+                None,
+                false,
+            ))
+        }
+    }
+
+    // signout an existing login_session.
+    fn signout(&self, other_user_id: &str, other_session_id: &str) -> PassResult<usize> {
+        let mut conn = self.connection()?;
+        let size = diesel::update(
+            login_sessions.filter(
+                user_id.eq(other_user_id).and(login_session_id.eq(other_session_id).and(signed_out_at.is_null()))))
+            .set(signed_out_at.eq(Utc::now().naive_utc()))
             .execute(&mut conn)?;
         if size > 0 {
             Ok(size)
         } else {
             Err(PassError::database(
-                format!("failed to update login session {}", id, ).as_str(),
+                format!("failed to update login session {}", other_session_id, ).as_str(),
                 None,
                 false,
             ))
@@ -136,28 +164,28 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a login_session
-        let login_session = LoginSession::new(&user.user_id);
+        let login_session = LoginSession::new(&user);
         // THEN it should succeed
         assert_eq!(1, login_session_repo.create(&login_session).unwrap());
 
         // WHEN retrieving the login_session THEN it should return it
         let loaded = login_session_repo
-            .get(&login_session.login_session_id)
+            .get(&login_session.user_id, &login_session.login_session_id)
             .unwrap();
         assert_eq!(loaded.user_id, user.user_id);
 
         // Creating another session
         // WHEN creating a login_session
-        let login_session2 = LoginSession::new(&user.user_id);
+        let login_session2 = LoginSession::new(&user);
         // THEN it should succeed
         assert_eq!(1, login_session_repo.create(&login_session2).unwrap());
 
         // WHEN retrieving older login_session THEN it should fail it
-        assert!(login_session_repo.get(&login_session.login_session_id).is_err());
+        assert!(login_session_repo.get(&login_session.user_id, &login_session.login_session_id).is_err());
 
         // WHEN retrieving newer login_session THEN it should return it
         let loaded = login_session_repo
-            .get(&login_session2.login_session_id)
+            .get(&login_session.user_id, &login_session2.login_session_id)
             .unwrap();
         assert_eq!(loaded.user_id, user.user_id);
     }
@@ -181,20 +209,20 @@ mod tests {
         assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
 
         // WHEN creating a login_session
-        let login_session = LoginSession::new(&user.user_id);
+        let login_session = LoginSession::new(&user);
         // THEN it should succeed.
         assert_eq!(1, login_session_repo.create(&login_session).unwrap());
 
-        // WHEN deleting the login session
+        // WHEN signing out the login session
         let deleted = login_session_repo
-            .delete(&login_session.login_session_id)
+            .signout(&login_session.user_id, &login_session.login_session_id)
             .unwrap();
         // THEN it should succeed.
         assert_eq!(1, deleted);
 
         // WHEN retrieving the login session after delete THEN it should fail.
         assert!(login_session_repo
-            .get(&login_session.login_session_id)
+            .get(&login_session.user_id, &login_session.login_session_id)
             .is_err());
     }
 }

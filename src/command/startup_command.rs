@@ -17,8 +17,9 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use time::Duration;
 
 use crate::auth::auth_middleware;
-use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, otp_api_controller, otp_ui_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller};
-use crate::controller::auth_ui_controller::{handle_user_signin, handle_user_signout, handle_user_signup, user_signin};
+use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, otp_api_controller, otp_ui_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller, webauthn_ui_controller};
+use crate::controller::auth_ui_controller::{handle_user_signin, handle_user_signout, handle_user_signup, user_mfa_recover, user_mfa_signin, user_signin, user_signup};
+use crate::controller::user_ui_controller::generate_api_token;
 use crate::controller::vault_ui_controller::home_page;
 use crate::domain::error::PassError;
 use crate::domain::models::{PassConfig, PassResult};
@@ -94,10 +95,12 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
                     CookieSessionStore::default(),
                     secret_key,
                 )
-                    .session_lifecycle(PersistentSession::default().session_ttl(Duration::minutes(config.session_timeout_minutes)))
+                    .session_lifecycle(PersistentSession::default()
+                        .session_ttl(Duration::minutes(config.session_timeout_minutes)))
                     .cookie_secure(true)
+                    .cookie_http_only(true)
                     //.cookie_domain(Some(config.domain.clone()))
-                    .cookie_path("/".to_owned())
+                    .cookie_path("/".to_owned()) // Apply cookie to the entire application
                     .build(),
             )
             .configure(config_services)
@@ -157,7 +160,9 @@ fn config_services(service_config: &mut web::ServiceConfig) {
         .service(user_api_controller::get_user)
         .service(user_api_controller::update_user)
         .service(user_api_controller::search_usernames)
-        .service(user_api_controller::delete_user);
+        .service(user_api_controller::delete_user)
+        .service(user_api_controller::asymmetric_user_encrypt)
+        .service(user_api_controller::asymmetric_user_decrypt);
 
     // vault controller
     service_config.service(vault_api_controller::create_vault)
@@ -213,9 +218,28 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.service(web::resource("/ui/signin")
         .route(web::get().to(user_signin))
         .route(web::post().to(handle_user_signin)));
-    service_config.service(web::resource("/ui/signup").route(web::post().to(handle_user_signup)));
+    service_config.service(web::resource("/ui/mfa_signin")
+        .route(web::get().to(user_mfa_signin)));
+    service_config.service(web::resource("/ui/signup")
+        .route(web::get().to(user_signup))
+        .route(web::post().to(handle_user_signup)));
     service_config.service(web::resource("/ui/signout").route(web::get().to(handle_user_signout)));
+    service_config.service(web::resource("/ui/api_token").route(web::get().to(generate_api_token)));
     service_config.service(web::resource("/ui/users/autocomplete").route(web::get().to(user_ui_controller::autocomplete_users)));
+    service_config.service(web::resource("/ui/users/profile")
+        .route(web::get().to(user_ui_controller::user_profile))
+        .route(web::post().to(user_ui_controller::update_user_profile))
+    );
+
+    service_config.service(web::resource("/ui/webauthn/register_start").route(web::get().to(webauthn_ui_controller::start_register)));
+    service_config.service(web::resource("/ui/webauthn/register_finish").route(web::post().to(webauthn_ui_controller::finish_register)));
+    service_config.service(web::resource("/ui/webauthn/login_start").route(web::get().to(webauthn_ui_controller::start_authentication)));
+    service_config.service(web::resource("/ui/webauthn/login_finish").route(web::post().to(webauthn_ui_controller::finish_authentication)));
+    service_config.service(web::resource("/ui/webauthn/recover")
+        .route(web::get().to(user_mfa_recover))
+        .route(web::post().to(webauthn_ui_controller::recover_mfa))
+    );
+    service_config.service(web::resource("/ui/webauthn/unregister").route(web::post().to(webauthn_ui_controller::unregister_mfa_key)));
 
     // ui-account-controller
     // accounts

@@ -11,11 +11,13 @@ use aes_gcm::Aes256Gcm;
 use aes_gcm::KeyInit;
 use argon2::password_hash::errors;
 use argon2::{Algorithm, Argon2, Params, Version};
+use base32::Alphabet;
 use chacha20poly1305::aead::generic_array::GenericArray as ChaGenericArray;
 use chacha20poly1305::ChaCha20Poly1305;
 use ecies::utils::generate_keypair;
 use ecies::{PublicKey, SecpError, SecretKey};
-use rand::RngCore;
+use rand::{Rng, RngCore};
+use rand::distributions::Alphanumeric;
 use ring::{digest, pbkdf2};
 use sha1::{Digest, Sha1};
 
@@ -30,6 +32,25 @@ use crate::domain::models::{
 pub const NONCE_LEN: usize = 12;
 
 pub const SECRET_LEN: usize = 32;
+
+/// Generate otp secret.
+pub(crate) fn generate_base32_secret(length: usize) -> String {
+    let rand_bytes: Vec<u8> = rand::thread_rng()
+        .sample_iter(rand::distributions::Standard)
+        .take(length)
+        .collect();
+
+    base32::encode(Alphabet::RFC4648 { padding: false }, &rand_bytes)
+}
+
+/// Generate recovery code for MFA.
+pub(crate) fn generate_recovery_code(length: usize) -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
+}
 
 /// PUBLIC METHODS FOR HASHING
 ///

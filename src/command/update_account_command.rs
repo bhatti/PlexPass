@@ -1,17 +1,15 @@
-use std::collections::HashMap;
-use crate::domain::models::{Account, PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{Account, PassResult};
 
+/// Update an account.
 pub async fn execute(
-    config: PassConfig,
-    master_username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
     account: &mut Account,
 ) -> PassResult<usize> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(master_username, master_password, HashMap::new()).await?;
-    let old_account = service_locator.account_service.get_account(&ctx, &account.details.account_id).await?;
+    let old_account = args_ctx.service_locator.account_service.get_account(
+        &args_ctx.user_context, &account.details.account_id).await?;
     account.details.version = old_account.details.version;
-    let size = service_locator.account_service.update_account(&ctx, account).await?;
+    let size = args_ctx.service_locator.account_service.update_account(
+        &args_ctx.user_context, account).await?;
     Ok(size)
 }

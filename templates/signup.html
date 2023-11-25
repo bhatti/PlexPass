@@ -1,0 +1,67 @@
+{% extends "unauth_base.html" %}
+{% block title %} Signup {% endblock title %}
+{% block header %}
+<style>
+    .container {
+        max-width: 500px;
+        margin-top: 50px;
+    }
+</style>
+{% endblock header %}
+
+{% block content %}
+<div class="container border rounded p-4 shadow">
+    <div class="text-center mb-4">
+        <img src="/assets/images/logo.png" alt="Logo" class="logo">
+        <h4>Sign up for PlexPass Password Manager!</h4>
+    </div>
+    {% if signup_error.len() > 0 %}
+    <div id="signup_error_message" class="alert alert-danger">
+        {{signup_error}}
+    </div>
+    {% endif %}
+    <form class="mt-3" method="POST" action="/ui/signup">
+        <div class="mb-3">
+            <label class="form-label">Name</label>
+            <input name="name" type="text" value="{{name}}" class="form-control" placeholder="Enter name">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input name="username" type="username" value="{{username}}" class="form-control" placeholder="Enter username">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Master Password</label>
+            <input name="master_password" type="password" placeholder="Enter password" class="form-control" id="masterPassword" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{12,}" title="Must contain at least 12 characters, including uppercase, lowercase, numbers, and special characters" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Confirm Master Password</label>
+            <input name="confirm_master_password" type="password" class="form-control" id="confirmMasterPassword" placeholder="Confirm master password" required>
+        </div>
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">Sign Up</button>
+        </div>
+    </form>
+    <div class="mb-3">
+        <p class="text-muted">
+            Your password should be a minimum of 12 characters, containing uppercase and lowercase letters, numbers, and special symbols.
+        </p>
+    </div>
+</div>
+
+{% endblock content %}
+
+
+{% block footer %}
+
+<script>
+    document.querySelector('form').addEventListener('submit', function(event) {
+        var password = document.getElementById('masterPassword').value;
+        var confirmPassword = document.getElementById('confirmMasterPassword').value;
+
+        if (password !== confirmPassword) {
+            alert('Passwords do not match.');
+            event.preventDefault();
+        }
+    });
+</script>
+{% endblock footer %}

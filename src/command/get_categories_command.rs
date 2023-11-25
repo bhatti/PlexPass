@@ -1,17 +1,13 @@
-use std::collections::HashMap;
-use crate::domain::models::{LookupKind, PassConfig, PassResult};
-use crate::service::locator::ServiceLocator;
+use crate::domain::args::ArgsContext;
+use crate::domain::models::{LookupKind, PassResult};
 
+/// Find lookup entries.
 pub async fn execute(
-    config: PassConfig,
-    username: &str,
-    master_password: &str,
+    args_ctx: &ArgsContext,
 ) -> PassResult<Vec<String>> {
-    let service_locator = ServiceLocator::new(&config).await?;
-    let (ctx, _, _) = service_locator.user_service.signin_user(username, master_password, HashMap::new()).await?;
-    let categories: Vec<String> = service_locator
+    let categories: Vec<String> = args_ctx.service_locator
         .lookup_service
-        .get_lookups(&ctx, LookupKind::CATEGORY)
+        .get_lookups(&args_ctx.user_context, LookupKind::CATEGORY)
         .await?
         .into_iter()
         .map(|l| l.name.to_string())

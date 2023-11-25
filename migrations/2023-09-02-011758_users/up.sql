@@ -4,7 +4,6 @@ CREATE TABLE IF NOT EXISTS users
     user_id                  VARCHAR(36) NOT NULL,
     version                  BIGINT      NOT NULL DEFAULT 0,
     username                 VARCHAR(100) NOT NULL,
-    roles                    BIGINT      NOT NULL DEFAULT 0,
     salt                     VARCHAR(32) NOT NULL,
     nonce                    VARCHAR(32) NOT NULL,
     encrypted_value          TEXT        NOT NULL,

@@ -10,7 +10,7 @@ use crate::dao::schema::users::dsl::*;
 use crate::dao::{AuditRepository, CryptoKeyRepository, DbConnection, LoginSessionRepository, Repository};
 use crate::dao::{DbPool, UserRepository};
 use crate::domain::error::PassError;
-use crate::domain::models::{PaginatedResult, PassResult, Roles, User};
+use crate::domain::models::{PaginatedResult, PassResult, User};
 
 #[derive(Clone)]
 pub(crate) struct UserRepositoryImpl {
@@ -43,34 +43,6 @@ impl UserRepositoryImpl {
                 true,
             )
         })
-    }
-
-    pub fn lookup_usernames(
-                        q: &str,
-                        conn: &mut DbConnection,
-    ) -> PassResult<Vec<String>> {
-        let match_username = format!("%{}%",q);
-        let matched = users
-            .filter(username.like(match_username))
-            .limit(100)
-            .load::<UserEntity>(conn)?;
-        Ok(matched.into_iter().map(|u|u.username).collect::<Vec<String>>())
-    }
-
-    pub fn lookup_userid_by_username(
-            match_username: &str,
-            conn: &mut DbConnection,
-    ) -> PassResult<String> {
-        let mut matched = users
-            .filter(username.eq(match_username))
-            .limit(1)
-            .load::<UserEntity>(conn)?;
-        if matched.is_empty() {
-            return Err(PassError::not_found(
-                format!("user not found for username {}", match_username).as_str(),
-            ));
-        }
-        Ok(matched.remove(0).user_id)
     }
 }
 
@@ -146,7 +118,6 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         .set((
             // username cannot be updated
             version.eq(user_entity.version + 1),
-            roles.eq(&user_entity.roles),
             nonce.eq(&user_entity.nonce),
             encrypted_value.eq(&user_entity.encrypted_value),
             updated_at.eq(&user_entity.updated_at),
@@ -301,7 +272,6 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             ctx.validate_user_id(&entity.user_id, || false)?; // no acl check
             let user_crypto_key = self.get_crypto_key(ctx, &entity.user_id).await?;
             let mut user = entity.to_user(ctx, &user_crypto_key)?;
-            user.roles = Roles::new(entity.roles);
             user.version = entity.version;
             user.created_at = Some(entity.created_at);
             user.updated_at = Some(entity.updated_at);
@@ -425,7 +395,7 @@ mod tests {
         let mut admin_ctx =
             UserContext::default_new(&admin.username, &admin.user_id, &salt, &pepper, "pass")
                 .unwrap();
-        admin_ctx.roles = Roles::new(ADMIN_USER);
+        admin_ctx.roles = Some(Roles::new(ADMIN_USER));
         assert_eq!(1, user_repo.create(&admin_ctx, &admin).await.unwrap());
 
         let mut user_ids = vec![];

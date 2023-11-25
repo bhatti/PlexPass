@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "authenticated_base.html" %}
 {% block title %} Security Dashboard {% endblock title %}
 
 {% block content %}
@@ -19,58 +19,58 @@
         <!-- Right Metrics -->
         <div class="col-md-8">
             <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Total Vaults</h6>
-                        <p id="totalVaults">{{total_vaults}}</p>
+                        <p id="totalVaults"><b>{{total_vaults}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Compromised Passwords</h6>
-                        <p id="totalCompromised">{{summary.count_compromised}}</p>
+                        <p id="totalCompromised"><b>{{summary.count_compromised}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Weak Passwords</h6>
-                        <p id="totalWeakPasswords">{{summary.count_weak_passwords}}</p>
+                        <p id="totalWeakPasswords"><b>{{summary.count_weak_passwords}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Moderate Passwords</h6>
-                        <p id="totalModeratePasswords">{{summary.count_moderate_passwords}}</p>
+                        <p id="totalModeratePasswords"><b>{{summary.count_moderate_passwords}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Strong Passwords</h6>
-                        <p id="totalStrongPasswords">{{summary.count_strong_passwords}}</p>
+                        <p id="totalStrongPasswords"><b>{{summary.count_strong_passwords}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Healthy Passwords</h6>
-                        <p id="totalHealthyPasswords">{{summary.count_healthy_passwords}}</p>
+                        <p id="totalHealthyPasswords"><b>{{summary.count_healthy_passwords}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Reused Passwords</h6>
-                        <p id="totalReusedPasswords">{{summary.count_reused}}</p>
+                        <p id="totalReusedPasswords"><b>{{summary.count_reused}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Accounts with Similar to Other Passwords</h6>
-                        <p id="totalSimilarToOtherPasswords">{{summary.count_similar_to_other_passwords}}</p>
+                        <p id="totalSimilarToOtherPasswords"><b>{{summary.count_similar_to_other_passwords}}</b></p>
                     </div>
                 </div>
-                <div class="col">
+                <div class="col text-center">
                     <div class="p-3 border bg-light">
                         <h6>Accounts with Similar to Past Passwords</h6>
-                        <p id="totalSimilarToPastPasswords">{{summary.count_similar_to_past_passwords}}</p>
+                        <p id="totalSimilarToPastPasswords"><b>{{summary.count_similar_to_past_passwords}}</b></p>
                     </div>
                 </div>
             </div>
@@ -101,52 +101,52 @@
                 <!-- Metrics -->
                 <div class="col-md-8">
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Compromised Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalCompromised">{{vault.analysis.count_compromised}}</p>
+                                <p id="{{vault.vault_id}}_totalCompromised"><b>{{vault.analysis.count_compromised}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Weak Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalWeakPasswords">{{vault.analysis.count_weak_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalWeakPasswords"><b>{{vault.analysis.count_weak_passwords}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Moderate Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalModeratePasswords">{{vault.analysis.count_moderate_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalModeratePasswords"><b>{{vault.analysis.count_moderate_passwords}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Strong Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalStrongPasswords">{{vault.analysis.count_strong_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalStrongPasswords"><b>{{vault.analysis.count_strong_passwords}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Healthy Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalHealthyPasswords">{{vault.analysis.count_healthy_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalHealthyPasswords"><b>{{vault.analysis.count_healthy_passwords}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Reused Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalReusedPasswords">{{vault.analysis.count_reused}}</p>
+                                <p id="{{vault.vault_id}}_totalReusedPasswords"><b>{{vault.analysis.count_reused}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Accounts with Similar to Other Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalSimilarToOtherPasswords">{{vault.analysis.count_similar_to_other_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalSimilarToOtherPasswords"><b>{{vault.analysis.count_similar_to_other_passwords}}</b></p>
                             </div>
                         </div>
-                        <div class="col">
+                        <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Accounts with Similar to Past Passwords</h6>
-                                <p id="{{vault.vault_id}}_totalSimilarToPastPasswords">{{vault.analysis.count_similar_to_past_passwords}}</p>
+                                <p id="{{vault.vault_id}}_totalSimilarToPastPasswords"><b>{{vault.analysis.count_similar_to_past_passwords}}</b></p>
                             </div>
                         </div>
                     </div>
