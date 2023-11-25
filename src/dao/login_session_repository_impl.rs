@@ -82,7 +82,7 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         if !session.mfa_required {
             return Err(PassError::validation("mfa is not required", None));
         }
-        if !session.update_mfa() {
+        if !session.verified_mfa() {
             return Err(PassError::validation("mfa cannot be updated for stale session", None));
         }
 

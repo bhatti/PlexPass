@@ -442,18 +442,17 @@ pub enum CommandActions {
         #[arg(long)]
         q: String,
     },
+    GenerateOTP {
+        /// otp_secret
+        #[arg(long)]
+        otp_secret: String,
+    },
     GenerateAccountOTP {
         /// account-id
         #[arg(long)]
-        account_id: Option<String>,
-        /// otp_secret
-        #[arg(long)]
-        otp_secret: Option<String>,
+        account_id: String,
     },
     GenerateUserOTP {
-        /// otp_secret
-        #[arg(long)]
-        otp_secret: Option<String>,
     },
     GenerateAPIToken {
         /// duration of token
@@ -761,9 +760,9 @@ impl ArgsContext {
     pub async fn auth_new(config: &PassConfig, args: &Args) -> PassResult<Self> {
         let master_username = args.master_username.clone().expect("Please specify username with --master-username.");
         let master_password = args.master_password.clone().expect("Please specify master password with --master-password.");
-        let service_locator = ServiceLocator::new(&config).await?;
+        let service_locator = ServiceLocator::new(config).await?;
         let (ctx, user, token, session_status) = service_locator.auth_service.signin_user(
-            &master_username, &master_password, args.otp_code.clone(), HashMap::new()).await?;
+            &master_username, &master_password, args.otp_code, HashMap::new()).await?;
 
         if session_status == SessionStatus::RequiresMFA {
             return Err(PassError::authentication(

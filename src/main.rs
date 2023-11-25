@@ -11,7 +11,7 @@ use std::io::Write;
 use clap::Parser;
 use env_logger::Builder;
 
-use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, asymmetric_user_decrypt_command, asymmetric_user_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_account_otp_command, generate_api_token, generate_password_command, generate_private_public_keys_command, generate_user_otp_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, reset_mfa_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
+use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, asymmetric_user_decrypt_command, asymmetric_user_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_account_otp_command, generate_api_token, generate_otp_command, generate_password_command, generate_private_public_keys_command, generate_user_otp_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, reset_mfa_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
 use plexpass::domain::args::{Args, CommandActions};
 
 use crate::plexpass::domain::models::PassConfig;
@@ -82,7 +82,7 @@ async fn main() -> std::io::Result<()> {
             let master_password = args.master_password.clone().expect("Please specify master password with --master-password");
             let user = args.to_user().expect("Failed to initialize user");
             let _ = create_user_command::execute(
-                config,
+                &config,
                 &user,
                 &master_password).await.expect("failed to create user");
             if args.json_output.unwrap_or(false) {
@@ -305,7 +305,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::GeneratePrivatePublicKeys { password } => {
             let (sk, pk) = generate_private_public_keys_command::execute(
-                config,
+                &config,
                 password,
             ).await.expect("failed to generate private and public keys");
             if args.json_output.unwrap_or(false) {
@@ -340,7 +340,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::AsymmetricEncrypt { public_key, in_path, out_path } => {
             asymmetric_encrypt_command::execute(
-                config,
+                &config,
                 public_key,
                 in_path,
                 out_path,
@@ -351,7 +351,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::AsymmetricDecrypt { secret_key, in_path, out_path } => {
             asymmetric_decrypt_command::execute(
-                config,
+                &config,
                 secret_key,
                 in_path,
                 out_path,
@@ -362,7 +362,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::SymmetricEncrypt { secret_key, in_path, out_path } => {
             symmetric_encrypt_command::execute(
-                config,
+                &config,
                 secret_key,
                 in_path,
                 out_path,
@@ -373,7 +373,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::SymmetricDecrypt { secret_key, in_path, out_path } => {
             symmetric_decrypt_command::execute(
-                config,
+                &config,
                 secret_key,
                 in_path,
                 out_path,
@@ -413,7 +413,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::GeneratePassword { .. } => {
             let policy = args.to_policy().expect("could not build password policy");
-            let password = generate_password_command::execute(config, &policy)
+            let password = generate_password_command::execute(&config, &policy)
                 .await.expect("could not generate password");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("password", password)]);
@@ -423,7 +423,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::PasswordCompromised { password } => {
-            let compromised = password_compromised_command::execute(config, password)
+            let compromised = password_compromised_command::execute(&config, password)
                 .await.expect("could not check password");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("compromised", compromised)]);
@@ -433,7 +433,7 @@ async fn main() -> std::io::Result<()> {
             }
         }
         CommandActions::PasswordStrength { password } => {
-            let strength = password_strength_command::execute(config, password)
+            let strength = password_strength_command::execute(&config, password)
                 .await.expect("could not check password");
             if args.json_output.unwrap_or(false) {
                 println!("{}", serde_json::to_string(&strength).unwrap());
@@ -451,12 +451,9 @@ async fn main() -> std::io::Result<()> {
                 log::info!("compromised {:?}", compromised);
             }
         }
-        CommandActions::GenerateAccountOTP { account_id, otp_secret } => {
-            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
-            let otp_code = generate_account_otp_command::execute(
-                &ctx_args,
-                account_id,
-                otp_secret)
+        CommandActions::GenerateOTP { otp_secret } => {
+            let otp_code = generate_otp_command::execute(
+                &config, otp_secret)
                 .await.expect("could not generate otp code");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("otp_code", otp_code)]);
@@ -465,11 +462,23 @@ async fn main() -> std::io::Result<()> {
                 log::info!("otp code: {:?}", otp_code);
             }
         }
-        CommandActions::GenerateUserOTP { otp_secret } => {
+        CommandActions::GenerateAccountOTP { account_id} => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let otp_code = generate_account_otp_command::execute(
+                &ctx_args,
+                account_id)
+                .await.expect("could not generate otp code");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("otp_code", otp_code)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("otp code: {:?}", otp_code);
+            }
+        }
+        CommandActions::GenerateUserOTP { } => {
             let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let otp_code = generate_user_otp_command::execute(
-                &ctx_args,
-                otp_secret)
+                &ctx_args)
                 .await.expect("could not generate otp code");
             if args.json_output.unwrap_or(false) {
                 let res = HashMap::from([("otp_code", otp_code)]);

@@ -261,7 +261,7 @@ impl LoginSession {
     }
 
     pub fn check_status(&self) -> SessionStatus {
-        if self.signed_out_at != None {
+        if self.signed_out_at.is_some() {
             return SessionStatus::Invalid;
         }
         let now = Utc::now().naive_utc();
@@ -269,7 +269,7 @@ impl LoginSession {
         if self.created_at < eight_hours_ago {
             return SessionStatus::Invalid;
         }
-        if self.mfa_required && self.mfa_verified_at == None {
+        if self.mfa_required && self.mfa_verified_at.is_none() {
             if self.expired_mfa() {
                 return SessionStatus::Invalid;
             }
@@ -281,10 +281,10 @@ impl LoginSession {
     pub fn expired_mfa(&self) -> bool {
         let now = Utc::now().naive_utc();
         let three_minutes_ago = now - Duration::minutes(3);
-        return self.created_at < three_minutes_ago;
+        self.created_at < three_minutes_ago
     }
 
-    pub fn update_mfa(&mut self) -> bool {
+    pub fn verified_mfa(&mut self) -> bool {
         if !self.mfa_required {
             return false;
         }
@@ -536,7 +536,7 @@ impl User {
         // one. Otherwise it's ignored. That is why it is safe to
         // iterate this over the full list.
         let mut keys = self.hardware_keys.clone().unwrap_or_default();
-        for (_, key) in &mut keys {
+        for key in keys.values_mut() {
             key.key.update_credential(auth_result);
         }
         self.hardware_keys = Some(keys);
@@ -544,7 +544,7 @@ impl User {
 
     pub fn mfa_required(&self) -> bool {
         match &self.hardware_keys {
-            Some(keys) => keys.len() > 0,
+            Some(keys) => !keys.is_empty(),
             None => false,
         }
     }
@@ -565,7 +565,7 @@ impl User {
     pub fn update(&mut self, other: &User) {
         self.version = other.version;
         // roles must be explicitly copied
-        if other.roles != None {
+        if other.roles.is_some() {
             self.roles = other.roles.clone();
         }
         self.name = other.name.clone();

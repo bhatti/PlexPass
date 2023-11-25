@@ -1,7 +1,7 @@
-use actix_web::{Error, HttpRequest, HttpResponse, post, web};
+use actix_web::{Error, HttpRequest, HttpResponse, post, Responder, web};
 use std::collections::HashMap;
 use serde::Serialize;
-use crate::controller::models::{Authenticated, SigninUserRequest, SigninUserResponse, SignupUserRequest, SignupUserResponse};
+use crate::controller::models::{Authenticated, QueryRecoveryCode, SigninUserRequest, SigninUserResponse, SignupUserRequest, SignupUserResponse};
 use crate::dao::models::CONTEXT_IP_ADDRESS;
 use crate::domain::error::PassError;
 use crate::domain::models::{SessionStatus, UserToken};
@@ -32,22 +32,14 @@ pub async fn signin_user(
     payload: web::Json<SigninUserRequest>,
 ) -> Result<HttpResponse, Error> {
     let context = build_context_with_ip_address(req);
-    let (ctx, user, token, session_status) = service_locator
+    let (ctx, _user, token, session_status) = service_locator
         .auth_service
-        .signin_user(&payload.username, &payload.master_password, payload.otp_code.clone(), context)
+        .signin_user(&payload.username, &payload.master_password, payload.otp_code, context)
         .await?;
     if session_status == SessionStatus::RequiresMFA {
-        if let Some(otp_code) = &payload.otp_code {
-            if !user.verify_otp(otp_code.clone()) {
-                return Err(
-                    Error::from(
-                        PassError::authentication("could not verify otp-code, please use the Web application for generated otp-code.")));
-            }
-        } else {
-            return Err(
-                Error::from(
-                    PassError::authentication("signin requires multi-factor authentication, please add parameter for otp_code based that can be seen form the Web application.")));
-        }
+        return Err(
+            Error::from(
+                PassError::authentication("signin requires multi-factor authentication, please add parameter for otp_code based that can be seen form the Web application.")));
     }
     let res = SigninUserResponse::new(&ctx.user_id);
     ok_response_with_token(&service_locator, &token, res)
@@ -62,6 +54,17 @@ pub async fn signout_user(
         .auth_service
         .signout_user(&auth.context, &auth.user_token.login_session)
         .await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+#[post("/api/v1/auth/reset_mfa")]
+pub async fn recover_mfa(
+    service_locator: web::Data<ServiceLocator>,
+    params: web::Json<QueryRecoveryCode>,
+    auth: Authenticated,
+) -> Result<impl Responder, Error> {
+    service_locator.auth_service.reset_mfa_keys(
+        &auth.context, &params.recovery_code, &auth.user_token.login_session).await?;
     Ok(HttpResponse::Ok().finish())
 }
 

@@ -153,10 +153,11 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.service(web::resource("/health").to(health));
 
     // API Controllers
-    // user controller
+    // auth and user controller
     service_config.service(auth_api_controller::signup_user)
         .service(auth_api_controller::signin_user)
         .service(auth_api_controller::signout_user)
+        .service(auth_api_controller::recover_mfa)
         .service(user_api_controller::get_user)
         .service(user_api_controller::update_user)
         .service(user_api_controller::search_usernames)
@@ -209,6 +210,8 @@ fn config_services(service_config: &mut web::ServiceConfig) {
 
     // otp-controller
     service_config.service(otp_api_controller::generate_otp);
+    service_config.service(otp_api_controller::generate_user_otp);
+    service_config.service(otp_api_controller::generate_account_otp);
 
     // audit-logs-controller
     service_config.service(audit_api_controller::audit_logs);

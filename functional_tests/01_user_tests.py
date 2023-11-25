@@ -89,6 +89,5 @@ class UsersTest(unittest.TestCase):
         resp = requests.get(SERVER + '/api/v1/users/' + USER_ID, headers = headers, verify = False)
         self.assertEqual(401, resp.status_code)
 
-
 if __name__ == '__main__':
     unittest.main()

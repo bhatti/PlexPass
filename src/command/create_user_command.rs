@@ -5,9 +5,9 @@ use crate::service::locator::ServiceLocator;
 
 /// Create and register a new user.
 pub async fn execute(
-    config: PassConfig,
+    config: &PassConfig,
     user: &User,
     master_password: &str) -> PassResult<UserContext> {
-    let service_locator = ServiceLocator::new(&config).await?;
+    let service_locator = ServiceLocator::new(config).await?;
     service_locator.user_service.register_user(user, master_password, HashMap::new()).await
 }

@@ -5,12 +5,12 @@ use crate::service::locator::ServiceLocator;
 
 /// Asymmetric decryption command.
 pub async fn execute(
-    config: PassConfig,
+    config: &PassConfig,
     secret_key: &str,
     in_path: &PathBuf,
     out_path: &PathBuf,
 ) -> PassResult<()> {
-    let service_locator = ServiceLocator::new(&config).await?;
+    let service_locator = ServiceLocator::new(config).await?;
     let data = fs::read(in_path)?;
     let res = service_locator.encryption_service.asymmetric_decrypt(
         secret_key,

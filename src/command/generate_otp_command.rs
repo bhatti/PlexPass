@@ -1,11 +1,12 @@
 use crate::domain::models::{PassConfig, PassResult};
 use crate::service::locator::ServiceLocator;
 
-/// Check if a password is compromised.
+/// Generate an otp for secret
 pub async fn execute(
     config: &PassConfig,
-    password: &str,
-) -> PassResult<bool> {
+    otp_secret: &str,
+) -> PassResult<u32> {
     let service_locator = ServiceLocator::new(config).await?;
-    service_locator.password_service.password_compromised(password).await
+    service_locator.otp_service.generate_otp(
+        otp_secret).await
 }

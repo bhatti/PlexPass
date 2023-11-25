@@ -446,21 +446,21 @@ impl UserResponse {
         });
         UserResponse {
             user_id: user.user_id.clone(),
-            version: user.version.clone(),
+            version: user.version,
             username: user.username.clone(),
             roles: user.roles.clone(),
             name: user.name.clone(),
             email: user.email.clone(),
             locale: user.locale.clone(),
-            light_mode: user.light_mode.clone(),
+            light_mode: user.light_mode,
             icon: user.icon.clone(),
-            notifications: user.notifications.clone(),
+            notifications: user.notifications,
             hardware_keys,
             otp_secret: user.otp_secret.clone(),
             generated_otp: TOTP::new(&user.otp_secret).generate(30, Utc::now().timestamp() as u64).to_string(),
             attributes: user.attributes.clone(),
-            created_at: user.created_at.clone(),
-            updated_at: user.updated_at.clone(),
+            created_at: user.created_at,
+            updated_at: user.updated_at,
         }
     }
 }

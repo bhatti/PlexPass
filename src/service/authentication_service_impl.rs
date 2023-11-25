@@ -73,7 +73,7 @@ impl AuthenticationServiceImpl {
                         user: &User,
                         mfa_verified_at: Option<NaiveDateTime>,
     ) -> PassResult<UserToken> {
-        let mut login_session = LoginSession::new(&user);
+        let mut login_session = LoginSession::new(user);
         login_session.ip_address = context.get(CONTEXT_IP_ADDRESS).cloned();
         login_session.mfa_verified_at = mfa_verified_at;
         let _ = self.login_session_repository.create(&login_session)?;
@@ -138,7 +138,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
         if user.mfa_required() {
             session_status = SessionStatus::RequiresMFA;
             if let Some(otp_code) = otp_code {
-                if user.verify_otp(otp_code.clone()) {
+                if user.verify_otp(otp_code) {
                     session_status = SessionStatus::Valid;
                     mfa_verified_at = Some(Utc::now().naive_utc());
                 }
@@ -246,7 +246,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
         self.hsm_store.set_property(&ctx.username, WEBAUTHN_AUTH_STATE, "")?;
         let auth_state: PasskeyAuthentication = serde_json::from_str(&auth_state_str)?;
 
-        let auth_result = self.webauthn.finish_passkey_authentication(&auth, &auth_state)?;
+        let auth_result = self.webauthn.finish_passkey_authentication(auth, &auth_state)?;
         let mut user = self.user_repository.get(ctx, &ctx.user_id).await?;
 
         user.update_security_keys(&auth_result);

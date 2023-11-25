@@ -349,13 +349,13 @@ impl LoginSessionEntity {
             login_session_id: login_session.login_session_id.clone(),
             user_id: login_session.user_id.clone(),
             username: login_session.username.clone(),
-            roles: login_session.roles.clone(),
+            roles: login_session.roles,
             source: login_session.source.clone(),
             ip_address: login_session.ip_address.clone(),
-            mfa_required: login_session.mfa_required.clone(),
-            mfa_verified_at: login_session.mfa_verified_at.clone(),
+            mfa_required: login_session.mfa_required,
+            mfa_verified_at: login_session.mfa_verified_at,
             created_at: Utc::now().naive_utc(),
-            signed_out_at: login_session.signed_out_at.clone(),
+            signed_out_at: login_session.signed_out_at,
         }
     }
     pub fn to_login_session(&self) -> LoginSession {
@@ -363,13 +363,13 @@ impl LoginSessionEntity {
             login_session_id: self.login_session_id.clone(),
             user_id: self.user_id.clone(),
             username: self.username.clone(),
-            roles: self.roles.clone(),
+            roles: self.roles,
             source: self.source.clone(),
             ip_address: self.ip_address.clone(),
-            mfa_required: self.mfa_required.clone(),
-            mfa_verified_at: self.mfa_verified_at.clone(),
-            created_at: self.created_at.clone(),
-            signed_out_at: self.signed_out_at.clone(),
+            mfa_required: self.mfa_required,
+            mfa_verified_at: self.mfa_verified_at,
+            created_at: self.created_at,
+            signed_out_at: self.signed_out_at,
         }
     }
 }

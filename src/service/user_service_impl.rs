@@ -193,7 +193,7 @@ impl UserService for UserServiceImpl {
 
     async fn generate_user_otp(&self, ctx: &UserContext) -> PassResult<u32> {
         let user = self.user_repository.get(ctx, &ctx.user_id).await?;
-        Ok(TOTP::new(&user.otp_secret).generate(30, Utc::now().timestamp() as u64))
+        Ok(TOTP::new(user.otp_secret).generate(30, Utc::now().timestamp() as u64))
     }
 
 }

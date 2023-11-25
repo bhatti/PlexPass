@@ -35,6 +35,7 @@ pub mod analyze_all_vaults_passwords_command;
 pub mod search_users_command;
 pub mod generate_account_otp_command;
 pub mod generate_user_otp_command;
+pub mod generate_otp_command;
 pub mod reset_mfa_command;
 pub mod generate_api_token;
 pub mod asymmetric_user_decrypt_command;
