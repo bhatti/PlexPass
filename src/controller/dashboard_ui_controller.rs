@@ -12,10 +12,15 @@ struct DashboardTemplate {
     total_vaults: usize,
     summary: VaultAnalysis,
     vaults: Vec<VaultResponse>,
+    light_mode: bool,
 }
 
 impl DashboardTemplate {
-    fn new(summary: VaultAnalysis, vaults: Vec<Vault>) -> Self {
+    fn new(
+        summary: VaultAnalysis,
+        vaults: Vec<Vault>,
+        light_mode: bool,
+    ) -> Self {
         let total_vaults = vaults.len();
         let vaults = vaults.into_iter()
             .filter(|v| v.total_accounts() > 0)
@@ -25,6 +30,7 @@ impl DashboardTemplate {
             total_vaults,
             summary,
             vaults,
+            light_mode,
         }
     }
 }
@@ -48,7 +54,7 @@ pub async fn dashboard_page(
     for vault in &full_vaults {
         summary.add(vault.analysis.clone());
     }
-    let html = DashboardTemplate::new(summary, full_vaults)
+    let html = DashboardTemplate::new(summary, full_vaults, auth.context.light_mode)
         .render().expect("could not find dashboard template");
     Ok(Html(html))
 }

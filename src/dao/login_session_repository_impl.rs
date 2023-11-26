@@ -69,7 +69,7 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
         }
         let entity = items.remove(0);
         if entity.login_session_id == other_session_id && entity.signed_out_at.is_none() {
-            return Ok(entity.to_login_session())
+            return Ok(entity.to_login_session());
         }
         return Err(PassError::not_found(
             format!("login_sessions did not match for {}", other_session_id).as_str(),
@@ -88,7 +88,8 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
 
         let mut conn = self.connection()?;
         let size = diesel::update(
-            login_sessions.filter(login_session_id.eq(other_session_id).and(signed_out_at.is_null())),
+            login_sessions.filter(
+                user_id.eq(other_user_id).and(login_session_id.eq(other_session_id).and(signed_out_at.is_null()))),
         )
             .set((mfa_verified_at.eq(Utc::now().naive_utc()), ))
             .execute(&mut conn)?;
@@ -101,6 +102,18 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
                 false,
             ))
         }
+    }
+
+    // set light_model
+    fn update_light_mode(&self, other_user_id: &str, other_session_id: &str, other_light_mode: bool) -> PassResult<usize> {
+        let mut conn = self.connection()?;
+        let size = diesel::update(
+            login_sessions.filter(
+                user_id.eq(other_user_id).and(login_session_id.eq(other_session_id).and(signed_out_at.is_null()))),
+        )
+            .set((light_mode.eq(other_light_mode), ))
+            .execute(&mut conn)?;
+        Ok(size)
     }
 
     // signout an existing login_session.

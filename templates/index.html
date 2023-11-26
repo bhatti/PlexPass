@@ -15,55 +15,52 @@
 {% block content %}
     <div class="row h-100">
         <!-- Sidebar -->
-        <div class="col-2 bg-light d-flex flex-column justify-content-between">
+        <div class="col-2 d-flex flex-column justify-content-between" id="vaultSidebar">
             <!-- Top Navigation Buttons -->
             <div class="text-left">
                 <b><span class="fa fa-bars"></span>&nbsp;PlexPass Vaults</b>
                 <nav class="sidenav">
                 </nav>
-
-                <div id="sidebar" class="flex-column flex-shrink-0 p-3">
-                    <ul class="nav nav-pills flex-column mb-auto">
-                        {% for vault in vaults %}
-                        {% if selected_vault_id == vault.vault_id %}
-                        <li class="nav-item">
-                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
-                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
-                        </li>
-                        {% else %}
-                        <li class="nav-item">
-                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link">
-                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
-                        </li>
-                        {% endif %}
-                        {% endfor %}
-                        </li>
-                    </ul>
-                </div>
+                <ul class="nav nav-pills flex-column mb-auto">
+                    {% for vault in vaults %}
+                    {% if selected_vault_id == vault.vault_id %}
+                    <li class="nav-item">
+                        <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
+                            <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link">
+                            <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    </li>
+                </ul>
                 <hr/>
-                <nav class="sidenav">
-                    <a class="nav-link active" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
+                <nav class="sidenav theme-sidenav">
+                    <a class="nav-link" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
                     <a class="nav-link" href="/ui/signout"><span class="fa sign-out"></span>&nbsp;Signout</a>
                 </nav>
             </div>
         </div>
 
         <!-- Main Content -->
-        <div class="col-10">
+        <div id="top_tabs" class="col-10">
             <!-- Tabs -->
             <ul class="nav nav-tabs">
-                <li class="nav-item">
-                    <a class="nav-link active" href="?selected_vault_id={{selected_vault_id}}">All Accounts</a>
+                <li class="nav-item" id="allTab">
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&tab_name=all">All Accounts</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=favorite">Favorite Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=favorite&tab_name=favorite">Favorite Accounts</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=high_risk">High-Risk Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=high_risk&tab_name=high_risk">High-Risk Accounts</a>
                 </li>
                 {% for category in top_categories %}
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q={{category}}">{{category}}</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q={{category}}&tab_name={{category}}">{{category}}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -84,7 +81,7 @@
                 <form action="/">
                     <input type="hidden" name="selected_vault_id" value="{{selected_vault_id}}">
                     <div class="d-flex form-group mb-5">
-                        <input class="form-control me-2" type="search" name="q" placeholder="Filter..."
+                        <input class="form-control me-2" type="search" name="q" value="{{q}}" placeholder="Filter..."
                                aria-label="Filter">
                         <button class="btn btn-outline-success" type="submit">Filter</button>
                     </div>
@@ -141,7 +138,7 @@
 
 {% block extra_content %}
 <!-- View Modal -->
-<div class="modal fade" id="viewAccountModal" aria-labelledby="viewModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="viewAccountModal" aria-labelledby="viewModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -159,7 +156,7 @@
 </div>
 
 <!-- Edit Modal -->
-<div class="modal fade" id="editAccountModal">
+<div class="modal fade theme-modal" id="editAccountModal">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -182,7 +179,7 @@
 </div>
 
 <!-- Import Modal -->
-<div class="modal fade" id="importAccountsModal" tabindex="-1" aria-labelledby="importAccountsModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="importAccountsModal" tabindex="-1" aria-labelledby="importAccountsModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -209,7 +206,7 @@
 </div>
 
 <!-- Export Modal -->
-<div class="modal fade" id="exportAccountsModal" tabindex="-1" aria-labelledby="exportAccountsModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="exportAccountsModal" tabindex="-1" aria-labelledby="exportAccountsModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -238,7 +235,7 @@
 </div>
 
 <!-- Share Vault Modal -->
-<div class="modal fade" id="shareVaultModal" tabindex="-1" aria-labelledby="shareVaultModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="shareVaultModal" tabindex="-1" aria-labelledby="shareVaultModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -263,7 +260,7 @@
 </div>
 
 <!-- Share Account Modal -->
-<div class="modal fade" id="shareAccountModal" tabindex="-1" aria-labelledby="shareAccountModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="shareAccountModal" tabindex="-1" aria-labelledby="shareAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -289,7 +286,7 @@
 </div>
 
 <!-- Delete Modal -->
-<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel"
+<div class="modal fade theme-modal" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel"
      aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -315,5 +312,30 @@
     document.addEventListener('DOMContentLoaded', function() {
         initEventHandlers();
     }, false);
+
+    document.addEventListener('DOMContentLoaded', (_event) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeQueryParam = urlParams.get('tab_name') || '';
+
+        // Remove 'active' class from all tabs within 'top_tabs' div
+        document.querySelectorAll('#top_tabs .nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
+
+        // Add 'active' class to the tab within 'top_tabs' div that matches the 'q' parameter
+        let activeTabFound = false;
+        document.querySelectorAll('#top_tabs .nav-item .nav-link').forEach(link => {
+            if (!activeTabFound && link.href.includes(`tab_name=${activeQueryParam}`)) {
+                link.classList.add('active');
+                activeTabFound = true;
+            }
+        });
+        if (!activeTabFound) {
+            const firstTab = document.querySelector('#top_tabs .nav-item .nav-link');
+            if (firstTab) {
+                firstTab.classList.add('active');
+            }
+        }
+    });
 </script>
 {% endblock footer %}

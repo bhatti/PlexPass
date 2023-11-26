@@ -62,6 +62,11 @@ pub trait AuthenticationService {
                             ctx: &UserContext,
                             recovery_code: &str,
                             session_id: &str) -> PassResult<()>;
+    // update light mode
+    async fn update_light_mode(&self,
+                            ctx: &UserContext,
+                            session_id: &str,
+                            light_mode: bool) -> PassResult<usize>;
 }
 
 #[async_trait]

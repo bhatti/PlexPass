@@ -23,6 +23,7 @@ pub struct UserContext {
     pub user_id: String,
     // The roles for the user.
     pub roles: Option<Roles>,
+    pub light_mode: bool,
     // The pepper key for the user.
     pub pepper: String,
     // The secret_key generated from the user password and user pepper.
@@ -37,6 +38,7 @@ impl UserContext {
         username: &str,
         user_id: &str,
         roles: Option<Roles>,
+        light_mode: bool,
         pepper: &str,
         secret_key: &str,
         hash_algorithm: HashAlgorithm,
@@ -46,6 +48,7 @@ impl UserContext {
             username: username.into(),
             user_id: user_id.into(),
             roles,
+            light_mode,
             pepper: pepper.into(),
             secret_key: secret_key.into(),
             hash_algorithm,
@@ -59,6 +62,7 @@ impl UserContext {
         user_id: &str,
         master_password: &str,
         roles: Option<Roles>,
+        light_mode: bool,
         salt: &str,
         pepper: &str,
         hash_algorithm: HashAlgorithm,
@@ -71,6 +75,7 @@ impl UserContext {
             username,
             user_id,
             roles,
+            light_mode,
             pepper,
             &secret_key,
             hash_algorithm,
@@ -105,6 +110,7 @@ impl UserContext {
             user_id,
             master_password,
             None,
+            false,
             salt,
             pepper,
             HashAlgorithm::Pbkdf2HmacSha256 {
@@ -154,7 +160,7 @@ impl UserContext {
             return false;
         }
         if let Some(roles) = &self.roles {
-            return roles.is_admin()
+            return roles.is_admin();
         }
         false
     }
@@ -333,6 +339,8 @@ pub struct LoginSessionEntity {
     pub username: String,
     // The roles of user.
     pub roles: i64,
+    // The light-mode of user.
+    pub light_mode: bool,
     // The source of the session.
     pub source: Option<String>,
     // The ip-address of the session.
@@ -350,6 +358,7 @@ impl LoginSessionEntity {
             user_id: login_session.user_id.clone(),
             username: login_session.username.clone(),
             roles: login_session.roles,
+            light_mode: login_session.light_mode,
             source: login_session.source.clone(),
             ip_address: login_session.ip_address.clone(),
             mfa_required: login_session.mfa_required,
@@ -364,6 +373,7 @@ impl LoginSessionEntity {
             user_id: self.user_id.clone(),
             username: self.username.clone(),
             roles: self.roles,
+            light_mode: self.light_mode,
             source: self.source.clone(),
             ip_address: self.ip_address.clone(),
             mfa_required: self.mfa_required,

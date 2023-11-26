@@ -5,97 +5,93 @@
 <div class="container py-5">
     <!-- Top Section -->
 </div>
-<div class="container mt-3">
+<div class="container mt-3 theme-container">
     <h2 class="text-center">User Settings</h2>
-    <div class="container mt-5">
-        <div class="card">
-            {% if false %}
-            <div class="card-header">
-                User Profile
-            </div>
-            {% endif %}
-            <div class="card-body">
-                <table class="table table-striped-columns">
-                    <tr>
-                        <td><strong>Avatar:</strong></td>
-                        <td><img src="{{user.icon_string()}}" id="userAvatarDisplay" alt="Avatar" style="width: 100px; height: 100px;"></td>
-                    </tr>
-                    <tr>
-                        <td><strong>ID:</strong></td>
-                        <td><span id="userIDDisplay">{{user.user_id}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Username:</strong></td>
-                        <td><span id="usernameDisplay">{{user.username}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Name:</strong></td>
-                        <td><span id="nameDisplay">{{user.name_string()}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Email:</strong></td>
-                        <td><span id="emailDisplay">{{user.email_string()}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Locale:</strong></td>
-                        <td><span id="localeDisplay">{{user.locale_string()}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Theme:</strong></td>
-                        <td><span id="themeDisplay">{{user.light_string()}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Notifications:</strong></td>
-                        <td><span id="notificationsDisplay">{{user.notifications_string()}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>OTP Secret:</strong></td>
-                        <td><span id="viewOtp">{{user.otp_secret}}</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Generated OTP:</strong></td>
-                        <td>
-                            <div class="row align-items-center">
-                                <div class="col d-flex align-items-center">
-                                    <div id="otp" class="alert alert-primary me-2" role="alert" style="font-size: 1.5rem; flex-grow: 1;">
-                                        <span id="viewGeneratedOtp"></span>
-                                    </div>
-                                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
+    <div class="card theme-card theme-container">
+        <div class="card-body">
+            <table class="table table-striped-columns theme-table">
+                <tr>
+                    <td><strong>Avatar:</strong></td>
+                    <td><img src="{{user.icon_string()}}" id="userAvatarDisplay" alt="Avatar"
+                             style="width: 100px; height: 100px;"></td>
+                </tr>
+                <tr>
+                    <td><strong>ID:</strong></td>
+                    <td><span id="userIDDisplay">{{user.user_id}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Username:</strong></td>
+                    <td><span id="usernameDisplay">{{user.username}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Name:</strong></td>
+                    <td><span id="nameDisplay">{{user.name_string()}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Email:</strong></td>
+                    <td><span id="emailDisplay">{{user.email_string()}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Locale:</strong></td>
+                    <td><span id="localeDisplay">{{user.locale_string()}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Theme:</strong></td>
+                    <td><span id="themeDisplay">{{user.light_string()}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Notifications:</strong></td>
+                    <td><span id="notificationsDisplay">{{user.notifications_string()}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>OTP Secret:</strong></td>
+                    <td><span id="viewOtp">{{user.otp_secret}}</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Generated OTP:</strong></td>
+                    <td>
+                        <div class="row align-items-center">
+                            <div class="col d-flex align-items-center">
+                                <div id="otp" class="alert alert-primary me-2" role="alert"
+                                     style="font-size: 1.5rem; flex-grow: 1;">
+                                    <span id="viewGeneratedOtp"></span>
                                 </div>
+                                <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
                             </div>
+                        </div>
 
-                            <!-- Progress Bar -->
-                            <div class="col">
-                                <div class="progress">
-                                    <div id="otpTimer" class="progress-bar" role="progressbar"
-                                         style="width: 100%;"></div>
-                                </div>
+                        <!-- Progress Bar -->
+                        <div class="col">
+                            <div class="progress">
+                                <div id="otpTimer" class="progress-bar" role="progressbar"
+                                     style="width: 100%;"></div>
                             </div>
-                        </td>
-                    </tr>
-                </table>
-                <p>Security-Keys for multi-factor authentication:
-                <ul>
-                    {% for mfa in user.hardware_keys() %}
-                    <li>{{mfa.name}}
-                        &nbsp;<button class="btn btn-danger float-end" onclick="removeMFAKey('{{mfa.id}}')">Remove
-                        </button>
-                    </li>
-                    {% endfor %}
-                </ul>
-                </p>
-                <button id="addSecurityKeyBtn" onclick="showRegisterMFAKey()" class="btn btn-secondary float-end">Add
-                    MFA Security Key
-                </button>
-            </div>
-            <div class="card-footer text-center">
-                <button id="editProfileBtn" onclick="showEditProfile()" class="btn btn-primary float-center">Edit
-                    Profile
-                </button>
-                <button id="addAPITokenBtn" onclick="showAPIToken()" class="btn btn-secondary float-end">Generate
-                    API Token (JWT)
-                </button>
-            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            <p>Security-Keys for multi-factor authentication:
+            <button id="addSecurityKeyBtn" onclick="showRegisterMFAKey()" class="btn btn-secondary float-end theme-btn">
+                Add MFA Security Key
+            </button></p>
+            <table class="table table-striped-columns theme-table">
+                {% for mfa in user.hardware_keys() %}
+                <tr>
+                    <td><strong>{{mfa.name}}</strong></td>
+                    <td>
+                        &nbsp;<button class="btn btn-danger float-end" onclick="removeMFAKey('{{mfa.id}}')">Remove</button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </table>
+        </div>
+        <div class="card-footer text-center">
+            <button id="editProfileBtn" onclick="showEditProfile()" class="btn btn-primary float-center theme-btn">Edit
+                Profile
+            </button>
+            <button id="addAPITokenBtn" onclick="showAPIToken()" class="btn btn-secondary float-end theme-btn">Generate
+                API Token (JWT)
+            </button>
         </div>
     </div>
 </div>
@@ -104,7 +100,8 @@
 {% block extra_content %}
 
 <!-- Edit Profile Modal -->
-<div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel"
+     aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -190,7 +187,8 @@
 </div>
 
 <!-- MFA Modal -->
-<div class="modal fade" id="addMfaKeyModal" tabindex="-1" aria-labelledby="addMfaKeyModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="addMfaKeyModal" tabindex="-1" aria-labelledby="addMfaKeyModalLabel"
+     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -220,7 +218,7 @@
 
 
 <!-- Bootstrap Modal -->
-<div class="modal fade" id="tokenModal" tabindex="-1" aria-labelledby="tokenModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="tokenModal" tabindex="-1" aria-labelledby="tokenModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
@@ -247,7 +245,7 @@
 {% block footer %}
 <script>
     document.addEventListener("visibilitychange", handleFetchingOTP);
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         startFetchingOTP();
     }, false);
 </script>

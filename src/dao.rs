@@ -104,6 +104,9 @@ pub trait LoginSessionRepository {
     // update session by id
     fn mfa_succeeded(&self, user_id: &str, session_id: &str) -> PassResult<LoginSession>;
 
+    // update light mode
+    fn update_light_mode(&self, other_user_id: &str, other_session_id: &str, other_light_mode: bool) -> PassResult<usize>;
+
     // signout an existing session
     fn signout(&self, user_id: &str, session_id: &str) -> PassResult<usize>;
 

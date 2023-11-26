@@ -8,11 +8,15 @@ use crate::service::locator::ServiceLocator;
 #[derive(Template)]
 #[template(path = "password_tools.html")]
 struct GeneratePasswordTemplate {
+    light_mode: bool,
 }
 
 pub async fn generate_password_page(
+    auth: Authenticated,
 ) -> Result<impl Responder> {
-    let html = GeneratePasswordTemplate{}.render().expect("could not find generate-password template");
+    let html = GeneratePasswordTemplate{
+        light_mode: auth.context.light_mode,
+    }.render().expect("could not find generate-password template");
     Ok(Html(html))
 }
 

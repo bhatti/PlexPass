@@ -736,9 +736,9 @@ async function initEventHandler(inp) {
     });
 }
 
-function buildGauge(riskGaugeCtx, data, score, chartType) {
+function buildGauge(riskGaugeCtx, data, score, chartType, lightMode) {
     return new Chart(riskGaugeCtx, {
-        type: chartType || 'doughnut',
+        type: chartType,
         data: {
             labels: ['Compromised', 'Weak', 'Moderate', 'Strong', 'Healthy'],
             datasets: [{
@@ -763,9 +763,30 @@ function buildGauge(riskGaugeCtx, data, score, chartType) {
                 animateScale: true,
                 animateRotate: true
             },
+            scales: {
+                x: {
+                    grid: {
+                        color: !lightMode ? '#444' : '#ccc',
+                    },
+                    ticks: {
+                        color: !lightMode ? '#fff' : '#000',
+                    }
+                },
+                y: {
+                    grid: {
+                        color: !lightMode ? '#444' : '#ccc',
+                    },
+                    ticks: {
+                        color: !lightMode ? '#fff' : '#000',
+                    }
+                }
+            },
             plugins: {
                 legend: {
                     position: 'top',
+                    labels: {
+                        color: !lightMode ? '#fff' : '#000',
+                    }
                     //display: false
                 },
                 datalabels: {
@@ -846,10 +867,14 @@ async function checkPassword() {
     })
     const data = await response.json();
     const passwordCheckResult = document.getElementById('passwordCheckResult');
+    let hibp = '';
+    if (data.compromised) {
+        hibp = '(The password was found in <a href="https://haveibeenpwned.com/">https://haveibeenpwned.com/</a> database.)';
+    }
     passwordCheckResult.innerHTML = `
         <table class="table table-striped-columns">
         <tr>
-            <td><strong>Password Compromised:</strong></td><td>${data.compromised}</td>
+            <td><strong>Password Compromised:</strong></td><td>${data.compromised} ${hibp}</td>
         </tr>
         <tr>
             <td><strong>Password Strength:</strong></td><td>${data.strength}</td>

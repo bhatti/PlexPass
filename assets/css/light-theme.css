@@ -1,0 +1,130 @@
+body {
+    background-color: #fff;
+    color: #000;
+}
+
+.navbar-light {
+    background-color: #f8f9fa;
+}
+
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+#sidebar {
+    background-color: #f8f9fa; /* light grey */
+    color: #000000; /* black */
+}
+
+
+.nav-link {
+    color: #000000; /* Dark text for light background */
+}
+
+.nav-link.active {
+    background-color: #e9ecef; /* Slightly darker background for active link */
+}
+
+.table {
+    background-color: #ffffff; /* Light background for the table */
+    color: #000000; /* Dark text for light background */
+}
+
+.table thead th {
+    background-color: #f8f9fa; /* Slightly darker background for table header */
+}
+
+.theme-box {
+    background-color: #f8f9fa; /* Light background */
+    color: #000000; /* Dark text */
+}
+
+.theme-container {
+    background-color: #f8f9fa; /* Light background */
+    color: #000000; /* Dark text */
+}
+
+.theme-card-header {
+    background-color: #f2f2f2; /* Slightly darker background for card header */
+}
+
+.theme-box {
+    background-color: #f8f9fa; /* Light background for boxes */
+    border-color: #dddddd; /* Light border color */
+}
+
+.theme-card, .theme-table, .theme-card-footer {
+    background-color: #ffffff; /* Light background for card and table */
+    color: #000000; /* Dark text */
+}
+
+.theme-btn {
+    /* Additional button styles for light theme if needed */
+}
+
+
+.theme-table, .theme-pagination {
+    background-color: #ffffff; /* Light background for table and pagination */
+}
+
+.theme-table-header {
+    background-color: #f2f2f2; /* Slightly darker background for table header */
+}
+
+
+.theme-modal .modal-content {
+    background-color: #ffffff; /* Light background for the modal */
+    color: #000000; /* Dark text for light background */
+}
+
+.theme-modal .form-control, .theme-modal .form-select {
+    background-color: #f8f9fa; /* Light background for input fields */
+    color: #000000; /* Dark text for input fields */
+}
+
+.theme-container, .theme-card, .theme-modal {
+    background-color: #ffffff; /* Light background */
+    color: #000000; /* Dark text */
+}
+
+.theme-navbar {
+    background-color: #e3f2fd; /* Light background for navbar */
+}
+
+.theme-input {
+    background-color: #f8f9fa; /* Light background for input fields */
+    color: #000000; /* Dark text for input fields */
+}
+
+.theme-sidenav {
+    background-color: #f8f9fa; /* Light background for the sidenav */
+    /* Additional styles for light theme */
+}
+
+.theme-nav-link {
+    color: #000000; /* Dark text for light background */
+    /* Additional styles for light theme nav links */
+}
+
+.theme-pagination .page-link {
+    background-color: #f8f9fa; /* Light background for page links */
+    color: #000000; /* Dark text for page links */
+}
+
+.theme-pagination .page-link:hover {
+    /* Style for hover state */
+}
+
+.theme-pagination .page-item.active .page-link {
+    /* Style for active state */
+}
+
+.theme-pagination .page-item.disabled .page-link {
+    /* Style for disabled state */
+}
+
+.theme-hr {
+    border-color: #484c52; /* Visible border color in dark mode */
+}
+

@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS login_sessions
     user_id                  VARCHAR(36) NOT NULL REFERENCES users(user_id),
     username                 VARCHAR(100) NOT NULL,
     roles                    BIGINT      NOT NULL DEFAULT 0,
+    light_mode               BOOLEAN NOT NULL DEFAULT false,
     source                   VARCHAR(64) NULL,
     ip_address               VARCHAR(64) NULL,
     mfa_required             BOOLEAN NOT NULL DEFAULT false,

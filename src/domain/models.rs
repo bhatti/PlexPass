@@ -234,6 +234,8 @@ pub struct LoginSession {
     pub username: String,
     // The roles of user.
     pub roles: i64,
+    // The light mode of UI.
+    pub light_mode: bool,
     // The source of the session.
     pub source: Option<String>,
     // The ip-address of the session.
@@ -251,6 +253,7 @@ impl LoginSession {
             user_id: user.user_id.clone(),
             username: user.username.clone(),
             roles: user.roles.clone().unwrap_or(Roles::new(0)).mask,
+            light_mode: user.light_mode.unwrap_or_default(),
             source: None,
             ip_address: None,
             mfa_required: user.mfa_required(),
@@ -1145,6 +1148,15 @@ impl AccountCredentials {
             password_policy: PasswordPolicy::new(),
         }
     }
+
+    pub fn has_password(&self) -> bool {
+        if let Some(password) = &self.password {
+            if !password.is_empty() && !password.chars().all(char::is_whitespace) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 /// Account defines abstraction for user account with password to protect.
@@ -1352,16 +1364,26 @@ pub struct AccountPasswordSummary {
     pub password_analysis: PasswordAnalysis,
 }
 
+impl AccountPasswordSummary {
+    pub fn has_password(&self) -> bool {
+        if let Some(password) = &self.password {
+            if !password.is_empty() && !password.chars().all(char::is_whitespace) {
+                return true;
+            }
+        }
+        false
+    }
+}
 
 pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
 pub const DEFAULT_CATEGORIES: [&str; 11] = [
+    "Contacts",
     "Logins",
     "Finance",
     "Social",
     "Shopping",
     "Travel",
     "Gaming",
-    "Contacts",
     "Chat",
     "Notes",
     "Credit Cards",
@@ -2775,7 +2797,7 @@ impl VaultAnalysis {
 
     pub fn update(&mut self, password_summary: &AccountPasswordSummary) {
         self.total_accounts += 1;
-        if password_summary.password.is_some() {
+        if password_summary.has_password() {
             self.total_accounts_with_passwords += 1;
             match password_summary.password_analysis.strength {
                 PasswordStrength::WEAK => { self.count_weak_passwords += 1; }

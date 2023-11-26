@@ -16,10 +16,15 @@ struct AuditLogTemplate {
     pub total_pages: usize,
     pub pages: Vec<usize>,
     pub audit_logs: Vec<AuditLog>,
+    light_mode: bool,
 }
 
 impl AuditLogTemplate {
-    pub fn new(logs: &PaginatedResult<AuditLog>, current_page: usize, records_per_page: usize) -> Self {
+    pub fn new(
+        logs: &PaginatedResult<AuditLog>,
+        current_page: usize,
+        records_per_page: usize,
+        light_mode: bool) -> Self {
         let total_records: usize = logs.total_records.unwrap_or(logs.records.len() as i64) as usize;
         let total_pages: usize = (total_records + records_per_page - 1) / records_per_page;
         let num_pages_to_display = 10;
@@ -39,6 +44,7 @@ impl AuditLogTemplate {
             total_pages,
             pages: (start_page..=end_page).collect(),
             audit_logs: logs.records.clone(),
+            light_mode,
         }
     }
 }
@@ -60,7 +66,7 @@ pub async fn audit_logs(
     }
     let page = query.page.unwrap_or(1);
     let limit = 50;
-    let offset = (page-1) * limit;
+    let offset = (page - 1) * limit;
     let logs = service_locator
         .audit_log_service
         .find(
@@ -70,7 +76,11 @@ pub async fn audit_logs(
             limit,
         )
         .await?;
-    let template = AuditLogTemplate::new(&logs, page, limit);
+    let template = AuditLogTemplate::new(
+        &logs,
+        page,
+        limit,
+        auth.context.light_mode);
     let html = template.render().expect("could not find audit logs template");
     Ok(Html(html))
 }

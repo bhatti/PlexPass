@@ -10,12 +10,14 @@ use crate::service::locator::ServiceLocator;
 #[template(path = "categories.html")]
 struct CategoryTemplate {
     categories: Vec<Lookup>,
+    light_mode: bool,
 }
 
 impl CategoryTemplate {
-    fn new(categories: Vec<Lookup>) -> Self {
+    fn new(categories: Vec<Lookup>, light_mode: bool) -> Self {
         Self {
             categories,
+            light_mode,
         }
     }
 }
@@ -28,7 +30,7 @@ pub async fn categories_page(
         .lookup_service
         .get_lookups(&auth.context, LookupKind::CATEGORY)
         .await?;
-    let html = CategoryTemplate::new(categories)
+    let html = CategoryTemplate::new(categories, auth.context.light_mode)
         .render().expect("could not find categories template");
     Ok(Html(html))
 }

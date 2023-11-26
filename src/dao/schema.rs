@@ -78,6 +78,7 @@ diesel::table! {
         user_id -> Text,
         username -> Text,
         roles -> BigInt,
+        light_mode -> Bool,
         source -> Nullable<Text>,
         ip_address -> Nullable<Text>,
         mfa_required -> Bool,

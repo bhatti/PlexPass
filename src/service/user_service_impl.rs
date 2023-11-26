@@ -83,6 +83,7 @@ impl UserService for UserServiceImpl {
             &user.user_id,
             master_password,
             user.roles.clone(),
+            user.light_mode.unwrap_or_default(),
             &salt,
             &pepper,
             self.config.hash_algorithm(),

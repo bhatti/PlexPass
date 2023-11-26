@@ -8,18 +8,25 @@
     <link href="/assets/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <link href="/assets/css/default.css" rel="stylesheet">
+{% if light_mode %}
+    <link href="/assets/css/light-theme.css" rel="stylesheet">
+    <script>localStorage.setItem('theme', 'light');</script>
+{% else %}
+    <link href="/assets/css/dark-theme.css" rel="stylesheet">
+    <script>localStorage.setItem('theme', 'dark');</script>
+{% endif %}
     <!-- source https://cdn.jsdelivr.net/npm/chart.js -->
     <script src="/assets/javascript/chart.js"></script>
     {% block header %} {% endblock header %}
 </head>
-<body class="light-mode">
+<body>
 <div class="container-fluid h-100">
     <div class="row h-100">
         <!-- Main Content -->
 	{% block content %}{% endblock content %}
     </div>
     <!-- Bottom Navigation See https://fontawesome.com/v4/icons/ -->
-    <nav class="navbar fixed-bottom navbar-dark bg-info" style="background-color: #e3f2fd;">
+    <nav class="navbar fixed-bottom theme-sidenav bg-info" style="background-color: #e3f2fd;">
         <button class="btn" onclick="location.href='/';"><span class="fa fa-home"></span>&nbsp;Home</button>
         <button class="btn" onclick="location.href='/ui/password/generate';"><span class="fa fa-key"></span>&nbsp;Password Tools</button>
         <button class="btn" onclick="location.href='/ui/categories';"><span class="fa fa-tags"></span>&nbsp;Categories</button>
@@ -30,7 +37,7 @@
 </div>
 
 <!-- Modal -->
-<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="messageModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">

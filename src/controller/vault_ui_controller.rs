@@ -14,28 +14,34 @@ use crate::service::locator::ServiceLocator;
 #[template(path = "index.html")]
 struct IndexTemplate<'a> {
     selected_vault_id: &'a str,
+    q: &'a str,
     vaults: Vec<VaultResponse>,
     accounts: Vec<AccountSummary>,
     top_categories: Vec<String>,
     all_categories: Vec<String>,
     username: String,
+    light_mode: bool,
 }
 
 impl<'a> IndexTemplate<'a> {
     fn new(
         selected_vault_id: &'a str,
+        q: &'a str,
         vaults: Vec<VaultResponse>,
         accounts: Vec<AccountSummary>,
         username: &str,
+        light_mode: bool,
         top_categories: Vec<String>,
         all_categories: Vec<String>, ) -> Self {
         Self {
             selected_vault_id,
+            q,
             vaults,
             accounts,
             top_categories,
             all_categories,
             username: username.to_string(),
+            light_mode,
         }
     }
 }
@@ -75,14 +81,22 @@ pub async fn home_page(
     } else {
         let mut user_categories = service_locator.lookup_service
             .get_lookups(&auth.context, LookupKind::CATEGORY).await?
-            .into_iter().map(|l|l.name).collect::<Vec<String>>();
+            .into_iter().map(|l| l.name).collect::<Vec<String>>();
         if user_categories.len() > 5 {
             user_categories = user_categories[0..5].to_vec().iter().map(|s| s.to_string()).collect();
         }
         user_categories.sort();
         user_categories
     };
-    let html = IndexTemplate::new(&vault.vault_id, vaults, accounts, &auth.context.username, top_categories, user_with_all_categories)
+    let html = IndexTemplate::new(
+        &vault.vault_id,
+        &query.q.clone().unwrap_or_default(),
+        vaults,
+        accounts,
+        &auth.context.username,
+        auth.context.light_mode,
+        top_categories,
+        user_with_all_categories)
         .render().expect("could not find dashboard template");
     Ok(Html(html))
 }

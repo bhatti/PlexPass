@@ -1,0 +1,155 @@
+body {
+    background-color: #343a40;
+    color: #fff;
+}
+
+.navbar-light {
+    background-color: #212529;
+}
+
+.btn-outline-secondary {
+    border-color: #f8f9fa;
+    color: #f8f9fa;
+}
+
+#sidebar {
+    background-color: #343a40; /* Dark background for sidebar */
+    color: #ffffff; /* Light text for dark background */
+}
+
+.nav-link {
+    color: #ffffff; /* Light text for dark background */
+}
+
+.nav-link.active {
+    background-color: #495057; /* Slightly lighter background for active link */
+}
+
+.table {
+    background-color: #343a40; /* Dark background for the table */
+    color: #ffffff; /* Light text for dark background */
+}
+
+.table thead th {
+    background-color: #212529; /* Slightly lighter background for table header */
+}
+
+
+.theme-box {
+    background-color: #343a40; /* Dark background */
+    color: #ffffff; /* Light text */
+}
+
+.theme-container, .theme-card, .theme-modal {
+    background-color: #343a40; /* Dark background */
+    color: #ffffff; /* Light text */
+}
+
+.theme-modal .modal-content {
+    background-color: #2c3034; /* Slightly lighter background for the modal content */
+    border-color: #484c52; /* Visible border color */
+    color: #ffffff; /* Light text for dark background */
+}
+
+.theme-modal {
+    background-color: #1e2125; /* Lighter gray background for the overall modal backdrop */
+}
+
+.theme-modal .form-control, .theme-modal .form-select {
+    background-color: #212529; /* Dark background for input fields */
+    color: #ffffff; /* Light text for input fields */
+}
+
+.theme-container {
+    background-color: #343a40; /* Dark background */
+    color: #ffffff; /* Light text */
+}
+
+.theme-container .theme-card .p-3.border {
+    background-color: #2c3034; /* Dark background for bordered elements */
+    color: #ffffff; /* Light text for dark background */
+    border-color: #484c52; /* Adjust border color if necessary */
+}
+
+.theme-card, .theme-table, .theme-card-footer {
+    background-color: #343a40; /* Dark background for card and table */
+    color: #ffffff; /* Light text for dark background */
+    border-color: #484c52; /* Visible border color */
+}
+
+.theme-table li, .theme-table tr {
+    border-bottom: 1px solid #484c52; /* Visible border for list items and table rows */
+}
+
+/* Ensure text inside the table is visible */
+.theme-table td, .theme-table th {
+    color: #ffffff;
+}
+
+
+.theme-card-header {
+    background-color: #f2f2f2; /* Slightly darker background for card header */
+}
+
+.theme-box {
+    background-color: #f8f9fa; /* Light background for boxes */
+    border-color: #dddddd; /* Light border color */
+}
+
+.theme-btn {
+    /* Additional button styles for dark theme if needed */
+}
+
+.theme-table, .theme-pagination {
+    background-color: #212529; /* Dark background for table and pagination */
+}
+
+.theme-table-header {
+    background-color: #1c1c1c; /* Slightly lighter background for table header */
+}
+
+.theme-navbar {
+    background-color: #212529; /* Dark background for navbar */
+}
+
+.theme-input {
+    background-color: #212529; /* Dark background for input fields */
+    color: #ffffff; /* Light text for input fields */
+}
+
+.theme-sidenav {
+    background-color: #343a40; /* Dark background for the sidenav */
+    /* Additional styles for dark theme */
+}
+
+.theme-nav-link {
+    color: #ffffff; /* Light text for dark background */
+    /* Additional styles for dark theme nav links */
+}
+
+.theme-table li {
+    background-color: #2c3034; /* Slightly lighter than .theme-card for contrast */
+    color: #ffffff;
+}
+
+.theme-pagination .page-link {
+    background-color: #343a40; /* Dark background for page links */
+    color: #ffffff; /* Light text for page links */
+}
+
+.theme-pagination .page-link:hover {
+    /* Style for hover state in dark mode */
+}
+
+.theme-pagination .page-item.active .page-link {
+    /* Style for active state in dark mode */
+}
+
+.theme-pagination .page-item.disabled .page-link {
+    /* Style for disabled state in dark mode */
+}
+
+
+.theme-hr {
+    border-color: #ccc; /* Visible border color in light mode */
+}

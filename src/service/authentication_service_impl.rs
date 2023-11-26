@@ -108,6 +108,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
             username,
             &key_params.user_id,
             None,
+            false,
             &key_params.pepper,
             &secret_key,
             self.config.hash_algorithm(),
@@ -125,6 +126,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
             }
         };
 
+        ctx.light_mode = user.light_mode.unwrap_or_default();
         ctx.roles = user.roles.clone();
         self.share_vault_account_repository.handle_shared_vaults_accounts(&ctx).await?;
 
@@ -268,6 +270,16 @@ impl AuthenticationService for AuthenticationServiceImpl {
             return Ok(());
         }
         Err(PassError::validation("could not reset MFA keys, please verify your recovery code", None))
+    }
+    // update light mode
+    async fn update_light_mode(&self,
+                               ctx: &UserContext,
+                               session_id: &str,
+                               light_mode: bool) -> PassResult<usize> {
+        self.login_session_repository.update_light_mode(
+            &ctx.user_id,
+            session_id, light_mode)
+
     }
 }
 

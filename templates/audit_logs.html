@@ -2,65 +2,65 @@
 {% block title %} Audit Logs {% endblock title %}
 
 {% block content %}
-<div class="container mt-3">
+<div class="container mt-3 theme-container">
     <h2 class="text-center">PlexPass - Audit Logs</h2>
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead class="table-dark">
-            <tr>
-                <th>ID</th>
-                <th>Kind</th>
-                <th>IP Address</th>
-                <th>Context</th>
-                <th>Message</th>
-                <th>Timestamp</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for log in audit_logs %}
-            <tr>
-                <td>{{log.audit_id}}</td>
-                <td>{{log.kind}}</td>
-                <td>{{log.safe_ip_address()}}</td>
-                <td>{{log.context}}</td>
-                <td>{{log.message}}.</td>
-                <td>{{log.created_at}}}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <table class="table theme-table">
+        <thead class="theme-table-header">
+        <tr>
+            <th>ID</th>
+            <th>Kind</th>
+            <th>IP Address</th>
+            <th>Context</th>
+            <th>Message</th>
+            <th>Timestamp</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for log in audit_logs %}
+        <tr>
+            <td>{{log.audit_id}}</td>
+            <td>{{log.kind}}</td>
+            <td>{{log.safe_ip_address()}}</td>
+            <td>{{log.context}}</td>
+            <td>{{log.message}}.</td>
+            <td>{{log.created_at}}}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 
     <!-- pagination.html -->
-    <nav aria-label="Page navigation">
-        <ul class="pagination">
-            <li class="page-item {% if current_page > 1 %}enabled{% else %}disabled{% endif %}">
-                <a class="page-link" href="/ui/audit_logs?page=1" aria-label="First">
-                    <span aria-hidden="true">&laquo;&laquo;</span>
-                </a>
-            </li>
-            <li class="page-item {% if current_page > 1 %}enabled{% else %}disabled{% endif %}">
-                <a class="page-link" href="/ui/audit_logs?page={{ current_page - 1 }}" aria-label="Previous">
-                    <span aria-hidden="true">&laquo;</span>
-                </a>
-            </li>
-            {% for page in pages %}
-            <li class="page-item {% if page.to_string() == current_page.to_string() %}active{% endif %}">
-                <a class="page-link" href="/ui/audit_logs?page={{ page }}">{{ page }}</a>
-            </li>
-            {% endfor %}
-            <li class="page-item {% if current_page < total_pages %}enabled{% else %}disabled{% endif %}">
-                <a class="page-link" href="/ui/audit_logs?page={{ current_page + 1 }}" aria-label="Next">
-                    <span aria-hidden="true">&raquo;</span>
-                </a>
-            </li>
-            <li class="page-item {% if current_page < total_pages %}enabled{% else %}disabled{% endif %}">
-                <a class="page-link" href="/ui/audit_logs?page={{ total_pages }}" aria-label="Last">
-                    <span aria-hidden="true">&raquo;&raquo;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+    <div class="d-flex justify-content-center">
+        <nav aria-label="Page navigation" class="theme-pagination">
+            <ul class="pagination">
+                <li class="page-item {% if current_page > 1 %}enabled{% else %}disabled{% endif %}">
+                    <a class="page-link theme-page-link" href="/ui/audit_logs?page=1" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if current_page > 1 %}enabled{% else %}disabled{% endif %}">
+                    <a class="page-link theme-page-link" href="/ui/audit_logs?page={{ current_page - 1 }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% for page in pages %}
+                <li class="page-item {% if page.to_string() == current_page.to_string() %}active{% endif %}">
+                    <a class="page-link theme-page-link" href="/ui/audit_logs?page={{ page }}">{{ page }}</a>
+                </li>
+                {% endfor %}
+                <li class="page-item {% if current_page < total_pages %}enabled{% else %}disabled{% endif %}">
+                    <a class="page-link theme-page-link" href="/ui/audit_logs?page={{ current_page + 1 }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if current_page < total_pages %}enabled{% else %}disabled{% endif %}">
+                    <a class="page-link theme-page-link" href="/ui/audit_logs?page={{ total_pages }}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
 </div>
 {% endblock content %}
 

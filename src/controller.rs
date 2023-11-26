@@ -35,14 +35,14 @@ mod errors;
 
 // Headers
 pub const AUTHORIZATION: &str = "Authorization";
-pub const USER_SESSION_KEY : &str = "USER_SESSION_KEY";
+pub const USER_SESSION_KEY: &str = "USER_SESSION_KEY";
 
 pub fn verify_session_cookie(
     req: &ServiceRequest,
     service_locator: &Data<ServiceLocator>,
 ) -> PassResult<SessionStatus> {
     // Check if the session contains user-token
-    if let Ok(Some((user_id, session_id ))) = req.get_session().get::<(String, String)>(USER_SESSION_KEY) {
+    if let Ok(Some((user_id, session_id))) = req.get_session().get::<(String, String)>(USER_SESSION_KEY) {
         validate_database_session(req, service_locator, &user_id, &session_id)
     } else {
         Ok(SessionStatus::Invalid)
@@ -65,7 +65,7 @@ fn validate_database_session(
     req: &ServiceRequest,
     service_locator: &Data<ServiceLocator>,
     user_id: &str,
-    session_id: &str) -> PassResult<SessionStatus>{
+    session_id: &str) -> PassResult<SessionStatus> {
     let session = service_locator.login_session_repository.get(user_id, session_id)?;
     let mut ctx = build_user_context_from_session(service_locator, &session)?;
     if let Some(addr) = req.peer_addr() {
@@ -122,6 +122,7 @@ fn build_user_context_from_session(
         &session.username,
         &key_params.user_id,
         Some(Roles::new(session.roles)),
+        session.light_mode,
         &key_params.pepper,
         &get_secret_key(service_locator, &session.username)?,
         service_locator.config.hash_algorithm(),

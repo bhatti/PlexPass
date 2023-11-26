@@ -5,7 +5,7 @@
 <div class="container py-5">
     <!-- Top Section -->
 </div>
-<div class="container mt-3">
+<div class="container mt-3 theme-container">
     <h2 class="text-center">PlexPass - Categories</h2>
     <!-- Button to add new category -->
     <button class="btn btn-primary mb-2 float-end" data-bs-toggle="modal" data-bs-target="#categoryModal" onclick="prepareNewCategoryModal()">Add New Category</button>
@@ -36,7 +36,7 @@
 
 {% block extra_content %}
 <!-- Category Modal -->
-<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+<div class="modal fade theme-modal" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">

@@ -48,7 +48,7 @@ impl PasswordServiceImpl {
             let accounts = self.account_service.find_accounts_by_vault(
                 ctx, vault_id, HashMap::new(), offset, 1000).await?;
             for account in &accounts.records {
-                if account.details.username.is_some() || account.details.email.is_some() || account.credentials.password.is_some() {
+                if account.details.username.is_some() || account.details.email.is_some() || account.credentials.has_password() {
                     result.push(account.to_password_summary());
                 }
             }
@@ -208,6 +208,7 @@ impl PasswordService for PasswordServiceImpl {
         vault.analysis = Some(vault_analysis.clone());
         vault.analyzed_at = Some(Utc::now().naive_utc());
         let _ = self.vault_service.update_vault(ctx, &vault).await?;
+        vault_analysis.total_accounts = vault.entries.unwrap_or_default().len();
 
         log::info!("analyzed {} passwords for user {}", &vault_analysis.total_accounts, &ctx.user_id);
 
@@ -279,7 +280,7 @@ impl PasswordService for PasswordServiceImpl {
 mod tests {
     use std::collections::HashMap;
     use uuid::Uuid;
-    use crate::domain::models::{Account, AccountKind, HSMProvider, PassConfig, PasswordPolicy, PasswordStrength, User};
+    use crate::domain::models::{Account, AccountKind, HSMProvider, PassConfig, PasswordPolicy, PasswordStrength, User, Vault, VaultKind};
     use crate::service::factory::{create_account_service, create_password_service, create_user_service, create_vault_service};
 
     #[tokio::test]
@@ -331,7 +332,7 @@ mod tests {
     async fn test_should_analyze_all_vault_passwords() {
         let mut config = PassConfig::new();
         config.hsm_provider = HSMProvider::EncryptedFile.to_string();
-        // GIVEN user-service, vault-service and account-service
+        // GIVEN user-service, vault-service, account-service and password services
         let user_service = create_user_service(&config).await.unwrap();
         let vault_service = create_vault_service(&config).await.unwrap();
         let account_service = create_account_service(&config).await.unwrap();
@@ -357,5 +358,102 @@ mod tests {
         let all_analysis = password_service.analyze_all_vault_passwords(&ctx).await.unwrap();
         assert!(!all_analysis.is_empty());
         assert!(password_service.analyze_all_vault_passwords(&ctx).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_analyze_vault() {
+        let mut config = PassConfig::new();
+        config.hsm_provider = HSMProvider::EncryptedFile.to_string();
+        // GIVEN user-service, vault-service, account-service and password services
+        let user_service = create_user_service(&config).await.unwrap();
+        let vault_service = create_vault_service(&config).await.unwrap();
+        let account_service = create_account_service(&config).await.unwrap();
+        let password_service = create_password_service(&config).await.unwrap();
+
+        // Due to referential integrity, we must first create a valid user
+        let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
+        let ctx = user_service.register_user(&user, "cru5h&r]fIt@$@v", HashMap::new()).await.unwrap();
+
+        // Create dependent vault
+        let vault = Vault::new(&user.user_id, "title1", VaultKind::Logins);
+        assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
+
+
+        // AND Given three accounts with passwords
+        let mut account1 = Account::new(&vault.vault_id, AccountKind::Login);
+        account1.details.label = Some("user1".into());
+        account1.details.username = Some("user1".into());
+        account1.credentials.password = Some("Rootbeer123".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account1).await.unwrap());
+        let mut account2 = Account::new(&vault.vault_id, AccountKind::Login);
+        account2.details.label = Some("user2".into());
+        account2.details.username = Some("user2".into());
+        account2.credentials.password = Some("sMU{b+CMP76T9g^>".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account2).await.unwrap());
+        let mut account3 = Account::new(&vault.vault_id, AccountKind::Login);
+        account3.details.label = Some("user3".into());
+        account3.details.username = Some("user3".into());
+        account3.credentials.password = Some("Rootbeer1".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account3).await.unwrap());
+
+        // AND Given three accounts with usernames/emails but without passwords
+        let mut account4 = Account::new(&vault.vault_id, AccountKind::Login);
+        account4.details.label = Some("user4".into());
+        account4.details.username = Some("user4".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account4).await.unwrap());
+        let mut account5 = Account::new(&vault.vault_id, AccountKind::Login);
+        account5.details.label = Some("user5".into());
+        account5.details.email = Some("email5@bitvaulet.com".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account5).await.unwrap());
+        let mut account6 = Account::new(&vault.vault_id, AccountKind::Login);
+        account6.details.phone = Some("phone6".into());
+        account6.details.label = Some("user6".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account6).await.unwrap());
+
+        // AND Given a account without anything and another with just label
+        let account7 = Account::new(&vault.vault_id, AccountKind::Login);
+        assert_eq!(1, account_service .create_account(&ctx, &account7).await.unwrap());
+        let mut account8 = Account::new(&vault.vault_id, AccountKind::Login);
+        account8.details.label = Some("user8".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account8).await.unwrap());
+
+        // AND Given two accounts with notes
+        let mut account9 = Account::new(&vault.vault_id, AccountKind::Login);
+        account9.details.label = Some("user9".into());
+        account9.details.username = Some("user9".into());
+        account9.credentials.notes = Some("note9".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account9).await.unwrap());
+
+        let mut account10 = Account::new(&vault.vault_id, AccountKind::Login);
+        account10.details.label = Some("user10".into());
+        account10.details.username = Some("user10".into());
+        account10.credentials.notes = Some("note10".into());
+        assert_eq!(1, account_service .create_account(&ctx, &account10).await.unwrap());
+
+        // WHEN analyzing accounts
+        let analysis = password_service.analyze_vault_passwords(&ctx, &vault.vault_id).await.unwrap();
+        // THEN it should return proper analysis.
+
+        // AND verify account updates
+        let all = account_service
+            .find_accounts_by_vault(&ctx, &vault.vault_id, HashMap::new(), 0, 1000)
+            .await
+            .unwrap();
+        let mut advisories = 0;
+        for account in all.records {
+            advisories += account.details.advisories.len();
+        }
+
+        assert_eq!(10, analysis.total_accounts);
+        assert_eq!(3, analysis.total_accounts_with_passwords);
+        assert_eq!(1, analysis.count_strong_passwords);
+        assert_eq!(2, analysis.count_moderate_passwords);
+        assert_eq!(0, analysis.count_weak_passwords);
+        assert_eq!(1, analysis.count_healthy_passwords);
+        assert_eq!(2, analysis.count_compromised);
+        assert_eq!(2, analysis.count_similar_to_other_passwords);
+        assert_eq!(0, analysis.count_reused);
+        assert_eq!(0, analysis.count_similar_to_past_passwords);
+        assert_eq!(6, advisories);
     }
 }

@@ -51,13 +51,16 @@ pub(crate) async fn generate_api_token(
 struct UserProfileTemplate {
     user: User,
     locales: Vec<UserLocale>,
+    light_mode: bool,
 }
 
 impl UserProfileTemplate {
     fn new(user: User) -> Self {
+        let light_mode = user.light_mode.unwrap_or_default();
         Self {
             user,
             locales: DEFAULT_LOCALES.to_vec(),
+            light_mode,
         }
     }
 }
@@ -85,6 +88,10 @@ pub async fn update_user_profile(
         .user_service
         .update_user(&auth.context, &user)
         .await?;
+    if user.light_mode.unwrap_or_default() != auth.context.light_mode {
+        let _ = service_locator.auth_service.update_light_mode(
+            &auth.context, &auth.user_token.login_session, user.light_mode.unwrap_or_default()).await?;
+    }
     Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/ui/users/profile")).finish())
 }
 
