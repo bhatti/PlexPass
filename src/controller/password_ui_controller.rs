@@ -6,7 +6,7 @@ use crate::controller::models::{Authenticated, GeneratePasswordRequest};
 use crate::service::locator::ServiceLocator;
 
 #[derive(Template)]
-#[template(path = "generate_password.html")]
+#[template(path = "password_tools.html")]
 struct GeneratePasswordTemplate {
 }
 
@@ -29,6 +29,40 @@ pub async fn generate_password(
     });
     Ok(HttpResponse::Ok().json(data))
 }
+
+pub async fn password_compromised(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, Error> {
+    let password = path.into_inner();
+    let compromised = service_locator
+        .password_service
+        .password_compromised(&password)
+        .await?;
+    let mut info = service_locator
+        .password_service
+        .password_info(&password)
+        .await?;
+    info.compromised = compromised;
+    Ok(HttpResponse::Ok().json(info))
+}
+
+pub async fn email_compromised(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, Error> {
+    let email = path.into_inner();
+    let res = service_locator
+        .password_service
+        .email_compromised(&email)
+        .await?;
+    let data = json!({
+        "result": res,
+    });
+    Ok(HttpResponse::Ok().json(data))
+}
+
+
 
 pub async fn schedule_password_analysis(
     service_locator: web::Data<ServiceLocator>,

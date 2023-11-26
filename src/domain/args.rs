@@ -160,6 +160,12 @@ pub enum CommandActions {
         /// The email of the account.
         #[arg(long)]
         email: Option<String>,
+        /// The phone of the account.
+        #[arg(long)]
+        phone: Option<String>,
+        /// The address of the account.
+        #[arg(long)]
+        address: Option<String>,
         /// The url of the account.
         #[arg(long)]
         website_url: Option<String>,
@@ -221,6 +227,13 @@ pub enum CommandActions {
         /// The email of the account.
         #[arg(long)]
         email: Option<String>,
+
+        /// The phone of the account.
+        #[arg(long)]
+        phone: Option<String>,
+        /// The address of the account.
+        #[arg(long)]
+        address: Option<String>,
 
         /// The url of the account.
         #[arg(long)]
@@ -575,6 +588,8 @@ impl Args {
                 username,
                 password,
                 email,
+                phone,
+                address,
                 website_url,
                 category,
                 tags,
@@ -593,6 +608,8 @@ impl Args {
                     username,
                     password,
                     email,
+                    phone,
+                    address,
                     website_url,
                     category,
                     tags,
@@ -614,6 +631,8 @@ impl Args {
                 username,
                 password,
                 email,
+                phone,
+                address,
                 website_url,
                 category,
                 tags,
@@ -632,6 +651,8 @@ impl Args {
                     username,
                     password,
                     email,
+                    phone,
+                    address,
                     website_url,
                     category,
                     tags,
@@ -708,6 +729,8 @@ impl Args {
                      username: &Option<String>,
                      password: &Option<String>,
                      email: &Option<String>,
+                     phone: &Option<String>,
+                     address: &Option<String>,
                      website_url: &Option<String>,
                      category: &Option<String>,
                      tags: &Option<Vec<String>>,
@@ -730,6 +753,8 @@ impl Args {
         account.details.description = description.clone();
         account.details.username = username.clone();
         account.details.email = email.clone();
+        account.details.phone = phone.clone();
+        account.details.address = address.clone();
         account.details.website_url = website_url.clone();
         account.details.category = category.clone();
         account.details.tags = tags.clone().unwrap_or_default();

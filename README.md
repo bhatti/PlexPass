@@ -1807,6 +1807,11 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data
     --master-password ** generate-password
 ```
 
+#### 11.23.4 Web UI 
+
+You can also use generate strong passwords using Web UI as follows:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/password_tools1.png)
+
 ### 11.24 Checking if a Password is Compromised
 
 #### 11.24.1 Command Line
@@ -1840,6 +1845,11 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data
 	-v $PARENT_DIR/PlexPassData:/data -v $CWD:/files plexpass 
     -j true --master-username frank --master-password *** password-compromised --password **
 ```
+
+#### 11.24.4 Web UI 
+
+You can check for password strength and compromise status using Web UI as follows:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/password_tools2.png)
 
 ### 11.25 Checking Strength of a Password
 

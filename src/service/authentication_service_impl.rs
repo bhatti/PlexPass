@@ -50,7 +50,8 @@ impl AuthenticationServiceImpl {
         let rp_id = config.domain.clone();
         // Url containing the effective domain name
         // MUST include the port number!
-        let rp_origin = Url::parse(&format!("https://localhost:{}", config.https_port.clone()))?;
+        let rp_origin = Url::parse(&format!("https://{}:{}",
+                                        &rp_id, config.https_port))?;
         let builder = WebauthnBuilder::new(&rp_id, &rp_origin)?;
 
         // Now, with the builder you can define other options.

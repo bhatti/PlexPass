@@ -282,8 +282,12 @@ pub struct CreateAccountRequest {
     pub password: Option<String>,
     // The email of the account.
     pub email: Option<String>,
+    // The phone of the account.
+    pub phone: Option<String>,
     // The url of the account.
     pub website_url: Option<String>,
+    // The address of the account.
+    pub address: Option<String>,
     // The category of the account.
     pub category: Option<String>,
     // The tags of the account.
@@ -330,7 +334,9 @@ impl CreateAccountRequest {
             username: None,
             password: None,
             email: None,
+            phone: None,
             website_url: None,
+            address: None,
             category: None,
             tags: vec![].into(),
             otp: None,
@@ -367,7 +373,9 @@ impl CreateAccountRequest {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
+        account.details.phone = self.phone.clone();
         account.details.website_url = self.website_url.clone();
+        account.details.address = self.address.clone();
         account.details.category = self.category.clone();
         account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
@@ -492,8 +500,12 @@ pub struct AccountResponse {
     pub password: Option<String>,
     // The email of the account.
     pub email: Option<String>,
+    // The phone of the account.
+    pub phone: Option<String>,
     // The url of the account.
     pub website_url: Option<String>,
+    // The address of the account.
+    pub address: Option<String>,
     // The category of the account.
     pub category: Option<String>,
     // The tags of the account.
@@ -548,8 +560,10 @@ impl AccountResponse {
             description: account.details.description.clone(),
             username: account.details.username.clone(),
             password: account.credentials.password.clone(),
+            phone: account.details.phone.clone(),
             email: account.details.email.clone(),
             website_url: account.details.website_url.clone(),
+            address: account.details.address.clone(),
             category: account.details.category.clone(),
             tags: Some(account.details.tags.clone()),
             otp: account.credentials.otp.clone(),
@@ -647,8 +661,12 @@ pub struct UpdateAccountRequest {
     pub password: Option<String>,
     // The email of the account.
     pub email: Option<String>,
+    // The phone of the account.
+    pub phone: Option<String>,
     // The url of the account.
     pub website_url: Option<String>,
+    // The address of the account.
+    pub address: Option<String>,
     // The categories of the account.
     pub category: Option<String>,
     // The tags of the account.
@@ -698,7 +716,9 @@ impl UpdateAccountRequest {
             username: None,
             password: None,
             email: None,
+            phone: None,
             website_url: None,
+            address: None,
             category: None,
             tags: None,
             otp: None,
@@ -737,7 +757,9 @@ impl UpdateAccountRequest {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
+        account.details.phone = self.phone.clone();
         account.details.website_url = self.website_url.clone();
+        account.details.address = self.address.clone();
         account.details.category = self.category.clone();
         account.details.tags = self.tags.clone().unwrap_or_default();
         account.details.icon = self.icon.clone();
@@ -805,8 +827,9 @@ impl Account {
                 "description" => account.details.description = Some(value),
                 "username" => account.details.username = Some(value),
                 "email" => account.details.email = Some(value),
-                "url" => account.details.website_url = Some(value),
+                "phone" => account.details.phone = Some(value),
                 "website_url" => account.details.website_url = Some(value),
+                "address" => account.details.address = Some(value),
                 "category" => account.details.category = Some(value),
                 "tags" => account.details.tags = value.as_str().split("[,;]").map(|s| s.to_string()).collect::<Vec<String>>(),
                 "password" => account.credentials.password = Some(value),

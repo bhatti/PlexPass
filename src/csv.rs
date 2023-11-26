@@ -17,6 +17,8 @@ pub(crate) struct CSVRecord {
     username: Option<String>,
     password: Option<String>,
     email: Option<String>,
+    phone: Option<String>,
+    address: Option<String>,
     description: Option<String>,
     #[serde(alias = "notes", alias = "secure_notes")]
     note: Option<String>,
@@ -37,6 +39,8 @@ impl CSVRecord {
             website_url: account.details.website_url.clone(),
             username: account.details.username.clone(),
             email: account.details.email.clone(),
+            phone: account.details.phone.clone(),
+            address: account.details.address.clone(),
             password: account.credentials.password.clone(),
             description: account.details.description.clone(),
             note: account.credentials.notes.clone(),
@@ -78,6 +82,8 @@ impl CSVRecord {
         account.details.description = self.description.clone();
         account.details.username = self.username.clone();
         account.details.email = self.email.clone();
+        account.details.phone = self.phone.clone();
+        account.details.address = self.address.clone();
         account.details.website_url = self.website_url.clone();
         account.details.category = self.category.clone();
         if let Some(tags) = &self.tags {

@@ -54,11 +54,17 @@ async function viewAccount(id) {
                 &nbsp;
                 <button id="viewPasswordButton" class="btn btn-outline-info" onclick="togglePasswordVisibility()">Show</button>
                 &nbsp;
-                <button class="btn btn-outline-dark" onclick="copyToClipboard('passwordValue')">Copy</button>
+                <button class="btn btn-outline-dark" onclick="copyToClipboard('${account.password}')">Copy</button>
             </td>
         </tr>
         <tr>
             <td><strong>Email:</strong></td><td> <span id="viewEmail">${account.email || ''}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Phone:</strong></td><td> <span id="viewPhone">${account.phone || ''}</span></td>
+        </tr>
+        <tr>
+            <td><strong>Address:</strong></td><td> <span id="viewAddress">${account.address || ''}</span></td>
         </tr>
         <tr>
             <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.website_url || ''}</span></td>
@@ -113,15 +119,15 @@ function buildOtpSection(otp, generatedOtp) {
             <td><strong>OTP Secret:</strong></td><td> <span id="viewOtp">${otp || ''}</span></td>
         </tr>
         <tr>
-            <td><strong>Generated OTP:</strong></td><td> 
+            <td><strong>Generated OTP:</strong></td><td>
                 <div class="row align-items-center">
                 </div>
-               
+
                 <div class="col">
                     <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
                         <span id="viewGeneratedOtp">${generatedOtp}</span>
                     </div>
-                </div> 
+                </div>
                 <!-- Progress Bar -->
                 <div class="col">
                     <div class="progress">
@@ -225,6 +231,7 @@ async function addAccount(vault_id) {
         username: '',
         password: '',
         phone: '',
+        address: '',
         website_url: '',
         category: '',
         tags: '',
@@ -306,8 +313,12 @@ async function showAccountForm(account) {
                         <input type="tel" class="form-control" name="phone" value="${account.phone || ''}">
                     </div>
                     <div class="form-group mb-3">
+                        <label>Address:</label>
+                        <textarea class="form-control" id="address" name="address">${account.address || ''}</textarea>
+                    </div>
+                    <div class="form-group mb-3">
                         <label for="website_url" class="form-label">Website URL:</label>
-                        <input type="url" class="form-control" id="website_url" name="website_url" value="${account.url || ''}">
+                        <input type="url" class="form-control" id="website_url" name="website_url" value="${account.website_url || ''}">
                     </div>
                     <div class="form-group mb-3">
                         <label for="editCategory" class="form-label">Category: </label>
@@ -573,9 +584,7 @@ async function handleSaveAccount(form) {
     const formData = new FormData(form);
     try {
         await postData(path, formData);
-        showToast('Saved account successfully', () => {
-            location.reload();
-        })
+        location.reload();
     } catch (e) {
         console.error('Failed to update the account', e);
     }
@@ -824,6 +833,60 @@ async function generatePassword() {
     generatedPasswordInput.value = password;
     passwordDisplaySection.style.display = 'block';
     passwordDisplaySection.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+async function checkPassword() {
+    const inputPassword = document.getElementById('inputPassword').value;
+
+    const response = await fetch(`/ui/password/${inputPassword}/compromised`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+    const data = await response.json();
+    const passwordCheckResult = document.getElementById('passwordCheckResult');
+    passwordCheckResult.innerHTML = `
+        <table class="table table-striped-columns">
+        <tr>
+            <td><strong>Password Compromised:</strong></td><td>${data.compromised}</td>
+        </tr>
+        <tr>
+            <td><strong>Password Strength:</strong></td><td>${data.strength}</td>
+        </tr>
+        <tr>
+            <td><strong>Password Entropy:</strong></td><td>${data.entropy}</td>
+        </tr>
+        <tr>
+            <td><strong>Password Length:</strong></td><td>${data.length}</td>
+        </tr>
+        <tr>
+            <td><strong>Uppercase:</strong></td><td>${data.uppercase}</td>
+        </tr>
+        <tr>
+            <td><strong>Lowercase:</strong></td><td>${data.lowercase}</td>
+        </tr>
+        <tr>
+            <td><strong>Digits:</strong></td><td>${data.digits}</td>
+        </tr>
+        <tr>
+            <td><strong>Special Characters:</strong></td><td>${data.special_chars}</td>
+        </tr>
+        </table>`;
+}
+
+async function checkEmailUrl() {
+    const inputEmailOrUrl = document.getElementById('inputEmailOrUrl').value;
+
+    const response = await fetch(`/ui/emails/${inputEmailOrUrl}/compromised`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    })
+    const data = await response.json();
+    const emailCompromiseCheckResult = document.getElementById('emailCompromiseCheckResult');
+    emailCompromiseCheckResult .innerHTML = `${data}`;
 }
 
 function copyPassword() {

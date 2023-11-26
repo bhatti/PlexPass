@@ -130,6 +130,7 @@ impl PasswordService for PasswordServiceImpl {
 
         // skip analysis if last analysis was run 24 hours ago
         for password_summary in &mut password_summaries {
+            password_summary.advisories.clear();
             if let Some(email) = &password_summary.email {
                 if let Ok(compromised) = self.email_compromised(email).await {
                     password_summary.password_analysis.compromised_account_analysis = compromised.clone();
@@ -183,9 +184,11 @@ impl PasswordService for PasswordServiceImpl {
 
                 // Check if password is compromised
                 if let Ok(compromised) = self.password_compromised(password).await {
-                    password_summary.advisories.insert(Advisory::CompromisedPassword,
-                                                       "The password is compromised and found in 'Have I been Pwned' database.".to_string());
-                    password_summary.password_analysis.compromised = compromised;
+                    if compromised {
+                        password_summary.advisories.insert(Advisory::CompromisedPassword,
+                                                           "The password is compromised and found in 'Have I been Pwned' database.".to_string());
+                        password_summary.password_analysis.compromised = compromised;
+                    }
                 }
                 //
                 // TODO  CompromisedWebsite

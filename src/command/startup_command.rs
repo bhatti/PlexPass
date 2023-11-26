@@ -266,6 +266,8 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     // ui password
     service_config.route("/ui/password/generate", web::get().to(password_ui_controller::generate_password_page));
     service_config.route("/ui/password/generate", web::post().to(password_ui_controller::generate_password));
+    service_config.route("/ui/password/{password}/compromised", web::get().to(password_ui_controller::password_compromised));
+    service_config.route("/ui/emails/{email}/compromised", web::get().to(password_ui_controller::email_compromised));
     service_config.route("/ui/password/schedule_password_analysis", web::post().to(password_ui_controller::schedule_password_analysis));
 
     // ui categories

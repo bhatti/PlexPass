@@ -27,6 +27,18 @@
                 </div>
                 <div class="col text-center">
                     <div class="p-3 border bg-light">
+                        <h6>Total Accounts</h6>
+                        <p id="totalAccounts"><b>{{summary.total_accounts}}</b></p>
+                    </div>
+                </div>
+                <div class="col text-center">
+                    <div class="p-3 border bg-light">
+                        <h6>Total Accounts with Password</h6>
+                        <p id="totalAccountsWithPasswords"><b>{{summary.total_accounts_with_passwords}}</b></p>
+                    </div>
+                </div>
+                <div class="col text-center">
+                    <div class="p-3 border bg-light">
                         <h6>Compromised Passwords</h6>
                         <p id="totalCompromised"><b>{{summary.count_compromised}}</b></p>
                     </div>
@@ -101,6 +113,18 @@
                 <!-- Metrics -->
                 <div class="col-md-8">
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-4">
+                        <div class="col text-center">
+                            <div class="p-3 border bg-light">
+                                <h6>Total Accounts</h6>
+                                <p id="{{vault.vault_id}}_totalAccounts"><b>{{vault.analysis.total_accounts}}</b></p>
+                            </div>
+                        </div>
+                        <div class="col text-center">
+                            <div class="p-3 border bg-light">
+                                <h6>Total Accounts with Password</h6>
+                                <p id="{{vault.vault_id}}_totalAccountsWithPasswords"><b>{{vault.analysis.total_accounts_with_passwords}}</b></p>
+                            </div>
+                        </div>
                         <div class="col text-center">
                             <div class="p-3 border bg-light">
                                 <h6>Compromised Passwords</h6>

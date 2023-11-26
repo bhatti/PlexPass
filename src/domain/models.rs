@@ -290,7 +290,7 @@ impl LoginSession {
         }
         if !self.expired_mfa() {
             self.mfa_verified_at = Some(Utc::now().naive_utc());
-            return true
+            return true;
         }
         false
     }
@@ -853,6 +853,10 @@ pub struct AccountSummary {
     pub username: Option<String>,
     // The email of the account.
     pub email: Option<String>,
+    // The phone of the account.
+    pub phone: Option<String>,
+    // The address of the account.
+    pub address: Option<String>,
     // The url of the account.
     pub website_url: Option<String>,
     // The category of the account.
@@ -897,6 +901,8 @@ impl AccountSummary {
             description: None,
             username: None,
             email: None,
+            phone: None,
+            address: None,
             website_url: None,
             category: None,
             tags: Default::default(),
@@ -935,6 +941,12 @@ impl AccountSummary {
             return true;
         }
         if self.website_url().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.phone().to_lowercase().contains(&lq) {
+            return true;
+        }
+        if self.address().to_lowercase().contains(&lq) {
             return true;
         }
         if format!("{:?}", &self.advisories).to_lowercase().contains(&lq) {
@@ -1001,6 +1013,12 @@ impl AccountSummary {
     pub fn website_url(&self) -> String {
         self.website_url.clone().unwrap_or("".into())
     }
+    pub fn phone(&self) -> String {
+        self.phone.clone().unwrap_or("".into())
+    }
+    pub fn address(&self) -> String {
+        self.address.clone().unwrap_or("".into())
+    }
 }
 
 impl Display for AccountSummary {
@@ -1020,6 +1038,12 @@ impl Display for AccountSummary {
         }
         if let Some(website_url) = &self.website_url {
             buf.push_str(website_url);
+        }
+        if let Some(phone) = &self.phone {
+            buf.push_str(phone);
+        }
+        if let Some(address) = &self.address {
+            buf.push_str(address);
         }
         write!(f, "{}", buf)
     }
@@ -1246,6 +1270,8 @@ impl Account {
             label: self.details.label.clone(),
             username: self.details.username.clone(),
             email: self.details.email.clone(),
+            phone: self.details.phone.clone(),
+            address: self.details.address.clone(),
             website_url: self.details.website_url.clone(),
             advisories: self.details.advisories.clone(),
             credentials_updated_at: self.details.credentials_updated_at,
@@ -1268,30 +1294,30 @@ impl Display for Account {
         if let Some(email) = &self.details.email {
             buf.push_str(email);
         }
+        if let Some(phone) = &self.details.phone {
+            buf.push_str(phone);
+        }
+        if let Some(address) = &self.details.address {
+            buf.push_str(address);
+        }
         if let Some(url) = &self.details.website_url {
             buf.push_str(url);
         }
 
-        // Second if we url, username, email and password are not available, identify by secure notes
-        // and form fields.
-        if buf.is_empty() {
-            if let Some(notes) = &self.credentials.notes {
-                buf.push_str(notes);
-            }
-            for (k, v) in &self.credentials.form_fields {
-                buf.push_str(k.as_str());
-                buf.push_str(v.as_str());
-            }
+        if let Some(notes) = &self.credentials.notes {
+            buf.push_str(notes);
+        }
+        for (k, v) in &self.credentials.form_fields {
+            buf.push_str(k.as_str());
+            buf.push_str(v.as_str());
         }
 
         // Finally identify by label and description
-        if buf.is_empty() {
-            if let Some(label) = &self.details.label {
-                buf.push_str(label);
-            }
-            if let Some(des) = &self.details.description {
-                buf.push_str(des);
-            }
+        if let Some(label) = &self.details.label {
+            buf.push_str(label);
+        }
+        if let Some(des) = &self.details.description {
+            buf.push_str(des);
         }
         write!(f, "{}", buf)
     }
@@ -1308,6 +1334,10 @@ pub struct AccountPasswordSummary {
     pub username: Option<String>,
     // The email of the account.
     pub email: Option<String>,
+    // The phoneof the account.
+    pub phone: Option<String>,
+    // The address of the account.
+    pub address: Option<String>,
     // The url of the account.
     pub website_url: Option<String>,
     pub advisories: HashMap<Advisory, String>,
@@ -1324,13 +1354,14 @@ pub struct AccountPasswordSummary {
 
 
 pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
-pub const DEFAULT_CATEGORIES: [&str; 10] = [
+pub const DEFAULT_CATEGORIES: [&str; 11] = [
     "Logins",
     "Finance",
     "Social",
     "Shopping",
     "Travel",
     "Gaming",
+    "Contacts",
     "Chat",
     "Notes",
     "Credit Cards",
@@ -1968,6 +1999,7 @@ impl PasswordPolicy {
             digits: 0,
             special_chars: 0,
             length: password.len(),
+            compromised: false,
         };
         let mut charset_size = 0;
         for c in password.chars() {
@@ -2600,6 +2632,8 @@ pub struct PasswordInfo {
     pub special_chars: usize,
     // length of password.
     pub length: usize,
+    // compromised flag of password.
+    pub compromised: bool,
 }
 
 impl Display for PasswordInfo {
@@ -2683,6 +2717,7 @@ impl PasswordAnalysis {
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct VaultAnalysis {
     pub total_accounts: usize,
+    pub total_accounts_with_passwords: usize,
     pub count_strong_passwords: usize,
     pub count_moderate_passwords: usize,
     pub count_weak_passwords: usize,
@@ -2703,6 +2738,7 @@ impl VaultAnalysis {
     pub fn new() -> Self {
         Self {
             total_accounts: 0,
+            total_accounts_with_passwords: 0,
             count_strong_passwords: 0,
             count_moderate_passwords: 0,
             count_weak_passwords: 0,
@@ -2725,6 +2761,7 @@ impl VaultAnalysis {
     pub fn add(&mut self, other: Option<VaultAnalysis>) {
         if let Some(other) = other {
             self.total_accounts += other.total_accounts;
+            self.total_accounts_with_passwords += other.total_accounts_with_passwords;
             self.count_strong_passwords += other.count_strong_passwords;
             self.count_moderate_passwords += other.count_moderate_passwords;
             self.count_weak_passwords += other.count_weak_passwords;
@@ -2738,26 +2775,28 @@ impl VaultAnalysis {
 
     pub fn update(&mut self, password_summary: &AccountPasswordSummary) {
         self.total_accounts += 1;
-        match password_summary.password_analysis.strength {
-            PasswordStrength::WEAK => { self.count_weak_passwords += 1; }
-            PasswordStrength::MODERATE => { self.count_moderate_passwords += 1; }
-            PasswordStrength::STRONG => { self.count_strong_passwords += 1; }
-        }
-
-        if password_summary.password_analysis.is_healthy() {
-            self.count_healthy_passwords += 1;
-        }
-        if password_summary.password_analysis.compromised {
-            self.count_compromised += 1;
-        }
-        if password_summary.password_analysis.count_reused > 0 {
-            self.count_reused += 1;
-        }
-        if password_summary.password_analysis.count_similar_to_other_passwords > 0 {
-            self.count_similar_to_other_passwords += 1;
-        }
-        if password_summary.password_analysis.count_similar_to_past_passwords > 0 {
-            self.count_similar_to_past_passwords += 1;
+        if password_summary.password.is_some() {
+            self.total_accounts_with_passwords += 1;
+            match password_summary.password_analysis.strength {
+                PasswordStrength::WEAK => { self.count_weak_passwords += 1; }
+                PasswordStrength::MODERATE => { self.count_moderate_passwords += 1; }
+                PasswordStrength::STRONG => { self.count_strong_passwords += 1; }
+            }
+            if password_summary.password_analysis.is_healthy() {
+                self.count_healthy_passwords += 1;
+            }
+            if password_summary.password_analysis.compromised {
+                self.count_compromised += 1;
+            }
+            if password_summary.password_analysis.count_reused > 0 {
+                self.count_reused += 1;
+            }
+            if password_summary.password_analysis.count_similar_to_other_passwords > 0 {
+                self.count_similar_to_other_passwords += 1;
+            }
+            if password_summary.password_analysis.count_similar_to_past_passwords > 0 {
+                self.count_similar_to_past_passwords += 1;
+            }
         }
     }
 }
@@ -2765,6 +2804,7 @@ impl VaultAnalysis {
 impl PartialEq for VaultAnalysis {
     fn eq(&self, other: &Self) -> bool {
         self.total_accounts == other.total_accounts &&
+            self.total_accounts_with_passwords == other.total_accounts_with_passwords &&
             self.count_strong_passwords == other.count_strong_passwords &&
             self.count_moderate_passwords == other.count_moderate_passwords &&
             self.count_weak_passwords == other.count_weak_passwords &&
@@ -2854,6 +2894,8 @@ mod tests {
         assert_eq!(None, account.details.description);
         assert_eq!(None, account.details.username);
         assert_eq!(None, account.details.email);
+        assert_eq!(None, account.details.phone);
+        assert_eq!(None, account.details.address);
         assert_eq!(None, account.details.website_url);
         assert_eq!(None, account.credentials.password);
         assert_eq!(None, account.credentials.password_sha1);
