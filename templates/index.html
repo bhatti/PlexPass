@@ -102,7 +102,7 @@
                 <tbody>
                 {% for account in accounts %}
                 <tr>
-                    <td style="{{account.risk_bg_color()}}">
+                    <td>
                         {% if account.has_favicon() %}
                         <img width="16" height="16" src="{{account.favicon()}}">
                         {% endif %}
@@ -110,6 +110,9 @@
                         <a href="{{account.website_url()}}">{{account.label_description()}}</a>
                         {% else %}
                         {{account.label_description()}}
+                        {% endif %}
+                        {% if account.has_risk_image() %}
+                        <img width="32" height="32" src="{{account.risk_image()}}">
                         {% endif %}
                     </td>
                     <td>{{account.username()}}</td>

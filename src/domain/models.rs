@@ -982,12 +982,22 @@ impl AccountSummary {
         self.website_url.is_some()
     }
 
-    pub fn risk_bg_color(&self) -> String {
+    pub fn has_risk_image(&self) -> bool {
         match self.risk {
-            AccountRisk::High => { "background-color: #ff9999;".into() }
-            AccountRisk::Medium => { "background-color: #ff9933;".into() }
-            AccountRisk::Low => { "background-color: #ffcc00;".into() }
-            AccountRisk::None => { "background-color: #99ff99;".into() }
+            AccountRisk::High => true,
+            AccountRisk::Medium => true,
+            AccountRisk::Low => true,
+            AccountRisk::None => false,
+            AccountRisk::Unknown => false,
+        }
+    }
+
+    pub fn risk_image(&self) -> String {
+        match self.risk {
+            AccountRisk::High => { "/assets/images/danger.png".into() }
+            AccountRisk::Medium => { "/assets/images/warning.png".into() }
+            AccountRisk::Low => { "/assets/images/notice.png".into() }
+            AccountRisk::None => { "".into() }
             AccountRisk::Unknown => { "".into() }
         }
     }

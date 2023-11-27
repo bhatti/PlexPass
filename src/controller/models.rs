@@ -491,7 +491,7 @@ pub struct AccountResponse {
     // risk of password and account
     pub risk: AccountRisk,
     // risk background color
-    pub risk_bg_color: String,
+    pub risk_image: String,
     // The description of the account.
     pub description: Option<String>,
     // The username of the account.
@@ -556,7 +556,7 @@ impl AccountResponse {
             label: account.details.label.clone(),
             favorite: Some(account.details.favorite),
             risk: account.details.risk.clone(),
-            risk_bg_color: account.details.risk_bg_color(),
+            risk_image: account.details.risk_image(),
             description: account.details.description.clone(),
             username: account.details.username.clone(),
             password: account.credentials.password.clone(),
