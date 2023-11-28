@@ -31,8 +31,8 @@ pub enum CommandActions {
         jwt_key: Option<String>,
 
         /// Session timeout in minutes
-        #[arg(long, default_value_t = 30)]
-        session_timeout_minutes: i64,
+        #[arg(long)]
+        session_timeout_minutes: Option<i64>,
 
         /// Cert file path
         #[arg(long)]

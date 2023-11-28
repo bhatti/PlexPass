@@ -90,8 +90,6 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
             .configure(config_services)
     });
 
-    println!("----------session {}", config.session_timeout_minutes);
-
     match load_rustls_config(&config) {
         Ok(server_config) => {
             log::info!("starting TLS based API server on {}", https_port);

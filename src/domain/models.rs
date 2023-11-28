@@ -1673,7 +1673,7 @@ impl PassConfig {
                                 hsm_provider: &Option<String>,
                                 domain: &Option<String>,
                                 jwt_key: &Option<String>,
-                                session_timeout_minutes: &i64,
+                                session_timeout_minutes: &Option<i64>,
                                 cert_file: &Option<PathBuf>,
                                 key_file: &Option<PathBuf>,
                                 key_password: &Option<String>,
@@ -1694,7 +1694,9 @@ impl PassConfig {
         if let Some(jwt_key) = jwt_key {
             self.jwt_key = jwt_key.clone();
         }
-        self.session_timeout_minutes = *session_timeout_minutes;
+        if let Some(session_timeout_minutes) = session_timeout_minutes{
+            self.session_timeout_minutes = *session_timeout_minutes;
+        }
 
         if let Some(cert_file) = cert_file {
             self.cert_file = Some(cert_file.clone());

@@ -13,7 +13,7 @@ use crate::domain::error::PassError;
 use crate::utils::metrics::PassMetrics;
 use crate::utils::text::{cosine_similarity, jaccard_similarity, jaro_winkler_similarity, levenshtein_distance};
 
-const MILLIS_IN_DAY: i64 = 86400 * 1000;
+const VAULT_ANALYZE_DELAY_MILLIS: i64 = 3600 * 1000 * 2; // 2 hours
 
 #[derive(Clone)]
 pub(crate) struct PasswordServiceImpl {
@@ -114,7 +114,7 @@ impl PasswordService for PasswordServiceImpl {
         let vault = self.vault_service.get_vault(ctx, vault_id).await?;
         if let Some(analyzed_at) = vault.analyzed_at {
             let elapsed = now.timestamp_millis() - analyzed_at.timestamp_millis();
-            if elapsed < MILLIS_IN_DAY {
+            if elapsed < VAULT_ANALYZE_DELAY_MILLIS {
                 return Err(PassError::validation("vault was recently analyzed so skipping it", None));
             }
         }
