@@ -1386,7 +1386,7 @@ impl AccountPasswordSummary {
 }
 
 pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
-pub const DEFAULT_CATEGORIES: [&str; 11] = [
+pub const DEFAULT_CATEGORIES: [&str; 10] = [
     "Contacts",
     "Logins",
     "Finance",
@@ -1394,7 +1394,6 @@ pub const DEFAULT_CATEGORIES: [&str; 11] = [
     "Shopping",
     "Travel",
     "Gaming",
-    "Chat",
     "Notes",
     "Credit Cards",
     "Miscellaneous",

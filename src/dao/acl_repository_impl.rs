@@ -9,6 +9,7 @@ use crate::dao::schema::acls::dsl::*;
 use crate::dao::{DbConnection, DbPool, ACLRepository, Repository};
 use crate::domain::error::PassError;
 use crate::domain::models::{PaginatedResult, PassResult};
+use crate::locales::safe_localized_message;
 
 #[derive(Clone)]
 pub(crate) struct ACLRepositoryImpl {
@@ -49,7 +50,7 @@ impl ACLRepositoryImpl {
         {
             Ok(count) => {
                 count > 0
-            },
+            }
             Err(_) => false,
         }
     }
@@ -85,7 +86,9 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
     // create acl.
     async fn create(&self, ctx: &UserContext, acl_entity: &ACLEntity) -> PassResult<usize> {
         if !ctx.is_admin() {
-            return Err(PassError::authentication("only admin can create ACL repository"));
+            return Err(PassError::authentication(
+                &safe_localized_message("acl-admin-only", None),
+            ));
         }
         let mut conn = self.connection()?;
         let size = Self::create_conn(acl_entity, &mut conn)?;
@@ -95,7 +98,9 @@ impl Repository<ACLEntity, ACLEntity> for ACLRepositoryImpl {
     // updates existing acl.
     async fn update(&self, ctx: &UserContext, acl_entity: &ACLEntity) -> PassResult<usize> {
         if !ctx.is_admin() {
-            return Err(PassError::authentication("only admin can update ACL repository"));
+            return Err(PassError::authentication(
+                &safe_localized_message("acl-admin-only", None),
+            ));
         }
 
         let existing_acl_entity = self.get_entity(ctx, &acl_entity.acl_id).await?;

@@ -2,6 +2,7 @@ use crate::crypto::compute_sha1_hex;
 use crate::domain::error::PassError;
 use crate::domain::models::PassResult;
 use log::info;
+use crate::locales::safe_localized_message;
 
 /// email_compromised checks if an account with given email has been compromised  
 pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<String> {
@@ -11,8 +12,8 @@ pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<
         email
     );
     let client = reqwest::Client::builder()
-        .user_agent("PlexPass/1.0")
-        .build()?;
+        .user_agent(safe_localized_message("plexpass", None))
+                        .build()?;
 
     let response = client
         .get(&url)
@@ -28,7 +29,7 @@ pub(crate) async fn email_compromised(email: &str, api_key: &str) -> PassResult<
                     info!("-debug hibp---{}", text);
                     if text.contains("statusCode") || text.contains("hibp-api-key") {
                         return Err(PassError::runtime(
-                            format!("failed to check email for compromise: {}", text).as_str(),
+                            &safe_localized_message("email-compromise-error", Some(&["err", &text])),
                             None,
                         ));
                     }

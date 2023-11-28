@@ -26,6 +26,7 @@ use crate::domain::models::{
     CryptoAlgorithm, DecryptRequest, DecryptResponse, EncryptRequest, EncryptResponse,
     HashAlgorithm, PassResult, PBKDF2_HMAC_SHA256_ITERATIONS,
 };
+use crate::locales::safe_localized_message;
 
 // Cryptographically secure random number generator
 
@@ -117,7 +118,9 @@ pub(crate) fn generate_private_public_keys_from_secret(
 pub(crate) fn generate_private_key_from_secret(secret: &str) -> PassResult<(SecretKey, [u8; SECRET_LEN])> {
     let in_bytes = secret.as_bytes();
     if in_bytes.len() < SECRET_LEN {
-        return Err(PassError::validation(format!("secret ({}:{})is too small", secret, secret.len()).as_str(), None));
+        return Err(PassError::validation(
+            &safe_localized_message("short-secret-error", Some(&["len", &secret.len().to_string()])),
+            None));
     }
     let mut p = [0; SECRET_LEN];
     p[..SECRET_LEN].copy_from_slice(&in_bytes[..SECRET_LEN]);

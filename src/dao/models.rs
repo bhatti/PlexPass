@@ -11,6 +11,7 @@ use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use uuid::Uuid;
+use crate::locales::safe_localized_message;
 
 pub const CONTEXT_IP_ADDRESS: &str = "ip_address";
 
@@ -131,7 +132,7 @@ impl UserContext {
             Ok(())
         } else {
             Err(PassError::authorization(
-                "username in context didn't match target user entity",
+                &safe_localized_message("username-mismatch-error", None),
             ))
         }
     }
@@ -144,10 +145,9 @@ impl UserContext {
             Ok(())
         } else {
             eprintln!("backtrace: {}", Backtrace::capture());
-            Err(PassError::authorization(&format!(
-                "user_id in context ({}) didn't match user_id ({}) in the request",
-                &self.user_id, user_id
-            )))
+            Err(PassError::authorization(
+                &safe_localized_message("user-id-mismatch-error", Some(&["id1", &self.user_id, "id2", user_id])),
+            ))
         }
     }
 

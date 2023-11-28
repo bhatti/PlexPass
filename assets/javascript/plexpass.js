@@ -28,7 +28,7 @@ async function viewAccount(id) {
         }
         advisories += `</ul>`;
     }
-    const riskBackgroundColor = account.risk_bg_color;
+    const riskImage = account.risk_image ? `<img width="32" height="32" src="${account.risk_image}">` : '';
 
     modalBody.innerHTML = `
         <table class="table table-striped-columns">
@@ -54,7 +54,7 @@ async function viewAccount(id) {
                 &nbsp;
                 <button id="viewPasswordButton" class="btn btn-outline-info" onclick="togglePasswordVisibility()">Show</button>
                 &nbsp;
-                <button class="btn btn-outline-dark" onclick="copyToClipboard('${account.password}')">Copy</button>
+                <button class="btn btn-outline-warning" onclick="copyToClipboard('${account.password}')">Copy</button>
             </td>
         </tr>
         <tr>
@@ -80,7 +80,7 @@ async function viewAccount(id) {
             <td><strong>Notes:</strong></td><td> <span id="viewNotes">${account.notes || ''}</span></td>
         </tr>
         <tr>
-            <td><strong>Account Risk:</strong></td><td style="${riskBackgroundColor}"> <span id="viewNotes">${account.risk}</span></td>
+            <td><strong>Account Risk:</strong></td><td>${riskImage}&nbsp;<span id="viewNotes">${account.risk}</span></td>
         </tr>
         </table>
         <h5>Advisories:</h5>
@@ -136,7 +136,7 @@ function buildOtpSection(otp, generatedOtp) {
                 </div>
                 &nbsp;
                 <div class="col-auto">
-                    <button class="btn btn-outline-dark" onclick="copyOtpToClipboard()">Copy</button>
+                    <button class="btn btn-outline-warning" onclick="copyOtpToClipboard()">Copy</button>
                 </div>
             </td>
         </tr>
@@ -297,6 +297,12 @@ async function showAccountForm(account) {
                         <input type="text" class="form-control" id="description" name="description" value="${account.description || ''}">
                     </div>
                     <div class="form-group mb-3">
+                        <label for="editCategory" class="form-label">Category: </label>
+                        <select class="form-select" id="editCategory" name="category">
+                          ${category_opts}
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
                         <label for="username" class="form-label">Username:</label>
                         <input type="text" class="form-control" id="username" name="username" value="${account.username || ''}">
                     </div>
@@ -319,12 +325,6 @@ async function showAccountForm(account) {
                     <div class="form-group mb-3">
                         <label for="website_url" class="form-label">Website URL:</label>
                         <input type="url" class="form-control" id="website_url" name="website_url" value="${account.website_url || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="editCategory" class="form-label">Category: </label>
-                        <select class="form-select" id="editCategory" name="category">
-                          ${category_opts}
-                        </select>
                     </div>
                     <div class="form-group mb-3">
                         <label>Tags (separated by commas):</label>

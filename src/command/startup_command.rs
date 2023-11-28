@@ -2,12 +2,11 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
-use actix_cors::Cors;
 use actix_files::{Files, NamedFile};
 use actix_session::config::PersistentSession;
 use actix_session::SessionMiddleware;
 use actix_session::storage::CookieSessionStore;
-use actix_web::{App, http, HttpResponse, HttpServer, middleware, web};
+use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use actix_web::cookie::Key;
 use actix_web_prom::PrometheusMetricsBuilder;
 use openssl::pkey::{PKey, Private};
@@ -71,21 +70,6 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
             .service(
                 Files::new("/assets", "./assets")
             )
-            .wrap(
-                Cors::default() // allowed_origin return access-control-allow-origin: * by default
-                    .allowed_origin(&format!("http://127.0.0.1:{}", http_port.clone()))
-                    .allowed_origin(&format!("https://127.0.0.1:{}", https_port.clone()))
-                    .allowed_origin(&format!("http://localhost:{}", http_port.clone()))
-                    .allowed_origin(&format!("https://localhost:{}", https_port.clone()))
-                    .send_wildcard()
-                    .allowed_methods(vec!["GET", "POST", "PUT", "DELETE"])
-                    .allowed_headers(vec![
-                        http::header::AUTHORIZATION,
-                        http::header::ACCEPT,
-                        http::header::CONTENT_TYPE,
-                    ])
-                    .max_age(3600), // for cors
-            )
             .wrap(middleware::Logger::default())
             .wrap(auth_middleware::Authentication)
             .wrap(prometheus.clone())
@@ -105,6 +89,8 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
             )
             .configure(config_services)
     });
+
+    println!("----------session {}", config.session_timeout_minutes);
 
     match load_rustls_config(&config) {
         Ok(server_config) => {
