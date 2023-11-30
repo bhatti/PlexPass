@@ -24,7 +24,7 @@ pub mod models;
 pub mod setting_repository_impl;
 mod user_repository_impl;
 pub mod vault_repository_impl;
-pub mod share_vault_account_repository;
+pub mod share_vault_account_repository_impl;
 mod schema;
 mod user_vault_repository_impl;
 mod audit_repository_impl;
@@ -191,6 +191,13 @@ pub trait UserVaultRepository {
         conn: &mut DbConnection,
     ) -> Result<usize, diesel::result::Error>;
 
+    // update user-vault
+    fn update(
+        &self,
+        user_vault: &UserVaultEntity,
+        conn: &mut DbConnection,
+    ) -> Result<usize, diesel::result::Error>;
+
     // delete user-vault
     fn delete(
         &self,
@@ -239,6 +246,14 @@ pub trait ShareVaultAccountRepository {
         vault_id: &str,
         target_username: &str,
         read_only: bool,
+    ) -> PassResult<usize>;
+
+    // unshare vault with another user
+    async fn unshare_vault(
+        &self,
+        ctx: &UserContext,
+        vault_id: &str,
+        target_username: &str,
     ) -> PassResult<usize>;
 
     // share account with another user
@@ -423,6 +438,13 @@ impl ShareVaultAccountRepository for RetryableShareVaultAccountRepository {
     async fn share_vault(&self, ctx: &UserContext, vault_id: &str, target_user_id: &str, read_only: bool) -> PassResult<usize> {
         invoke_with_retry_attempts(&self.config, "share_vault", || async {
             self.delegate.share_vault(ctx, vault_id, target_user_id, read_only).await
+        })
+            .await
+    }
+
+    async fn unshare_vault(&self, ctx: &UserContext, vault_id: &str, target_user_id: &str) -> PassResult<usize> {
+        invoke_with_retry_attempts(&self.config, "share_vault", || async {
+            self.delegate.unshare_vault(ctx, vault_id, target_user_id).await
         })
             .await
     }

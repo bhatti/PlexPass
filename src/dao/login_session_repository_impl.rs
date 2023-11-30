@@ -80,10 +80,10 @@ impl LoginSessionRepository for LoginSessionRepositoryImpl {
     fn mfa_succeeded(&self, other_user_id: &str, other_session_id: &str) -> PassResult<LoginSession> {
         let mut session = self.get(other_user_id, other_session_id)?;
         if !session.mfa_required {
-            return Err(PassError::validation("mfa is not required", None));
+            return Err(PassError::authorization("mfa is not required"));
         }
         if !session.verified_mfa() {
-            return Err(PassError::validation("mfa cannot be updated for stale session", None));
+            return Err(PassError::authorization("mfa cannot be updated for stale session"));
         }
 
         let mut conn = self.connection()?;

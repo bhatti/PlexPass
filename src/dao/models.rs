@@ -804,22 +804,58 @@ impl Hash for VaultEntity {
 pub struct UserVaultEntity {
     // id of the user-vault.
     pub user_vault_id: String,
+    // The version of the vault in database.
+    pub version: i64,
     // id of the user.
     pub user_id: String,
     // id of the vault.
     pub vault_id: String,
+    // favorite-accounts of the vault.
+    pub favorite_accounts: String,
     // created at
     pub created_at: NaiveDateTime,
+    // updated at
+    pub updated_at: NaiveDateTime,
 }
 
 impl UserVaultEntity {
-    pub fn new(user_id: &str, vault_id: &str) -> Self {
+    pub fn new(user_id: &str, vault_id: &str, favorites: &HashMap<String, bool>) -> Self {
+        let favorite_accounts = serde_json::to_string(favorites).unwrap_or_default();
         Self {
             user_vault_id: Uuid::new_v4().to_string(),
+            version: 0,
             user_id: user_id.into(),
             vault_id: vault_id.into(),
+            favorite_accounts,
             created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         }
+    }
+
+    pub fn set_favorite_account(&mut self, account_id: &str, favorite: bool) {
+        let mut favorites = self.get_favorite_accounts();
+        favorites.insert(account_id.to_string(), favorite);
+        self.set_favorite_accounts(&favorites);
+    }
+
+    pub fn delete_favorite_account(&mut self, account_id: &str) {
+        let mut favorites = self.get_favorite_accounts();
+        favorites.remove(account_id);
+        self.set_favorite_accounts(&favorites);
+    }
+
+    pub fn is_favorite_account(&self, account_id: &str) -> bool {
+        let favorites = self.get_favorite_accounts();
+        favorites.get(account_id).unwrap_or(&false).clone()
+    }
+
+    pub fn get_favorite_accounts(&self) -> HashMap<String, bool> {
+        let favorites: HashMap<String, bool> = serde_json::from_str(&self.favorite_accounts)
+            .unwrap_or_default();
+        favorites
+    }
+    pub fn set_favorite_accounts(&mut self, favorites: &HashMap<String, bool>) {
+        self.favorite_accounts = serde_json::to_string(favorites).unwrap_or_default();
     }
 }
 
@@ -1348,6 +1384,8 @@ pub enum AuditKind {
     DeletedVault,
     SharedVault,
     SharedCreatedVault,
+    UnsharedCreatedVault,
+    AcceptedSharedVault,
     CreatedAccount,
     UpdatedAccount,
     UpdatedPassword,
@@ -1370,6 +1408,8 @@ impl Display for AuditKind {
             AuditKind::DeletedVault => { write!(f, "DeletedVault") }
             AuditKind::SharedVault => { write!(f, "SharedVault") }
             AuditKind::SharedCreatedVault => { write!(f, "SharedCreatedVault") }
+            AuditKind::UnsharedCreatedVault => { write!(f, "UnsharedCreatedVault") }
+            AuditKind::AcceptedSharedVault => { write!(f, "AcceptedSharedVault") }
             AuditKind::CreatedAccount => { write!(f, "CreatedAccount") }
             AuditKind::UpdatedAccount => { write!(f, "UpdatedAccount") }
             AuditKind::UpdatedPassword => { write!(f, "UpdatedPassword") }
@@ -1394,6 +1434,8 @@ impl From<&str> for AuditKind {
             "DeletedVault" => AuditKind::DeletedVault,
             "SharedVault" => AuditKind::SharedVault,
             "SharedCreatedVault" => AuditKind::SharedCreatedVault,
+            "UnsharedCreatedVault" => AuditKind::UnsharedCreatedVault,
+            "AcceptedSharedVault" => AuditKind::AcceptedSharedVault,
             "CreatedAccount" => AuditKind::CreatedAccount,
             "UpdatedAccount" => AuditKind::UpdatedAccount,
             "UpdatedPassword" => AuditKind::UpdatedPassword,
@@ -1589,6 +1631,7 @@ mod tests {
     };
     use crate::domain::models::{Account, AccountKind, Lookup, LookupKind, Message, MessageKind, Setting, SettingKind, User, Vault, VaultKind};
     use std::collections::hash_map::DefaultHasher;
+    use std::collections::HashMap;
     use std::hash::{Hash, Hasher};
     use uuid::Uuid;
 
@@ -1658,9 +1701,13 @@ mod tests {
 
     #[test]
     fn test_should_create_user_vault() {
-        let uv = UserVaultEntity::new("uid", "vid");
+        let mut uv = UserVaultEntity::new("uid", "vid", &HashMap::new());
         assert_eq!("uid", uv.user_id);
         assert_eq!("vid", uv.vault_id);
+        uv.set_favorite_account("account1", true);
+        uv.set_favorite_account("account2", false);
+        assert!(uv.is_favorite_account("account1"));
+        assert!(!uv.is_favorite_account("account2"));
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use diesel::prelude::*;
 use std::collections::HashMap;
+use chrono::Utc;
 
 use crate::dao::models::UserVaultEntity;
 use crate::dao::schema::users_vaults;
@@ -30,6 +31,28 @@ impl UserVaultRepository for UserVaultRepositoryImpl {
                 .values(user_vault)
                 .execute(c)
         })
+    }
+
+    // update user-vault
+    fn update(
+        &self,
+        user_vault: &UserVaultEntity,
+        conn: &mut DbConnection,
+    ) -> Result<usize, diesel::result::Error> {
+        // only favorites can be updated
+        diesel::update(
+            users_vaults.filter(
+                version
+                    .eq(user_vault.version)
+                    .and(user_vault_id.eq(&user_vault.user_vault_id)),
+            ),
+        )
+            .set((
+                version.eq(user_vault.version + 1),
+                favorite_accounts.eq(&user_vault.favorite_accounts),
+                updated_at.eq(Utc::now().naive_utc()),
+            ))
+            .execute(conn)
     }
 
     // delete by vault-id user-vault

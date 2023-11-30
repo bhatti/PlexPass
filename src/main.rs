@@ -11,7 +11,7 @@ use std::io::Write;
 use clap::Parser;
 use env_logger::Builder;
 
-use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, asymmetric_user_decrypt_command, asymmetric_user_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_account_otp_command, generate_api_token, generate_otp_command, generate_password_command, generate_private_public_keys_command, generate_user_otp_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, reset_mfa_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, update_account_command, update_user_command, update_vault_command};
+use plexpass::command::{analyze_all_vaults_passwords_command, analyze_vault_passwords_command, asymmetric_decrypt_command, asymmetric_encrypt_command, asymmetric_user_decrypt_command, asymmetric_user_encrypt_command, create_account_command, create_category_command, create_user_command, create_vault_command, delete_account_command, delete_category_command, delete_user_command, delete_vault_command, email_compromised_command, export_accounts_command, generate_account_otp_command, generate_api_token, generate_otp_command, generate_password_command, generate_private_public_keys_command, generate_user_otp_command, get_account_command, get_accounts_command, get_categories_command, get_user_command, get_vault_command, get_vaults_command, import_accounts_command, password_compromised_command, password_strength_command, query_audit_logs_command, reset_mfa_command, search_users_command, share_account_command, share_vault_command, startup_command, symmetric_decrypt_command, symmetric_encrypt_command, unshare_vault_command, update_account_command, update_user_command, update_vault_command};
 use plexpass::domain::args::{Args, CommandActions};
 
 use crate::plexpass::domain::models::PassConfig;
@@ -462,7 +462,7 @@ async fn main() -> std::io::Result<()> {
                 log::info!("otp code: {:?}", otp_code);
             }
         }
-        CommandActions::GenerateAccountOTP { account_id} => {
+        CommandActions::GenerateAccountOTP { account_id } => {
             let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let otp_code = generate_account_otp_command::execute(
                 &ctx_args,
@@ -475,7 +475,7 @@ async fn main() -> std::io::Result<()> {
                 log::info!("otp code: {:?}", otp_code);
             }
         }
-        CommandActions::GenerateUserOTP { } => {
+        CommandActions::GenerateUserOTP {} => {
             let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let otp_code = generate_user_otp_command::execute(
                 &ctx_args)
@@ -487,7 +487,7 @@ async fn main() -> std::io::Result<()> {
                 log::info!("otp code: {:?}", otp_code);
             }
         }
-        CommandActions::GenerateAPIToken{ jwt_max_age_minutes } => {
+        CommandActions::GenerateAPIToken { jwt_max_age_minutes } => {
             let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
             let token = generate_api_token::execute(
                 &ctx_args,
@@ -557,10 +557,24 @@ async fn main() -> std::io::Result<()> {
                 read_only,
             ).await.expect("failed to share vault");
             if args.json_output.unwrap_or(false) {
-                let res = HashMap::from([("shared", true)]);
+                let res = HashMap::from([("shared", size > 0)]);
                 println!("{}", serde_json::to_string(&res).unwrap());
             } else {
                 log::info!("shared vault {:?}", size);
+            }
+        }
+        CommandActions::UnshareVault { vault_id, target_username } => {
+            let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
+            let size = unshare_vault_command::execute(
+                &ctx_args,
+                vault_id,
+                target_username,
+            ).await.expect("failed to unshare vault");
+            if args.json_output.unwrap_or(false) {
+                let res = HashMap::from([("unshared", size > 0)]);
+                println!("{}", serde_json::to_string(&res).unwrap());
+            } else {
+                log::info!("unshared vault {:?}", size);
             }
         }
         CommandActions::ShareAccount { vault_id, account_id, target_username } => {
@@ -572,7 +586,7 @@ async fn main() -> std::io::Result<()> {
                 target_username,
             ).await.expect("failed to share account");
             if args.json_output.unwrap_or(false) {
-                let res = HashMap::from([("shared", true)]);
+                let res = HashMap::from([("shared", size > 0)]);
                 println!("{}", serde_json::to_string(&res).unwrap());
             } else {
                 log::info!("shared account {:?}", size);

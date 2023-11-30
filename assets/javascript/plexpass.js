@@ -362,6 +362,7 @@ function buildCustomField(name, value) {
     const customFieldsContainer = document.getElementById('customFieldsEdit');
     // Create row div
     const rowDiv = document.createElement('div');
+    rowDiv.setAttribute("class", "theme-container");
     rowDiv.className = 'row mb-3';
 
     // Field Name Input
@@ -417,23 +418,44 @@ function addCustomField(name = '', value = '') {
 
 async function shareVault() {
     // Show modal
+    document.getElementById('shareVaultModalLabel').innerText = 'Share Vault';
+    document.getElementById('shareVaultUserInput').pllaceholder = 'Enter username to share with';
+    document.getElementById('shareVaultUserMessage').innerText = 'Type in username who will be able to access all accounts in this vault.';
+    document.getElementById('shareVaultButton').innerText = 'Share';
+
     const viewModal = new bootstrap.Modal(document.getElementById('shareVaultModal'));
     await viewModal.show();
 }
 
-async function handleShareVault(vaultId) {
+async function handleShareUnShareVault(vaultId) {
     const username = document.getElementById('shareVaultUserInput').value;
-    const response = await fetch(`/ui/vaults/${vaultId}/share?target_username=${username}`, {
+    const shareUnshare = document.getElementById('shareVaultButton').innerText === 'Share' ? 'share' : 'unshare';
+    const response = await fetch(`/ui/vaults/${vaultId}/${shareUnshare}?target_username=${username}`, {
         method: 'POST',
     });
     if (!response.ok) {
-        alert(`Could not share vault: ${response.status} ${response.statusText}`);
-        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+        if (response.status === 409) {
+            alert(`You have already ${shareUnshare}d vault with the ${username}`);
+        } else {
+            alert(`Could not ${shareUnshare} vault: ${response.status} ${response.statusText}`);
+        }
+        return;
     }
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('shareVaultModal'));
     await viewModal.hide();
-    showToast(`Shared vault with the ${username}!`);
+    showToast(`${shareUnshare}d vault with the ${username}!`);
     return true; //await response.json();
+}
+
+async function unshareVault() {
+    // Show modal
+    document.getElementById('shareVaultModalLabel').innerText = 'Un-Share Vault';
+    document.getElementById('shareVaultUserInput').pllaceholder = 'Enter username to unshare with';
+    document.getElementById('shareVaultUserMessage').innerText = 'Type in username who will be removed from access to all accounts in this vault.';
+    document.getElementById('shareVaultButton').innerText = 'UnShare';
+
+    const viewModal = new bootstrap.Modal(document.getElementById('shareVaultModal'));
+    await viewModal.show();
 }
 
 async function handleShareAccount(vaultId) {
@@ -657,12 +679,13 @@ async function initEventHandler(inp) {
         const usernames = await autocompleteUsername(val);
         const a = document.createElement("DIV");
         a.setAttribute("id", inp.id + "autocomplete-list");
-        a.setAttribute("class", "autocomplete-items");
+        a.setAttribute("class", "autocomplete-items theme-container");
         inp.parentNode.appendChild(a);
 
         for (let i = 0; i < usernames.length; i++) {
             if (usernames[i].substr(0, val.length).toUpperCase() === val.toUpperCase()) {
                 const b = document.createElement("DIV");
+                b.setAttribute("class", "autocomplete-entry theme-container"); // Use theme-container
                 b.innerHTML = "<strong>" + usernames[i].substr(0, val.length) + "</strong>";
                 b.innerHTML += usernames[i].substr(val.length);
                 b.innerHTML += "<input type='hidden' value='" + usernames[i] + "'>";
@@ -911,7 +934,7 @@ async function checkEmailUrl() {
     })
     const data = await response.json();
     const emailCompromiseCheckResult = document.getElementById('emailCompromiseCheckResult');
-    emailCompromiseCheckResult .innerHTML = `${data}`;
+    emailCompromiseCheckResult.innerHTML = `${data}`;
 }
 
 function copyPassword() {

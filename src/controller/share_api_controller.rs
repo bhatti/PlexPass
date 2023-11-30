@@ -21,6 +21,24 @@ pub async fn share_vault(
     Ok(HttpResponse::Ok().json(data))
 }
 
+#[post("/api/v1/vaults/{vault_id}/unshare")]
+pub async fn unshare_vault(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>,
+    params: web::Json<ShareVaultParams>,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let vault_id = path.into_inner();
+    let size = service_locator
+        .share_vault_account_service
+        .unshare_vault(&auth.context, &vault_id, &params.target_username)
+        .await?;
+    let data = json!({
+        "unshared": size > 0,
+    });
+    Ok(HttpResponse::Ok().json(data))
+}
+
 #[post("/api/v1/vaults/{vault_id}/accounts/{id}/share")]
 pub async fn share_account(
     service_locator: web::Data<ServiceLocator>,

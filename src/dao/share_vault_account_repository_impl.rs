@@ -1,11 +1,13 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
+use diesel::Connection;
 use crate::crypto;
 
-use crate::dao::models::{CryptoKeyEntity, UserContext};
+use crate::dao::models::{ACLEntity, AuditEntity, AuditKind, CryptoKeyEntity, UserContext, UserVaultEntity};
 use crate::dao::{DbConnection, DbPool, ShareVaultAccountRepository, UserVaultRepository, UserRepository, CryptoKeyRepository, AuditRepository, VaultRepository, AccountRepository, MessageRepository, UserLookupRepository};
 use crate::dao::account_repository_impl::AccountRepositoryImpl;
+use crate::dao::acl_repository_impl::ACLRepositoryImpl;
 use crate::dao::vault_repository_impl::VaultRepositoryImpl;
 use crate::domain::error::PassError;
 use crate::domain::models::{PassResult, Message, MessageKind, ShareVaultPayload, ShareAccountPayload, READ_FLAG};
@@ -88,12 +90,11 @@ impl ShareVaultAccountRepositoryImpl {
         for mut msg in vault_messages.records {
             let mut conn = self.connection()?;
             let message_payload: ShareVaultPayload = serde_json::from_str(&msg.data)?;
-            match VaultRepositoryImpl::shared_create(
+            match VaultRepositoryImpl::accept_shared_create(
                 ctx,
                 &message_payload,
                 self.user_repository.clone(),
                 self.crypto_key_repository.clone(),
-                self.user_vault_repository.clone(),
                 self.audit_repository.clone(),
                 &mut conn,
             ).await {
@@ -171,9 +172,17 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
 
         // Only vault owner can share vault so not checking ACL
         if ctx.validate_user_id(&vault_entity.owner_user_id, || false).is_err() {
-            return Err(PassError::validation(
+            return Err(PassError::authorization(
                 format!("Only owner of vault {}/{} can share it with other users",
-                         &vault_entity.title, &vault_entity.vault_id).as_str(), None));
+                        &vault_entity.title, &vault_entity.vault_id).as_str()));
+        }
+        let mut conn = self.connection()?;
+        if self.user_vault_repository.find_one(
+            HashMap::from([
+                ("vault_id".into(), vault_id.into()), ("user_id".into(), target_user_id.clone())]),
+            &mut conn)
+            .is_ok() {
+            return Err(PassError::duplicate_key("The vault is already shared with the target user"));
         }
 
         // getting user-crypto key of owner of vault
@@ -185,8 +194,7 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
 
         // Querying target user crypto key as admin
         let target_user_crypto_key = {
-            let ctx = ctx.as_admin(); // keeping scope of modified context small
-            self.user_repository.get_crypto_key(&ctx, &target_user_id).await?
+            self.user_repository.get_crypto_key(&ctx.as_admin(), &target_user_id).await?
         };
 
         let encrypted_vault_crypto_key = vault_crypto_key.encrypted_clone_for_sharing(
@@ -195,6 +203,26 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
             &target_user_id,
             &target_user_crypto_key,
             &vault_crypto_key.crypto_key_id)?;
+
+        // we will create association and acl for vault here so that we can
+        // easily disable them if target user never signs in.
+        let _ = conn.transaction(|c| {
+            let _ = self.user_vault_repository
+                .create(&UserVaultEntity::new(&target_user_id, &vault_entity.vault_id, &HashMap::new()), c)?;
+            let acl_vault = ACLEntity::for_vault(&target_user_id, &vault_entity.vault_id, read_only);
+            let _ = ACLRepositoryImpl::create_conn(&acl_vault, c)?;
+            self.audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::SharedCreatedVault, &vault_entity.vault_id, "vault shared created"),
+                                    c)
+        })?;
+        if self.user_vault_repository.find_one(
+            HashMap::from([
+                ("vault_id".into(), vault_entity.vault_id.clone()), ("user_id".into(), target_user_id.clone())]),
+            &mut conn)
+            .is_err() {
+            return Err(PassError::not_found(".....>>>>The vault is not shared with the target user"));
+        }
 
         let message_payload = ShareVaultPayload::new(
             &vault_entity.vault_id,
@@ -218,6 +246,63 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
             self.message_repository.create(&ctx, &message).await?
         };
         Ok(size)
+    }
+
+    async fn unshare_vault(
+        &self,
+        ctx: &UserContext,
+        vault_id: &str,
+        target_username: &str,
+    ) -> PassResult<usize> {
+        if target_username == ctx.username {
+            return Err(PassError::validation("target username cannot be same as user's own username", None));
+        }
+        let target_user_id = self.get_user_id(ctx, target_username)?;
+        let vault_entity = self.vault_repository.get_entity(ctx, vault_id).await?;
+        if vault_entity.owner_user_id == target_user_id {
+            return Err(PassError::validation("cannot unshare vault with the owner of vault", None));
+        }
+
+        // Only vault owner can share vault so not checking ACL
+        if ctx.validate_user_id(&vault_entity.owner_user_id, || false).is_err() {
+            return Err(PassError::authorization(
+                format!("Only owner of vault {}/{} can unshare it with other users",
+                        &vault_entity.title, &vault_entity.vault_id).as_str()));
+        }
+
+        let mut conn = self.connection()?;
+        if self.user_vault_repository.find_one(
+            HashMap::from([
+                ("vault_id".into(), vault_id.into()), ("user_id".into(), target_user_id.clone())]),
+            &mut conn)
+            .is_err() {
+            return Err(PassError::not_found("The vault is not shared with the target user"));
+        }
+
+        let message_payload = ShareVaultPayload::new(
+            &vault_entity.vault_id,
+            &vault_entity.title,
+            "",
+            &ctx.user_id,
+            &ctx.username,
+            &target_user_id,
+            false);
+
+        // we will delete association and acl for vault here so that we can
+        // easily disable them if target user never signs in.
+        let size = conn.transaction(|c| {
+            let _ = self.user_vault_repository.delete(&target_user_id, &vault_entity.vault_id, c)?;
+            let _ = ACLRepositoryImpl::delete_acl(&target_user_id, &vault_entity.vault_id, "Vault", c)?;
+            VaultRepositoryImpl::shared_delete(
+                ctx,
+                &message_payload,
+                self.crypto_key_repository.clone(),
+                self.audit_repository.clone(),
+                c,
+            )
+        })?;
+        Ok(size)
+
     }
 
     async fn share_account(

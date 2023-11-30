@@ -60,11 +60,6 @@ body {
     color: #ffffff; /* Light text for input fields */
 }
 
-.theme-container {
-    background-color: #343a40; /* Dark background */
-    color: #ffffff; /* Light text */
-}
-
 .theme-container .theme-card .p-3.border {
     background-color: #2c3034; /* Dark background for bordered elements */
     color: #ffffff; /* Light text for dark background */
@@ -152,4 +147,25 @@ body {
 
 .theme-hr {
     border-color: #ccc; /* Visible border color in light mode */
+}
+
+.autocomplete-items div {
+    background-color: #333;
+    color: white;
+    /* other styles */
+}
+
+.autocomplete-items div:hover {
+    background-color: #505050; /* Darker grey on hover */
+}
+
+.autocomplete-entry {
+    background-color: #333;
+    color: white;
+}
+
+.autocomplete-active {
+    background-color: DodgerBlue !important;
+    /* background-color: #505050; Dark grey background for active item */
+    color: #ffffff;
 }

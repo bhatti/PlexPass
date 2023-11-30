@@ -145,9 +145,12 @@ diesel::table! {
 diesel::table! {
     users_vaults (user_vault_id) {
         user_vault_id -> Text,
+        version -> BigInt,
         user_id -> Text,
         vault_id -> Text,
+        favorite_accounts -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

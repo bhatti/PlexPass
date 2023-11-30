@@ -1,7 +1,5 @@
-/* Additional styles to position the autocomplete dropdown */
 .autocomplete-items {
     position: absolute;
-    border: 1px solid #d4d4d4;
     border-bottom: none;
     border-top: none;
     z-index: 99;
@@ -13,23 +11,17 @@
 .autocomplete-items div {
     padding: 10px;
     cursor: pointer;
-    background-color: #fff;
     border-bottom: 1px solid #d4d4d4;
 }
 
 .autocomplete-items div:hover {
-    background-color: #e9e9e9;
+    /* This will be overridden by theme-specific styles */
 }
 
 .autocomplete-active {
-    background-color: DodgerBlue !important;
-    color: #ffffff;
+    /* This will be overridden by theme-specific styles */
 }
 
-.nav-link.active {
-    background-color: #4CAF50; /* Change this to your preferred color */
-    color: white;
-}
 /* Optional: some additional styling for the sidebar */
 #sidebar {
     min-width: 250px;

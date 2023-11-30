@@ -82,7 +82,7 @@ class ShareVaultTest(unittest.TestCase):
         resp = requests.get(SERVER + '/api/v1/vaults', headers = headers, verify = False)
         self.assertEqual(200, resp.status_code)
 
-    def test_03_get_vault_as_alice(self):
+    def test_07_get_vault_as_alice(self):
         global VERSION
         headers = {
             'Content-Type': 'application/json',
@@ -94,6 +94,42 @@ class ShareVaultTest(unittest.TestCase):
         self.assertEqual(200, resp.status_code)
         entries = json.loads(resp.text)['entries']
         self.assertEqual(VAULT_LEN, len(entries))
+
+    def test_08_unshare_vault_with_alice(self):
+        # signin as bob again
+        global JWT_TOKEN
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        data = {'username': 'bob@cat.us', 'master_password': 'Goose$bob@cat.us$Goat551', 'otp_code': OTP_CODE}
+        resp = requests.post(SERVER + '/api/v1/auth/signin', json = data, headers = headers, verify = False)
+        self.assertEqual(200, resp.status_code)
+        JWT_TOKEN = resp.headers.get('access_token')
+
+        # unshare
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + JWT_TOKEN,
+        }
+        data = {'target_username': 'alice@alice.us'}
+        resp = requests.post(SERVER + '/api/v1/vaults/' + VAULT_ID + '/unshare', headers = headers, json = data, verify = False)
+        self.assertEqual(200, resp.status_code)
+
+    def test_09_get_vault_as_alice(self):
+        global JWT_TOKEN
+        headers = {
+            'Content-Type': 'application/json',
+        }
+        data = {'username': 'alice@alice.us', 'master_password': 'Goose$ali@dog.us$Goat551'}
+        resp = requests.post(SERVER + '/api/v1/auth/signin', json = data, headers = headers, verify = False)
+        self.assertEqual(200, resp.status_code)
+        JWT_TOKEN = resp.headers.get('access_token')
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + JWT_TOKEN,
+        }
+        resp = requests.get(SERVER + '/api/v1/vaults/' + VAULT_ID, headers = headers, verify = False)
+        self.assertEqual(404, resp.status_code)
 
 if __name__ == '__main__':
     unittest.main()

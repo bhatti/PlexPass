@@ -35,6 +35,11 @@ impl ShareVaultAccountService for ShareVaultAccountServiceImpl {
         self.share_vault_account_repository.share_vault(ctx, vault_id, target_username, read_only).await
     }
 
+    async fn unshare_vault(&self, ctx: &UserContext, vault_id: &str, target_username: &str) -> PassResult<usize> {
+        let _ = self.metrics.new_metric("unshare_vault");
+        self.share_vault_account_repository.unshare_vault(ctx, vault_id, target_username).await
+    }
+
     async fn share_account(&self, ctx: &UserContext, account_id: &str, target_username: &str) -> PassResult<usize> {
         let _ = self.metrics.new_metric("share_account");
         self.share_vault_account_repository.share_account(ctx, account_id, target_username).await
@@ -152,6 +157,80 @@ mod tests {
             account.credentials.password = Some(format!("pass_{}", i.clone()));
             assert_eq!(1, account_service.create_account(&ctx2, &account).await.unwrap());
         }
+    }
+
+    #[tokio::test]
+    async fn test_should_share_and_unshare_vaults() {
+        let config = PassConfig::new();
+        // GIVEN user-service, vault-service, account-service and share account/vault service
+        let user_service = create_user_service(&config).await.unwrap();
+        let vault_service = create_vault_service(&config).await.unwrap();
+        let account_service = create_account_service(&config).await.unwrap();
+        let share_vault_account_service = create_share_vault_account_service(&config).await.unwrap();
+
+        // Due to referential integrity, we must first create a valid user
+        let user1 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
+        let ctx1 = user_service.register_user(&user1, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+        let user2 = User::new(Uuid::new_v4().to_string().as_str(), None, None);
+        let ctx2 = user_service.register_user(&user2, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+
+        // Create dependent vault
+        let vault = Vault::new(&user1.user_id, "title1", VaultKind::Logins);
+        assert_eq!(1, vault_service.create_vault(&ctx1, &vault).await.unwrap());
+
+        // WHEN creating a new accounts
+        let account_names = ["user1", "user2"];
+        for account_name in account_names {
+            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            account.details.username = Some(account_name.into());
+            account.credentials.password = Some("pass".into());
+            // THEN it should succeed
+            assert_eq!(
+                1,
+                account_service
+                    .create_account(&ctx1, &account)
+                    .await
+                    .unwrap()
+            );
+        }
+        // Unshare before share should fail
+        assert!(share_vault_account_service.unshare_vault(&ctx1, &vault.vault_id, &user2.username).await.is_err());
+
+        let size = share_vault_account_service.share_vault(&ctx1, &vault.vault_id, &user2.username, false).await.unwrap();
+        assert_eq!(1, size);
+
+        // invoke following method to read inbox
+        let (vault_size, account_size) = share_vault_account_service.handle_shared_vaults_accounts(&ctx2).await.unwrap();
+        assert_eq!(1, vault_size);
+        assert_eq!(0, account_size);
+
+        // Sharing it again should fail
+        assert!(share_vault_account_service.share_vault(&ctx1, &vault.vault_id, &user2.username, false).await.is_err());
+
+        // WHEN accessing vault after sharing  THEN it should work
+        let _ = vault_service.get_vault(&ctx2, &vault.vault_id).await.unwrap();
+
+        // WHEN finding accounts for the user2 after sharing
+        let all = account_service
+            .find_accounts_by_vault(&ctx2, &vault.vault_id, HashMap::new(), 0, 1000)
+            .await
+            .unwrap();
+        // THEN it should return 2 accounts
+        assert_eq!(2, all.records.len());
+
+        let size = share_vault_account_service.unshare_vault(&ctx1, &vault.vault_id, &user2.username).await.unwrap();
+        assert_eq!(1, size);
+
+        // WHEN accessing vault after unsharing  THEN it should fail
+        assert!(vault_service.get_vault(&ctx2, &vault.vault_id).await.is_err());
+
+        // WHEN finding accounts for the user2 after unsharing, then it should not return any accounts
+        let all = account_service
+            .find_accounts_by_vault(&ctx2, &vault.vault_id, HashMap::new(), 0, 1000)
+            .await
+            .unwrap();
+        // THEN it should return 0 accounts
+        assert_eq!(0, all.records.len());
     }
 
     #[tokio::test]

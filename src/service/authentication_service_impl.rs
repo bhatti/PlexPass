@@ -269,7 +269,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
             self.login_session_repository.signout(&ctx.user_id, session_id)?;
             return Ok(());
         }
-        Err(PassError::validation("could not reset MFA keys, please verify your recovery code", None))
+        Err(PassError::authentication("could not reset MFA keys, please verify your recovery code"))
     }
     // update light mode
     async fn update_light_mode(&self,

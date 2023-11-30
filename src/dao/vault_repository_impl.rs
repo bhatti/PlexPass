@@ -54,12 +54,51 @@ impl VaultRepositoryImpl {
         })
     }
 
-    pub async fn shared_create(
+    // This method is called by the owner of vault so ctx belongs to the owner not target user.
+    pub fn shared_delete(
+        ctx: &UserContext,
+        payload: &ShareVaultPayload,
+        crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
+        audit_repository: Arc<dyn AuditRepository + Send + Sync>,
+        conn: &mut DbConnection,
+    ) -> PassResult<usize> {
+        let vault_crypto_key = crypto_key_repository.get(&payload.target_user_id, &payload.vault_id, "Vault", conn);
+
+        // remove crypto-keys in the same transaction.
+        // Note: We will remove UserVaultEntity relationship and associated acl in share_vault_account_repository's unshare_vault method.
+        let size = conn.transaction(|c| {
+            let _ = crypto_key_repository.delete(&payload.target_user_id, &payload.vault_id, "Vault", c)?;
+            match vault_crypto_key {
+                Ok(vault_crypto_key) => {
+                    let _ = ACLRepositoryImpl::delete_acl(&payload.target_user_id, &vault_crypto_key.crypto_key_id, "CryptoKeyEntity", c)?;
+                    if !vault_crypto_key.parent_crypto_key_id.is_empty() {
+                        let _ = ACLRepositoryImpl::delete_acl(&payload.target_user_id, &vault_crypto_key.parent_crypto_key_id, "CryptoKeyEntity", c)?;
+                    }
+                }
+                Err(_) => {
+                   log::info!("could not find vault crypto key for user {} vault {}", &payload.target_user_id, &payload.vault_id);
+                }
+            }
+            audit_repository.create(&AuditEntity::new(
+                ctx,
+                AuditKind::UnsharedCreatedVault, &payload.vault_id, "vault unshared"),
+                                    c)
+        })?;
+
+        if size > 0 {
+            log::info!("deleted link to shared vault {}", &payload.vault_id);
+            Ok(size)
+        } else {
+            Err(PassError::database("failed to delete shared-link to vault", None, false))
+        }
+    }
+
+    // This method is called by the recipient user when they log in so ctx belongs to the target user.
+    pub async fn accept_shared_create(
         ctx: &UserContext,
         payload: &ShareVaultPayload,
         user_repository: Arc<dyn UserRepository + Send + Sync>,
         crypto_key_repository: Arc<dyn CryptoKeyRepository + Send + Sync>,
-        user_vault_repository: Arc<dyn UserVaultRepository + Send + Sync>,
         audit_repository: Arc<dyn AuditRepository + Send + Sync>,
         conn: &mut DbConnection,
     ) -> PassResult<usize> {
@@ -74,12 +113,13 @@ impl VaultRepositoryImpl {
             &payload.encrypted_crypto_key,
         )?;
 
-
-        // add vault and crypto-key in the same transaction.
+        // we have separated creating association and acl for vault to share-vault so that we can
+        // easily disable them if target user never signs in.
+        // add crypto-key in the same transaction.
         let size = conn.transaction(|c| {
             let _ = crypto_key_repository.create(&vault_crypto_key, c)?;
-            let _ = user_vault_repository
-                .create(&UserVaultEntity::new(&ctx.user_id, &payload.vault_id), c)?;
+            // we will create UserVaultEntity and acl for vault in share_vault_account_repository's share_vault method.
+
             // Add ACL rules so that target user can access vault and its crypto keys along with
             // Accounts
             let acl_crypto_key = ACLEntity::for_crypto_key(&ctx.user_id,
@@ -90,11 +130,9 @@ impl VaultRepositoryImpl {
                                                                &vault_crypto_key.parent_crypto_key_id);
                 let _ = ACLRepositoryImpl::create_conn(&acl_crypto_key, c)?;
             }
-            let acl_vault = ACLEntity::for_vault(&ctx.user_id, &payload.vault_id, payload.read_only);
-            let _ = ACLRepositoryImpl::create_conn(&acl_vault, c)?;
             audit_repository.create(&AuditEntity::new(
                 ctx,
-                AuditKind::SharedCreatedVault, &payload.vault_id, "vault shared accepted"),
+                AuditKind::AcceptedSharedVault, &payload.vault_id, "vault shared accepted"),
                                     c)
         })?;
 
@@ -149,7 +187,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 .execute(c)?;
             let _ = self.crypto_key_repository.create(&vault_crypto_key, c)?;
             let _ = self.user_vault_repository
-                .create(&UserVaultEntity::new(&ctx.user_id, &vault.vault_id), c)?;
+                .create(&UserVaultEntity::new(&ctx.user_id, &vault.vault_id, &HashMap::new()), c)?;
             self.audit_repository.create(&AuditEntity::new(
                 ctx,
                 AuditKind::CreatedVault, &vault.vault_id, "vault created"),
@@ -315,13 +353,15 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 format!("vault not found for key {}", id).as_str(),
             ));
         }
-        let mut vault_entity = items.remove(0);
+
+        let mut vault_entity: VaultEntity = items.remove(0);
         if vault_entity.owner_user_id != ctx.user_id &&
             !vault_entity.title.to_lowercase().contains("shared") {
             vault_entity.title = format!("{} [Shared]", vault_entity.title);
         }
         Ok(vault_entity)
     }
+
     // find one entity by predication -- must have only one record, i.e., it will throw error if 0 or 2+ records exist.
     async fn find_one(
         &self,

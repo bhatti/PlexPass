@@ -8,7 +8,7 @@ use diesel::prelude::*;
 use itertools::Itertools;
 use crate::crypto;
 
-use crate::dao::models::{AccountEntity, AuditEntity, AuditKind, CryptoKeyEntity, UserContext};
+use crate::dao::models::{AccountEntity, AuditEntity, AuditKind, CryptoKeyEntity, UserContext, UserVaultEntity};
 use crate::dao::schema::accounts;
 use crate::dao::schema::accounts::dsl::*;
 use crate::dao::schema::archived_accounts;
@@ -87,30 +87,25 @@ impl AccountRepositoryImpl {
         ctx: &UserContext,
         other_user_id: &str,
         other_vault_id: &str,
-    ) -> PassResult<()> {
-        if ctx.is_admin() {
-            return Ok(());
-        }
-        let mut conn = self.connection()?;
-
-        let res = self.user_vault_repository.count(
-            HashMap::from([
-                ("user_id".into(), other_user_id.into()),
-                ("vault_id".into(), other_vault_id.into()),
-            ]),
-            &mut conn,
-        )?;
-
-        if res == 0 {
+    ) -> PassResult<UserVaultEntity> {
+        if !ctx.is_admin() && ctx.user_id != other_user_id {
             return Err(PassError::not_found(
                 format!(
-                    "vault {} not found for user {}",
+                    "vault {} for user {} is not accessible",
                     other_vault_id, other_user_id
                 )
                     .as_str(),
             ));
         }
-        Ok(())
+        let mut conn = self.connection()?;
+
+        self.user_vault_repository.find_one(
+            HashMap::from([
+                ("user_id".into(), other_user_id.into()),
+                ("vault_id".into(), other_vault_id.into()),
+            ]),
+            &mut conn,
+        )
     }
 
     // Update summary of accounts in vaults so that they can be displayed on the list view.
@@ -179,9 +174,11 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
     // create account.
     async fn create(&self, ctx: &UserContext, account: &Account) -> PassResult<usize> {
         // ensure user can access vault
-        let _ = self
+        let mut user_vault = self
             .validate_vault_belong_to_user(ctx, &ctx.user_id, &account.vault_id)
             .await?;
+        // We will store favorites in the join association table so that when we share vaults, each user can manage their own favorites
+        user_vault.set_favorite_account(&account.details.account_id, account.details.favorite);
 
         // get crypto key from vault
         let vault_crypto_key = self
@@ -224,6 +221,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             let _ = diesel::insert_into(accounts::table)
                 .values(&account_entity)
                 .execute(c)?;
+            let _ = self.user_vault_repository.update(&user_vault, c)?;
             let _ = self.crypto_key_repository.create(&account_crypto_key, c)?;
             self.audit_repository.create(&AuditEntity::new(ctx,
                                                            AuditKind::CreatedAccount,
@@ -248,9 +246,11 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
     // updates existing account.
     async fn update(&self, ctx: &UserContext, account: &Account) -> PassResult<usize> {
         // validate vault id belongs to user
-        let _ = self
+        let mut user_vault = self
             .validate_vault_belong_to_user(ctx, &ctx.user_id, &account.vault_id)
             .await?;
+        // We will store favorites in the join association table so that when we share vaults, each user can manage their own favorites
+        user_vault.set_favorite_account(&account.details.account_id, account.details.favorite);
 
         // finding user crypto
         let user_crypto_key = self
@@ -307,6 +307,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
                 password_updated = true;
             }
 
+            let _ = self.user_vault_repository.update(&user_vault, c)?;
             diesel::update(
                 accounts.filter(
                     version
@@ -363,7 +364,7 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
 
         let account_entity = self.get_entity(ctx, id).await?;
         // verify user has access to vault
-        let _ = self
+        let user_vault = self
             .validate_vault_belong_to_user(ctx, &ctx.user_id, &account_entity.vault_id)
             .await?;
 
@@ -379,12 +380,15 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             .get_crypto_key(ctx, &account_entity.vault_id)
             .await?;
 
-        account_entity.to_account(
+        let mut account = account_entity.to_account(
             ctx,
             &user_crypto_key,
             &vault_crypto_key,
             &account_crypto_key,
-        )
+        )?;
+        // We will store favorites in the join association table so that when we share vaults, each user can manage their own favorites
+        account.details.favorite = user_vault.is_favorite_account(id);
+        Ok(account)
     }
 
     // delete an existing account.
@@ -392,14 +396,16 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
         let account = self.get(ctx, id).await?;
 
         // verify user has access to vault
-        let _ = self
+        let mut user_vault = self
             .validate_vault_belong_to_user(ctx, &ctx.user_id, &account.vault_id)
             .await?;
+        user_vault.delete_favorite_account(&account.details.account_id);
 
         let mut conn = self.connection()?;
         let size = conn.transaction(|c| {
             let _ = self.crypto_key_repository.delete(&ctx.user_id, id, "Account", c)?;
             let _ = diesel::delete(ac_dsl::archived_accounts.filter(ac_dsl::account_id.eq(id))).execute(c)?;
+            let _ = self.user_vault_repository.update(&user_vault, c)?;
             diesel::delete(accounts.filter(account_id.eq(id))).execute(c)
         })?;
         if size > 0 {
@@ -507,22 +513,31 @@ impl Repository<Account, AccountEntity> for AccountRepositoryImpl {
             .limit(limit as i64)
             .order(accounts::created_at)
             .load::<AccountEntity>(&mut conn)?;
+        let mut crypto_keys: HashMap<String, CryptoKeyEntity> = HashMap::new();
+        let mut user_vaults: HashMap<String, UserVaultEntity> = HashMap::new();
         let mut res = vec![];
-        for entity in entities {
+        for account_entity in entities {
+            if crypto_keys.get(&account_entity.vault_id).is_none() {
+                crypto_keys.insert(account_entity.vault_id.clone(),
+                                   self.vault_repository.get_crypto_key(ctx, &account_entity.vault_id).await?);
+            }
+            // verify user has access to vault
+            if user_vaults.get(&account_entity.vault_id).is_none() {
+                user_vaults.insert(account_entity.vault_id.clone(),
+                                   self.validate_vault_belong_to_user(ctx, &ctx.user_id, &account_entity.vault_id).await?);
+            }
+
             // finding vault crypto
-            let vault_crypto_key = self
-                .vault_repository
-                .get_crypto_key(ctx, &entity.vault_id)
-                .await?;
+            let vault_crypto_key: CryptoKeyEntity = crypto_keys.get(&account_entity.vault_id).unwrap().clone();
+            let user_vault: &UserVaultEntity = user_vaults.get(&account_entity.vault_id).unwrap();
 
             // finding account crypto
-            let account_crypto_key = self.get_crypto_key(ctx, &entity.account_id).await?;
-            res.push(entity.to_account(
-                ctx,
-                &user_crypto_key,
-                &vault_crypto_key,
-                &account_crypto_key,
-            )?);
+            let account_crypto_key = self.get_crypto_key(ctx, &account_entity.account_id).await?;
+            let mut account = account_entity.to_account(
+                ctx, &user_crypto_key, &vault_crypto_key, &account_crypto_key)?;
+            // We will store favorites in the join association table so that when we share vaults, each user can manage their own favorites
+            account.details.favorite = user_vault.is_favorite_account(&account.details.account_id);
+            res.push(account);
         }
 
         Ok(PaginatedResult::new(offset, limit, res))

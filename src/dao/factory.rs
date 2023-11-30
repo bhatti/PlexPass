@@ -18,7 +18,7 @@ use crate::dao::{common, invoke_with_retry_attempts, CryptoKeyRepository, LoginS
 use crate::dao::{AccountRepository, DbPool, VaultRepository};
 use crate::dao::acl_repository_impl::ACLRepositoryImpl;
 use crate::dao::audit_repository_impl::AuditRepositoryImpl;
-use crate::dao::share_vault_account_repository::ShareVaultAccountRepositoryImpl;
+use crate::dao::share_vault_account_repository_impl::ShareVaultAccountRepositoryImpl;
 use crate::dao::user_lookup_repository_impl::UserLookupRepositoryImpl;
 use crate::domain::models::{PassConfig, PassResult};
 

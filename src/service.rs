@@ -320,6 +320,14 @@ pub trait ShareVaultAccountService {
         read_only: bool,
     ) -> PassResult<usize>;
 
+    // unshare vault with another user
+    async fn unshare_vault(
+        &self,
+        ctx: &UserContext,
+        vault_id: &str,
+        target_username: &str,
+    ) -> PassResult<usize>;
+
     // share account with another user
     async fn share_account(
         &self,

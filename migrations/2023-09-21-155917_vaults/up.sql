@@ -20,9 +20,12 @@ CREATE UNIQUE INDEX vaults_title_ndx ON vaults (owner_user_id, title);
 CREATE TABLE IF NOT EXISTS users_vaults
 (
     user_vault_id     VARCHAR(36) NOT NULL,
+    version           BIGINT      NOT NULL DEFAULT 0,
     user_id           VARCHAR(36) NOT NULL REFERENCES users(user_id),
     vault_id          VARCHAR(36) NOT NULL REFERENCES vaults(vault_id),
+    favorite_accounts TEXT        NOT NULL,
     created_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_vault_id)
 );
 

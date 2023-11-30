@@ -190,6 +190,7 @@ fn config_services(service_config: &mut web::ServiceConfig) {
 
     // share-controller
     service_config.service(share_api_controller::share_vault)
+        .service(share_api_controller::unshare_vault)
         .service(share_api_controller::share_account);
 
     // otp-controller
@@ -242,6 +243,7 @@ fn config_services(service_config: &mut web::ServiceConfig) {
 
     // sharing
     service_config.route("/ui/vaults/{vault_id}/share", web::post().to(share_ui_controller::share_vault));
+    service_config.route("/ui/vaults/{vault_id}/unshare", web::post().to(share_ui_controller::unshare_vault));
     service_config.route("/ui/vaults/{vault_id}/accounts/{id}/share", web::post().to(share_ui_controller::share_account));
 
     // dashboard

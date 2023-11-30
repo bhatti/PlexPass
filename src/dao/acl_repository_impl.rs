@@ -55,6 +55,22 @@ impl ACLRepositoryImpl {
         }
     }
 
+    // delete an existing acl.
+    pub(crate) fn delete_acl(
+        match_user_id: &str,
+        match_resource_id: &str,
+        match_resource_type: &str,
+        c: &mut DbConnection) -> Result<usize, diesel::result::Error> {
+        diesel::delete(acls
+            .filter(
+                acl_user_id
+                    .eq(match_user_id)
+                    .and(resource_type.eq(match_resource_type))
+                    .and(resource_id.eq(match_resource_id)),
+            )).execute(c)
+    }
+
+
     // create acl with connection.
     pub fn create_conn(
         acl_entity: &ACLEntity,

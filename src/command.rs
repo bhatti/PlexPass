@@ -25,6 +25,7 @@ pub mod symmetric_decrypt_command;
 pub mod import_accounts_command;
 pub mod export_accounts_command;
 pub mod share_vault_command;
+pub mod unshare_vault_command;
 pub mod share_account_command;
 pub mod generate_password_command;
 pub mod password_compromised_command;

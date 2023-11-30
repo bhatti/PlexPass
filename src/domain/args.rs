@@ -488,6 +488,14 @@ pub enum CommandActions {
         #[arg(long)]
         read_only: Option<bool>,
     },
+    UnshareVault {
+        /// vault-id
+        #[arg(long)]
+        vault_id: String,
+        /// target username
+        #[arg(long)]
+        target_username: String,
+    },
     ShareAccount {
         /// vault-id
         #[arg(long)]

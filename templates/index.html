@@ -69,15 +69,17 @@
             <div class="d-flex">
             </div>
             <div class="my-3 ms-auto">
-                <button class="btn btn-primary" data-toggle="modal" data-target="#editAccountModal"
+                <button class="btn btn-outline-primary" data-toggle="modal" data-target="#editAccountModal"
                         onclick="addAccount('{{selected_vault_id}}')">Add Account
                 </button>
-                <button class="btn btn-secondary" data-toggle="modal" data-target="#importAccountsModal"
+                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#importAccountsModal"
                         onclick="importAccounts('{{selected_vault_id}}')">Import Accounts</button>
-                <button class="btn btn-dark" data-toggle="modal" data-target="#importAccountsModal"
+                <button class="btn btn-outline-success" data-toggle="modal" data-target="#importAccountsModal"
                         onclick="exportAccounts('{{selected_vault_id}}')">Export Accounts</button>
-                <button class="btn btn-warning" data-toggle="modal" data-target="#shareVaultModal"
+                <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
                         onclick="shareVault('{{selected_vault_id}}')">Share Vault</button>
+                <button class="btn btn-outline-danger" data-toggle="modal" data-target="#shareVaultModal"
+                        onclick="unshareVault('{{selected_vault_id}}')">UnShare Vault</button>
                 <form action="/">
                     <input type="hidden" name="selected_vault_id" value="{{selected_vault_id}}">
                     <div class="d-flex form-group mb-5">
@@ -128,7 +130,7 @@
                         <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
                                 onclick="deleteAccount('{{account.account_id}}')">Delete
                         </button>
-                        <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#deletetModal"
+                        <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#shareAccountModal"
                                 onclick="shareAccount('{{account.account_id}}')">Share
                         </button>
                     </td>
@@ -248,15 +250,15 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="shareVaultUserInput">Username:</label>
-                    <div class="autocomplete">
+                    <div class="autocomplete theme-container">
                         <input type="text" class="form-control" id="shareVaultUserInput" name="username" placeholder="Enter username to share with">
                     </div>
-                    <small class="form-text text-muted">Type in username who will be able to access all accounts in this vault.</small>
+                    <small id="shareVaultUserMessage" class="form-text text-muted">Type in username who will be able to access all accounts in this vault.</small>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="shareVaultButton" onclick="handleShareVault('{{selected_vault_id}}');">Share</button>
+                <button type="button" class="btn btn-primary" id="shareVaultButton" onclick="handleShareUnShareVault('{{selected_vault_id}}');">Share</button>
             </div>
         </div>
     </div>
@@ -274,7 +276,7 @@
                 <div class="mb-3">
                     <label for="shareAccountUserInput">Username:</label>
                     <input type="hidden" id="shareAccountId">
-                    <div class="autocomplete">
+                    <div class="autocomplete theme-container">
                         <input type="text" class="form-control" id="shareAccountUserInput" name="username" placeholder="Enter username to share with">
                     </div>
                     <small class="form-text text-muted">Type in username who will be able to access this account.</small>

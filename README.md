@@ -2060,7 +2060,7 @@ docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data
 	-v $PARENT_DIR/PlexPassData:/data plexpass -j true --master-username frank 
     --master-password *** search-usernames --q ali
 ```
-### 11.30 Sharing a Vault with another User
+### 11.30 Sharing and Unsharing a Vault with another User
 
 PlexPass allows sharing a vault with another user for read-only or read/write access to view or edit all accounts in the Vault.
 
@@ -2071,6 +2071,13 @@ You can share a Vault with another user using CLI as follows:
 ```bash
 ./target/release/plexpass -j true --master-username eddie 
 	--master-password *** share-vault --vault-id $vault_id --target-username frank
+```
+
+You can also unshare a Vault with another user using CLI as follows:
+
+```bash
+./target/release/plexpass -j true --master-username eddie 
+	--master-password *** unshare-vault --vault-id $vault_id --target-username frank
 ```
 
 
@@ -2087,14 +2094,30 @@ curl -v -k --header "Content-Type: application/json; charset=UTF-8"
     -d '{"target_username": "frank"}'
 ```
 
+In order to unshare a Vault with another user using REST API, use following syntax:
+
+```bash
+curl -v -k --header "Content-Type: application/json; charset=UTF-8" 
+	--header "Authorization: Bearer $AUTH_TOKEN" 
+    https://localhost:8443/api/v1/vaults/$vault_id/unshare 
+    -d '{"target_username": "frank"}'
+```
+
 #### 11.30.3 Docker CLI
 
-You can search usernames using Docker CLI as follows:
+You can share and unshare a vault using Docker CLI as follows:
 
 ```bash
 docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
 	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true 
     --master-username frank --master-password ** share-vault 
+    --vault-id $vault_id --target-username charlie
+```
+
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e RUST_BACKTRACE=1 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data plexpass -j true 
+    --master-username frank --master-password ** unshare-vault 
     --vault-id $vault_id --target-username charlie
 ```
 
