@@ -589,10 +589,11 @@ async function deleteAccount(id) {
             if (!response.ok) {
                 alert(`Could not delete account ${response.status} ${response.statusText}`);
                 throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            } else {
+                showToast('Data deleted successfully!', () => {
+                    location.reload();
+                });
             }
-            showToast('Data deleted successfully!', () => {
-                location.reload();
-            });
         } catch (e) {
             console.error('Failed to delete data', e);
         }
@@ -986,7 +987,7 @@ async function saveCategory() {
 async function deleteCategory(name) {
     if (confirm(`Are you sure you want to delete this category '${name}'?`)) {
         try {
-            const response = await fetch(`/ui/categories/${name}`, {
+            const response = await fetch(`/ui/categories/${name}/delete`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -995,10 +996,11 @@ async function deleteCategory(name) {
             if (!response.ok) {
                 alert(`Could not delete category ${response.status} ${response.statusText}`);
                 throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            } else {
+                showToast('Category deleted successfully!', () => {
+                    location.reload();
+                });
             }
-            showToast('Category deleted successfully!', () => {
-                location.reload();
-            });
         } catch (e) {
             console.error('Failed to delete data', e);
         }
@@ -1027,12 +1029,17 @@ async function removeMFAKey(id) {
     if (confirm('Are you sure you want to delete multi-factor authentication key?')) {
         try {
             // Send the credentials to the server
-            await fetch('/ui/webauthn/unregister?id=' + id, {
+            const response = await fetch('/ui/webauthn/unregister?id=' + id, {
                 method: 'POST'
             });
-            showToast('removed multi-factor authentication key', () => {
-                location.reload();
-            })
+            if (response.ok) {
+                showToast('removed multi-factor authentication key', () => {
+                    location.reload();
+                })
+            } else {
+                alert(`Could not remove MFA keys ${response.status} ${response.statusText}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            }
         } catch (error) {
             console.error('Error removing MFA key:', error);
         }
@@ -1170,7 +1177,7 @@ async function registerMFAKey() {
             <p>Your multi-factor authentication key has been successfully added. In case you encounter issues signing in with multi-factor authentication, please use the following recovery code:</p>
             <hr>
             <p class="mb-0"><strong>Recovery Code:</strong> <span id="recoveryCode">${savedKey.recovery_code}</span></p>
-            <button type="button" class="btn btn-primary" onclick="copyToClipboard('${savedKey.recovery_code}')">Copy to Clipboard</button>
+            <button type="button" class="btn btn-outline-warning" onclick="copyToClipboard('${savedKey.recovery_code}')">Copy to Clipboard</button>
             <p class="text-danger mt-2"><strong>Notice:</strong> This recovery code will not be displayed again. Please store it in a safe place.</p>
         </div>`;
 
@@ -1207,5 +1214,61 @@ async function showAPIToken(id) {
 function copyTokenToClipboard() {
     const tokenDisplay = document.getElementById('tokenDisplay').textContent;
     copyToClipboard(tokenDisplay);
+}
+
+async function showAddEditVault(vaultId, version, title, kind) {
+    document.getElementById('vaultForm').reset();
+    document.getElementById('vaultId').value = vaultId || '';
+    document.getElementById('vaultVersion').value = version || 0;
+    document.getElementById('vaultName').value = title || '';
+    document.getElementById('vaultKind').value = kind || '';
+    document.getElementById('saveVaultButton').onclick = function () {
+        updateVaultDetails(vaultId, version);
+    }
+    const editModal = new bootstrap.Modal(document.getElementById('vaultModal'));
+    await editModal.show();
+}
+
+async function updateVaultDetails(vaultId, version) {
+    const form = document.getElementById('vaultForm');
+    const formData = new FormData(form);
+
+    const path = vaultId ? `/ui/vaults/${vaultId}/update` : '/ui/vaults';
+    try {
+        const response = await fetch(path, {
+            method: 'POST',
+            body: formData,
+        });
+        if (response.ok) {
+            document.location = '/';
+        } else {
+            throw new Error(`Failed to save the vault: ${response.status} ${response.statusText}`);
+        }
+    } catch (e) {
+        console.error('Failed to save the vault', e);
+    }
+}
+
+async function deleteVault(vaultId, title) {
+    if (confirm(`Are you sure you want to delete '${title}' Vault?`)) {
+        try {
+            const response = await fetch(`/ui/vaults/${vaultId}/delete`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            })
+            if (!response.ok) {
+                alert(`Could not delete vault ${response.status} ${response.statusText}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            } else {
+                showToast('Vault deleted successfully!', () => {
+                    location.reload();
+                });
+            }
+        } catch (e) {
+            console.error('Failed to delete data', e);
+        }
+    }
 }
 

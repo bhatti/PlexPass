@@ -16,9 +16,9 @@ use rustls_pemfile::{certs, pkcs8_private_keys};
 use time::Duration;
 
 use crate::auth::auth_middleware;
-use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, otp_api_controller, otp_ui_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller, webauthn_ui_controller};
+use crate::controller::{account_api_controller, account_ui_controller, audit_api_controller, audit_ui_controller, auth_api_controller, categories_api_controller, categories_ui_controller, dashboard_ui_controller, encryption_api_controller, import_export_api_controller, otp_api_controller, otp_ui_controller, password_api_controller, password_ui_controller, share_api_controller, share_ui_controller, user_api_controller, user_ui_controller, vault_api_controller, vault_ui_controller, webauthn_ui_controller};
 use crate::controller::auth_ui_controller::{handle_user_signin, handle_user_signout, handle_user_signup, user_mfa_recover, user_mfa_signin, user_signin, user_signup};
-use crate::controller::user_ui_controller::generate_api_token;
+use crate::controller::user_ui_controller::{generate_api_token, get_avatar};
 use crate::controller::vault_ui_controller::home_page;
 use crate::domain::error::PassError;
 use crate::domain::models::{PassConfig, PassResult};
@@ -213,6 +213,7 @@ fn config_services(service_config: &mut web::ServiceConfig) {
         .route(web::post().to(handle_user_signup)));
     service_config.service(web::resource("/ui/signout").route(web::get().to(handle_user_signout)));
     service_config.service(web::resource("/ui/api_token").route(web::get().to(generate_api_token)));
+    service_config.service(web::resource("/ui/avatar").route(web::get().to(get_avatar)));
     service_config.service(web::resource("/ui/users/autocomplete").route(web::get().to(user_ui_controller::autocomplete_users)));
     service_config.service(web::resource("/ui/users/profile")
         .route(web::get().to(user_ui_controller::user_profile))
@@ -234,12 +235,17 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.route("/ui/accounts/update", web::post().to(account_ui_controller::update_account));
     service_config.route("/ui/accounts/create", web::post().to(account_ui_controller::create_account));
     service_config.route("/ui/accounts/{id}/delete", web::delete().to(account_ui_controller::delete_account));
+    service_config.route("/ui/accounts/{id}/icon", web::get().to(account_ui_controller::get_account_icon));
     service_config.route("/ui/vaults/{vault_id}/accounts/import", web::post().to(account_ui_controller::import_accounts));
 
     // vaults
     service_config.service(web::resource("/ui/vaults/{vault_id}/accounts/export")
         .route(web::get().to(account_ui_controller::export_accounts)));
     service_config.service(account_ui_controller::get_account);
+    service_config.route("/ui/vaults/{vault_id}/update", web::post().to(vault_ui_controller::update_vault));
+    service_config.route("/ui/vaults/{vault_id}/delete", web::delete().to(vault_ui_controller::delete_vault));
+    service_config.route("/ui/vaults", web::post().to(vault_ui_controller::create_vault));
+    service_config.route("/ui/vaults/{vault_id}/icon", web::get().to(vault_ui_controller::get_vault_icon));
 
     // sharing
     service_config.route("/ui/vaults/{vault_id}/share", web::post().to(share_ui_controller::share_vault));
@@ -259,7 +265,7 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     // ui categories
     service_config.route("/ui/categories", web::get().to(categories_ui_controller::categories_page));
     service_config.route("/ui/categories/{name}", web::post().to(categories_ui_controller::create_category));
-    service_config.route("/ui/categories/{name}", web::delete().to(categories_ui_controller::delete_category));
+    service_config.route("/ui/categories/{name}/delete", web::delete().to(categories_ui_controller::delete_category));
 
     // otp
     service_config.route("/ui/otp/generate", web::get().to(otp_ui_controller::generate_otp));

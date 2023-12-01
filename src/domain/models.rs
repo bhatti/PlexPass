@@ -502,12 +502,11 @@ impl User {
     }
 
     pub fn set_icon(&mut self, icon: Vec<u8>) {
-        let bytes = if icon.len() > MAX_ICON_LENGTH {
-            icon[0..MAX_ICON_LENGTH].to_vec()
-        } else {
-            icon
-        };
-        self.icon = Some(general_purpose::STANDARD_NO_PAD.encode(bytes));
+        self.icon = Some(base64_trim_icon(icon));
+    }
+
+    pub fn icon_string(&self) -> String {
+        icon_string(&self.icon, "/assets/images/user.png")
     }
 
     pub fn verify_otp(&self, code: u32) -> bool {
@@ -621,13 +620,6 @@ impl User {
     }
     pub fn locale_string(&self) -> String {
         self.locale.clone().unwrap_or_default().display_name.to_string()
-    }
-    pub fn icon_string(&self) -> String {
-        if let Some(icon) = self.clone().icon {
-            format!("data:image/png;base64,{}", icon)
-        } else {
-            "/assets/images/user.png".to_string()
-        }
     }
     pub fn is_light_mode(&self) -> bool {
         self.light_mode.unwrap_or(false)
@@ -917,6 +909,14 @@ impl AccountSummary {
             credentials_updated_at: None,
             analyzed_at: None,
         }
+    }
+
+    pub fn set_icon(&mut self, icon: Vec<u8>) {
+        self.icon = Some(base64_trim_icon(icon));
+    }
+
+    pub fn icon_string(&self) -> String {
+        icon_string(&self.icon, "/assets/images/account.png")
     }
 
     pub fn matches(&self, q: &str) -> bool {
@@ -1498,20 +1498,11 @@ impl Vault {
     }
 
     pub fn set_icon(&mut self, icon: Vec<u8>) {
-        let bytes = if icon.len() > MAX_ICON_LENGTH {
-            icon[0..MAX_ICON_LENGTH].to_vec()
-        } else {
-            icon
-        };
-        self.icon = Some(general_purpose::STANDARD_NO_PAD.encode(bytes));
+        self.icon = Some(base64_trim_icon(icon));
     }
 
     pub fn icon_string(&self) -> String {
-        if let Some(icon) = self.clone().icon {
-            format!("data:image/png;base64,{}", icon)
-        } else {
-            "/assets/images/vault.png".to_string()
-        }
+        icon_string(&self.icon, "/assets/images/vault.png")
     }
 
     pub fn total_accounts(&self) -> usize {
@@ -1604,11 +1595,11 @@ impl PassConfig {
         let jwt_key = std::env::var("JWT_KEY").unwrap_or(device_pepper_key.clone());
         let hibp_api_key: Option<String> = if let Ok(val) = std::env::var("HIBP_API_KEY") { Some(val) } else { None };
         let session_timeout_minutes: i64 = std::env::var("SESSION_TIMEOUT_MINUTES")
-            .unwrap_or("480".into())
+            .unwrap_or("60".into())
             .parse()
             .unwrap();
         let jwt_max_age_minutes: i64 = std::env::var("JWT_MAX_AGE_MINUTES")
-            .unwrap_or("10000".into())
+            .unwrap_or("8192".into())
             .parse()
             .unwrap();
         let session_key = if let Ok((_, session_key)) = crypto::generate_private_key_from_secret(&device_pepper_key) {
@@ -2847,6 +2838,23 @@ impl PartialEq for VaultAnalysis {
             self.count_similar_to_other_passwords == other.count_similar_to_other_passwords &&
             self.count_similar_to_past_passwords == other.count_similar_to_past_passwords
     }
+}
+
+pub fn icon_string(icon: &Option<String>, def_icon: &str) -> String {
+    if let Some(icon) = icon {
+        format!("data:image/png;base64,{}", icon)
+    } else {
+        def_icon.to_string()
+    }
+}
+
+pub fn base64_trim_icon(icon: Vec<u8>) -> String {
+    let bytes = if icon.len() > MAX_ICON_LENGTH {
+        icon[0..MAX_ICON_LENGTH].to_vec()
+    } else {
+        icon
+    };
+    general_purpose::STANDARD_NO_PAD.encode(bytes)
 }
 
 

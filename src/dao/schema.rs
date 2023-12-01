@@ -161,6 +161,7 @@ diesel::table! {
         owner_user_id -> Text,
         title -> Text,
         kind -> Text,
+        icon -> Nullable<Text>,
         salt -> Text,
         nonce -> Text,
         encrypted_value -> Text,

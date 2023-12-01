@@ -639,6 +639,8 @@ pub struct VaultEntity {
     pub title: String,
     // The kind of vault.
     pub kind: String,
+    // The icon of vault.
+    pub icon: Option<String>,
     // The salt for encryption.
     pub salt: String,
     // The nonce for encryption.
@@ -657,6 +659,7 @@ impl VaultEntity {
             owner_user_id: vault.owner_user_id.clone(),
             title: vault.title.clone(),
             kind: vault.kind.to_string(),
+            icon: vault.icon.clone(),
             salt: salt.into(),
             nonce: nonce.into(),
             encrypted_value: encrypted_value.into(),
@@ -700,6 +703,7 @@ impl VaultEntity {
         vault: &Vault,
         vault_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
+        let old_vault= self.to_vault(ctx, user_crypto_key, vault_crypto_key)?;
         self.title = vault.title.clone();
         self.version += 1;
 
@@ -709,7 +713,7 @@ impl VaultEntity {
                 &ctx.decrypted_user_private_key(user_crypto_key)?,
             )?;
 
-        let vault = if vault.entries.is_none() {
+        let mut vault = if vault.entries.is_none() {
             // we will load entries from old vault
             let vault_json = decrypt_with(
                 ctx,
@@ -726,6 +730,13 @@ impl VaultEntity {
         } else {
             vault.clone()
         };
+        if vault.icon.is_none() {
+            self.icon = old_vault.icon.clone();
+            vault.icon = old_vault.icon;
+        } else {
+            self.icon = vault.icon.clone();
+        }
+        vault.updated_at = Some(Utc::now().naive_utc());
 
         // Using empty pepper so that we can share it with other users
         let (nonce, encrypted_value) =
@@ -761,6 +772,7 @@ impl VaultEntity {
         let mut vault: Vault = serde_json::from_str(&vault_json)?;
         vault.version = self.version;
         vault.title = self.title.clone();
+        vault.icon  = self.icon.clone();
         vault.kind = VaultKind::from(self.kind.as_str());
         vault.created_at = Some(self.created_at);
         vault.updated_at = Some(self.updated_at);
@@ -964,6 +976,7 @@ impl AccountEntity {
         account: &Account,
         account_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
+        let old_account = self.to_account(ctx, user_crypto_key, vault_crypto_key, account_crypto_key)?;
         self.version += 1;
 
         let decrypted_symmetric_key = Self::decrypted_account_symmetric_key(
@@ -975,6 +988,13 @@ impl AccountEntity {
 
         let mut account = account.clone();
         account.details.version = self.version;
+        if account.details.icon.is_none() {
+            account.details.icon = old_account.details.icon;
+        }
+        if account.details.favicon.is_none() {
+            account.details.favicon = old_account.details.favicon;
+        }
+        account.updated_at = Some(Utc::now().naive_utc());
 
         // Encrypting without pepper key so that we can share it
         let (nonce, encrypted_value) =

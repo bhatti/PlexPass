@@ -216,13 +216,6 @@ impl ShareVaultAccountRepository for ShareVaultAccountRepositoryImpl {
                 AuditKind::SharedCreatedVault, &vault_entity.vault_id, "vault shared created"),
                                     c)
         })?;
-        if self.user_vault_repository.find_one(
-            HashMap::from([
-                ("vault_id".into(), vault_entity.vault_id.clone()), ("user_id".into(), target_user_id.clone())]),
-            &mut conn)
-            .is_err() {
-            return Err(PassError::not_found(".....>>>>The vault is not shared with the target user"));
-        }
 
         let message_payload = ShareVaultPayload::new(
             &vault_entity.vault_id,

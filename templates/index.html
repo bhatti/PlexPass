@@ -23,7 +23,7 @@
                 </nav>
                 <ul class="nav nav-pills flex-column mb-auto">
                     {% for vault in vaults %}
-                    {% if selected_vault_id == vault.vault_id %}
+                    {% if selected_vault.vault_id == vault.vault_id %}
                     <li class="nav-item">
                         <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
                             <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
@@ -36,7 +36,18 @@
                     {% endif %}
                     {% endfor %}
                     </li>
+
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="modal" onclick="showAddEditVault();" data-bs-target="#addVaultModal">
+                            <span class="fa fa-plus"></span>&nbsp;Add New Vault
+                        </button>
+                    </li>
                 </ul>
+
+                <div class="sidebar-avatar">
+                    <img src="/ui/avatar" alt="User Avatar">
+                </div>
+
                 <hr/>
                 <nav class="sidenav theme-sidenav">
                     <a class="nav-link" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
@@ -50,17 +61,17 @@
             <!-- Tabs -->
             <ul class="nav nav-tabs">
                 <li class="nav-item" id="allTab">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&tab_name=all">All Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&tab_name=all">All Accounts</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=favorite&tab_name=favorite">Favorite Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=favorite&tab_name=favorite">Favorite Accounts</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q=high_risk&tab_name=high_risk">High-Risk Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=high_risk&tab_name=high_risk">High-Risk Accounts</a>
                 </li>
                 {% for category in top_categories %}
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault_id}}&q={{category}}&tab_name={{category}}">{{category}}</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q={{category}}&tab_name={{category}}">{{category}}</a>
                 </li>
                 {% endfor %}
             </ul>
@@ -70,18 +81,22 @@
             </div>
             <div class="my-3 ms-auto">
                 <button class="btn btn-outline-primary" data-toggle="modal" data-target="#editAccountModal"
-                        onclick="addAccount('{{selected_vault_id}}')">Add Account
+                        onclick="addAccount('{{selected_vault.vault_id}}')">Add Account
                 </button>
                 <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="importAccounts('{{selected_vault_id}}')">Import Accounts</button>
+                        onclick="importAccounts('{{selected_vault.vault_id}}')">Import Accounts</button>
                 <button class="btn btn-outline-success" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="exportAccounts('{{selected_vault_id}}')">Export Accounts</button>
+                        onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Accounts</button>
                 <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="shareVault('{{selected_vault_id}}')">Share Vault</button>
+                        onclick="shareVault('{{selected_vault.vault_id}}')">Share Vault</button>
+                <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
+                        onclick="unshareVault('{{selected_vault.vault_id}}')">UnShare Vault</button>
+                <button class="btn btn-outline-info" data-toggle="modal" data-target="#shareVaultModal"
+                        onclick="showAddEditVault('{{selected_vault.vault_id}}', {{selected_vault.version}}, '{{selected_vault.title}}', '{{selected_vault.kind}}');">Edit Vault</button>
                 <button class="btn btn-outline-danger" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="unshareVault('{{selected_vault_id}}')">UnShare Vault</button>
+                        onclick="deleteVault('{{selected_vault.vault_id}}', '{{selected_vault.title}}');">Delete Vault</button>
                 <form action="/">
-                    <input type="hidden" name="selected_vault_id" value="{{selected_vault_id}}">
+                    <input type="hidden" name="selected_vault_id" value="{{selected_vault.vault_id}}">
                     <div class="d-flex form-group mb-5">
                         <input class="form-control me-2" type="search" name="q" value="{{q}}" placeholder="Filter..."
                                aria-label="Filter">
@@ -107,6 +122,7 @@
                     <td>
                         {% if account.has_favicon() %}
                         <img width="16" height="16" src="{{account.favicon()}}">
+                        &nbsp;
                         {% endif %}
                         {% if account.has_url() %}
                         <a href="{{account.website_url()}}">{{account.label_description()}}</a>
@@ -204,7 +220,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="importButton" onclick="handleImportAccounts('{{selected_vault_id}}');">Upload CSV</button>
+                <button type="button" class="btn btn-primary" id="importButton" onclick="handleImportAccounts('{{selected_vault.vault_id}}');">Upload CSV</button>
             </div>
         </div>
     </div>
@@ -233,7 +249,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="hideExportAccounts();">Close</button>
-                <button type="button" class="btn btn-primary" id="exportButton" onclick="handleExportAccounts('{{selected_vault_id}}');">Export Accounts</button>
+                <button type="button" class="btn btn-primary" id="exportButton" onclick="handleExportAccounts('{{selected_vault.vault_id}}');">Export Accounts</button>
             </div>
         </div>
     </div>
@@ -258,7 +274,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="shareVaultButton" onclick="handleShareUnShareVault('{{selected_vault_id}}');">Share</button>
+                <button type="button" class="btn btn-primary" id="shareVaultButton" onclick="handleShareUnShareVault('{{selected_vault.vault_id}}');">Share</button>
             </div>
         </div>
     </div>
@@ -284,7 +300,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="shareAccountButton" onclick="handleShareAccount('{{selected_vault_id}}');">Share</button>
+                <button type="button" class="btn btn-primary" id="shareAccountButton" onclick="handleShareAccount('{{selected_vault.vault_id}}');">Share</button>
             </div>
         </div>
     </div>
@@ -309,6 +325,45 @@
         </div>
     </div>
 </div>
+
+<!-- Add/Edit Vault Modal -->
+<div class="modal fade" id="vaultModal" tabindex="-1" aria-labelledby="vaultModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content theme-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="vaultModalLabel">Vault Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="vaultForm">
+                    <input type="hidden" name="vault_id" class="form-control" id="vaultId" required>
+                    <input type="hidden" name="vault_version" class="form-control" id="vaultVersion">
+                    <div class="mb-3">
+                        <label for="vaultName" class="form-label">Vault Name</label>
+                        <input type="text" name="title" class="form-control" id="vaultName" placeholder="Enter Vault title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vaultKind" class="form-label">Vault Kind</label>
+                        <select class="form-select" id="vaultKind" name="kind">
+                            <option value="Logins">Logins</option>
+                            <option value="SecureNotes">Secure Notes</option>
+                            <option value="FormData">Form/Custom Data</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vaultIcon" class="form-label">Vault Icon (Optional)</label>
+                        <input type="file" class="form-control" id="vaultIcon" name="icon">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveVaultButton" onclick="saveVaultDetails()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 {% endblock extra_content %}
 

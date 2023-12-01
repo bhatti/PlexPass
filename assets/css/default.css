@@ -31,6 +31,20 @@
     padding: 10px;
 }
 
+.sidebar-avatar {
+    text-align: center;
+    margin-top: 20px; /* Adjust as needed */
+}
+
+.sidebar-avatar img {
+    width: 80px; /* Adjust size as needed */
+    height: 80px; /* Make it equal to width for a perfect circle */
+    border-radius: 50%; /* This makes the image circular */
+    object-fit: cover; /* This will make sure the image covers the area without stretching */
+    border: 2px solid #fff; /* Optional: Adds a border around the image */
+}
+
+
 .form-container {
     position: absolute;
     top: 50%;

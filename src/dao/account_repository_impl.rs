@@ -89,7 +89,7 @@ impl AccountRepositoryImpl {
         other_vault_id: &str,
     ) -> PassResult<UserVaultEntity> {
         if !ctx.is_admin() && ctx.user_id != other_user_id {
-            return Err(PassError::not_found(
+            return Err(PassError::authorization(
                 format!(
                     "vault {} for user {} is not accessible",
                     other_vault_id, other_user_id

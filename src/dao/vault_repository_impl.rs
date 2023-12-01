@@ -428,6 +428,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
             let mut vault = Vault::new(&entity.owner_user_id, &entity.title, VaultKind::from(entity.kind.as_str()));
             vault.vault_id = entity.vault_id.clone();
             vault.version = entity.version;
+            vault.icon = entity.icon;
             vault.created_at = Some(entity.created_at);
             vault.updated_at = Some(entity.updated_at);
             if entity.owner_user_id != ctx.user_id &&

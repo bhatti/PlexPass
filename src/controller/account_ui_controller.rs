@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::fs;
 use std::time::Duration;
 
 use actix_multipart::Multipart;
@@ -37,7 +38,8 @@ pub async fn create_account(
     mut payload: Multipart,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let account = Account::from_multipart(&mut payload, true).await?;
+    let account = Account::from_multipart(&mut payload, true,
+                                          &service_locator.config).await?;
     let _ = service_locator
         .account_service
         .create_account(&auth.context, &account)
@@ -50,12 +52,25 @@ pub async fn update_account(
     mut payload: Multipart,
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
-    let account = Account::from_multipart(&mut payload, false).await?;
+    let account = Account::from_multipart(&mut payload, false,
+                                          &service_locator.config).await?;
     let _ = service_locator
         .account_service
         .update_account(&auth.context, &account)
         .await?;
     Ok(HttpResponse::Ok().finish())
+}
+
+pub async fn get_account_icon(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>) -> impl Responder {
+    let account_id = path.into_inner();
+    let file_path = service_locator.config.build_data_file(
+        &format!("account_{}.png", &account_id));
+    match fs::read(file_path) {
+        Ok(data) => HttpResponse::Ok().content_type("image/png").body(data),
+        Err(_) => HttpResponse::NotFound().finish(),
+    }
 }
 
 pub async fn import_accounts(

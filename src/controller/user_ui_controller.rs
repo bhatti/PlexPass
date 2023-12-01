@@ -1,3 +1,4 @@
+use std::fs;
 use actix_multipart::Multipart;
 use actix_web::{HttpRequest, HttpResponse, Responder, Result, Error, web, http};
 use actix_web_lab::respond::Html;
@@ -75,6 +76,17 @@ pub async fn user_profile(
     Ok(Html(html))
 }
 
+pub async fn get_avatar(
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated) -> impl Responder {
+    let file_path = service_locator.config.build_data_file(
+        &format!("user_{}.png", &auth.context.user_id));
+    match fs::read(file_path) {
+        Ok(data) => HttpResponse::Ok().content_type("image/png").body(data),
+        Err(_) => HttpResponse::NotFound().finish(),
+    }
+}
+
 pub async fn update_user_profile(
     service_locator: web::Data<ServiceLocator>,
     mut payload: Multipart,
@@ -83,7 +95,8 @@ pub async fn update_user_profile(
     let user = User::from_multipart(&mut payload,
                                     &auth.context.user_id,
                                     &auth.context.username,
-                                    &auth.context.roles).await?;
+                                    &auth.context.roles,
+                                    &service_locator.config).await?;
     let _ = service_locator
         .user_service
         .update_user(&auth.context, &user)

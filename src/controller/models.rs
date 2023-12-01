@@ -1,9 +1,11 @@
-use std::cmp;
+use std::{cmp, fs};
 use std::collections::HashMap;
 use std::future::{Ready, ready};
 
-use actix_multipart::Multipart;
+use actix_multipart::{Field, Multipart};
 use actix_web::{FromRequest, HttpMessage};
+use base64::Engine;
+use base64::engine::general_purpose;
 use chrono::{NaiveDateTime, Utc};
 use futures::stream::StreamExt;
 use otpauth::TOTP;
@@ -12,7 +14,7 @@ use uuid::Uuid;
 
 use crate::dao::models::UserContext;
 use crate::domain::error::PassError;
-use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, MAX_ICON_LENGTH, NameValue, PaginatedResult, PassResult, PasswordPolicy, Roles, User, UserLocale, UserToken, Vault, VaultAnalysis, VaultKind};
+use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, MAX_ICON_LENGTH, NameValue, PaginatedResult, PassConfig, PassResult, PasswordPolicy, Roles, User, UserLocale, UserToken, Vault, VaultAnalysis, VaultKind};
 use crate::utils::safe_parse_string_date;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -803,8 +805,38 @@ pub struct DeleteAccountRequest {
     pub account_id: String,
 }
 
+async fn load_icon_from_multipart(field: &mut Field) -> PassResult<Vec<u8>> {
+    let mut bytes = vec![];
+    while let Some(chunk) = field.next().await {
+        let data = chunk?;
+        bytes.extend_from_slice(&data);
+        if bytes.len() > MAX_ICON_LENGTH {
+            break;
+        }
+    }
+    Ok(bytes)
+}
+
+fn store_icon(id: &str, icon: &Option<String>, config: &PassConfig) -> PassResult<()> {
+    if let Some(icon) = icon {
+        let file_path = config.build_data_file(id);
+        if let Ok(decoded) = general_purpose::STANDARD_NO_PAD.decode(icon) {
+            fs::write(file_path, decoded)?;
+        }
+    }
+    Ok(())
+}
+
+async fn load_string_from_multipart(field: &mut Field) -> PassResult<String> {
+    let mut value = String::new();
+    while let Some(chunk) = field.next().await {
+        value += &String::from_utf8(chunk?.to_vec()).unwrap();
+    }
+    Ok(value.trim().to_string())
+}
+
 impl Account {
-    pub async fn from_multipart(payload: &mut Multipart, new_rec: bool) -> PassResult<Self> {
+    pub async fn from_multipart(payload: &mut Multipart, new_rec: bool, _config: &PassConfig) -> PassResult<Self> {
         let mut account = Self::new("", AccountKind::Login);
         let mut custom_names = vec![];
         let mut custom_values = vec![];
@@ -813,10 +845,12 @@ impl Account {
             let content_disposition = field.content_disposition().clone();
             let name = content_disposition.get_name().unwrap();
             let mut value = String::new();
-            while let Some(chunk) = field.next().await {
-                value += &String::from_utf8(chunk?.to_vec()).unwrap();
+            if name == "icon" {
+                let bytes = load_icon_from_multipart(&mut field).await?;
+                account.details.set_icon(bytes);
+            } else {
+                value = load_string_from_multipart(&mut field).await?;
             }
-            value = value.trim().to_string();
             match name {
                 "account_id" => account.details.account_id = value,
                 "version" => account.details.version = value.parse::<i64>()?,
@@ -860,14 +894,47 @@ impl Account {
             }
         }
         account.credentials.form_fields = attributes;
+        // store_icon(
+        //     &format!("account_{}.png", &account.details.account_id), &account.details.icon, config)?;
         Ok(account)
+    }
+}
+
+impl Vault {
+    pub async fn from_multipart(payload: &mut Multipart,
+                                user_id: &str, _config: &PassConfig) -> PassResult<Self> {
+        let mut vault = Vault::new(user_id, "", VaultKind::Logins);
+        while let Some(item) = payload.next().await {
+            let mut field = item?;
+            let content_disposition = field.content_disposition().clone();
+            let name = content_disposition.get_name().unwrap();
+            let mut value = String::new();
+            if name == "icon" {
+                let bytes = load_icon_from_multipart(&mut field).await?;
+                vault.set_icon(bytes);
+            } else {
+                value = load_string_from_multipart(&mut field).await?;
+            }
+            match name {
+                "vault_id" => vault.vault_id = value,
+                "version" => vault.version = value.parse::<i64>()?,
+                "vault_version" => vault.version = value.parse::<i64>()?,
+                "title" => vault.title = value,
+                "kind" => vault.kind = VaultKind::from(value.as_str()),
+                _ => {}
+            };
+        }
+        // store_icon(
+        //     &format!("vault_{}.png", &vault.vault_id), &vault.icon, config)?;
+        Ok(vault)
     }
 }
 
 impl User {
     pub async fn from_multipart(payload: &mut Multipart,
                                 user_id: &str, username: &str,
-                                roles: &Option<Roles>) -> PassResult<Self> {
+                                roles: &Option<Roles>,
+                                config: &PassConfig) -> PassResult<Self> {
         let mut user = User::new(username, None, None);
         user.user_id = user_id.to_string();
         user.roles = roles.clone();
@@ -877,20 +944,10 @@ impl User {
             let name = content_disposition.get_name().unwrap();
             let mut value = String::new();
             if name == "icon" {
-                let mut bytes = vec![];
-                while let Some(chunk) = field.next().await {
-                    let data = chunk?;
-                    bytes.extend_from_slice(&data);
-                    if bytes.len() > MAX_ICON_LENGTH {
-                        break;
-                    }
-                }
+                let bytes = load_icon_from_multipart(&mut field).await?;
                 user.set_icon(bytes);
             } else {
-                while let Some(chunk) = field.next().await {
-                    value += &String::from_utf8(chunk?.to_vec()).unwrap();
-                }
-                value = value.trim().to_string();
+                value = load_string_from_multipart(&mut field).await?;
             }
             match name {
                 "version" => user.version = value.parse::<i64>()?,
@@ -902,6 +959,8 @@ impl User {
                 _ => {}
             };
         }
+        store_icon(
+            &format!("user_{}.png", &user.user_id), &user.icon, config)?;
         Ok(user)
     }
 }

@@ -1,19 +1,22 @@
-use actix_web::{Responder, Result, web};
+use std::fs;
+use actix_multipart::Multipart;
+use actix_web::{Error, HttpResponse, Responder, Result, web};
 use actix_web_lab::respond::Html;
 use askama::Template;
 use serde::Deserialize;
 
 use itertools::{Itertools};
+use uuid::Uuid;
 
 use crate::controller::models::{Authenticated, VaultResponse};
 use crate::domain::error::PassError;
-use crate::domain::models::{AccountSummary, all_categories, LookupKind, top_categories};
+use crate::domain::models::{AccountSummary, all_categories, LookupKind, top_categories, Vault};
 use crate::service::locator::ServiceLocator;
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate<'a> {
-    selected_vault_id: &'a str,
+    selected_vault: Vault,
     q: &'a str,
     vaults: Vec<VaultResponse>,
     accounts: Vec<AccountSummary>,
@@ -25,7 +28,7 @@ struct IndexTemplate<'a> {
 
 impl<'a> IndexTemplate<'a> {
     fn new(
-        selected_vault_id: &'a str,
+        selected_vault: Vault,
         q: &'a str,
         vaults: Vec<VaultResponse>,
         accounts: Vec<AccountSummary>,
@@ -34,7 +37,7 @@ impl<'a> IndexTemplate<'a> {
         top_categories: Vec<String>,
         all_categories: Vec<String>, ) -> Self {
         Self {
-            selected_vault_id,
+            selected_vault,
             q,
             vaults,
             accounts,
@@ -89,7 +92,7 @@ pub async fn home_page(
         user_categories
     };
     let html = IndexTemplate::new(
-        &vault.vault_id,
+        vault,
         &query.q.clone().unwrap_or_default(),
         vaults,
         accounts,
@@ -99,4 +102,62 @@ pub async fn home_page(
         user_with_all_categories)
         .render().expect("could not find dashboard template");
     Ok(Html(html))
+}
+
+pub async fn create_vault(
+    service_locator: web::Data<ServiceLocator>,
+    mut payload: Multipart,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let mut vault = Vault::from_multipart(&mut payload, &auth.context.user_id,
+                                      &service_locator.config).await?;
+    vault.vault_id = Uuid::new_v4().to_string();
+    vault.version = 0;
+    let _ = service_locator
+        .vault_service
+        .create_vault(&auth.context, &vault)
+        .await?;
+    Ok(HttpResponse::Ok().json(VaultResponse::new(&vault)))
+}
+
+pub async fn update_vault(
+    path: web::Path<String>,
+    service_locator: web::Data<ServiceLocator>,
+    mut payload: Multipart,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let vault_id = path.into_inner();
+    let mut vault = Vault::from_multipart(&mut payload, &auth.context.user_id,
+                                          &service_locator.config).await?;
+    vault.vault_id = vault_id;
+    let _ = service_locator
+        .vault_service
+        .update_vault(&auth.context, &vault)
+        .await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+pub async fn delete_vault(
+    path: web::Path<String>,
+    service_locator: web::Data<ServiceLocator>,
+    auth: Authenticated,
+) -> Result<HttpResponse, Error> {
+    let vault_id = path.into_inner();
+    let _ = service_locator
+        .vault_service
+        .delete_vault(&auth.context, &vault_id)
+        .await?;
+    Ok(HttpResponse::Ok().finish())
+}
+
+pub async fn get_vault_icon(
+    service_locator: web::Data<ServiceLocator>,
+    path: web::Path<String>) -> impl Responder {
+    let vault_id = path.into_inner();
+    let file_path = service_locator.config.build_data_file(
+        &format!("vault_{}.png", &vault_id));
+    match fs::read(file_path) {
+        Ok(data) => HttpResponse::Ok().content_type("image/png").body(data),
+        Err(_) => HttpResponse::NotFound().finish(),
+    }
 }

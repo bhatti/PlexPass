@@ -56,7 +56,7 @@
                                      style="font-size: 1.5rem; flex-grow: 1;">
                                     <span id="viewGeneratedOtp"></span>
                                 </div>
-                                <button class="btn btn-outline-info" onclick="copyOtpToClipboard()">Copy</button>
+                                <button class="btn btn-outline-warning" onclick="copyOtpToClipboard()">Copy</button>
                             </div>
                         </div>
 
@@ -228,7 +228,7 @@
             <div class="modal-body">
                 <p>Your generated JWT token:</p>
                 <textarea class="form-control" id="tokenDisplay" rows="5" readonly>Loading...</textarea>
-                <button class="btn btn-primary my-2" onclick="copyTokenToClipboard()">Copy to Clipboard</button>
+                <button class="btn btn-outline-warning my-2" onclick="copyTokenToClipboard()">Copy to Clipboard</button>
                 <p>Include this JWT token in the Authorization header of your HTTP requests as follows:</p>
                 <code>Authorization: Bearer YOUR_TOKEN</code>
             </div>
