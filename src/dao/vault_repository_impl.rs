@@ -249,6 +249,7 @@ impl Repository<Vault, VaultEntity> for VaultRepositoryImpl {
                 version.eq(vault_entity.version + 1),
                 title.eq(&vault_entity.title),
                 kind.eq(&vault_entity.kind),
+                icon.eq(&vault_entity.icon),
                 nonce.eq(&vault_entity.nonce),
                 encrypted_value.eq(&vault_entity.encrypted_value),
                 updated_at.eq(&vault_entity.updated_at),

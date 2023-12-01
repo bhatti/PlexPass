@@ -1022,7 +1022,7 @@ function showToast(message, callback) {
         if (callback) {
             callback();
         }
-    }, 1000);
+    }, 500);
 }
 
 async function removeMFAKey(id) {
@@ -1240,7 +1240,9 @@ async function updateVaultDetails(vaultId, version) {
             body: formData,
         });
         if (response.ok) {
-            document.location = '/';
+            showToast('Vault updated successfully!', () => {
+                location.reload();
+            });
         } else {
             throw new Error(`Failed to save the vault: ${response.status} ${response.statusText}`);
         }

@@ -736,6 +736,7 @@ impl VaultEntity {
         } else {
             self.icon = vault.icon.clone();
         }
+
         vault.updated_at = Some(Utc::now().naive_utc());
 
         // Using empty pepper so that we can share it with other users
