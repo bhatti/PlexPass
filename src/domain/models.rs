@@ -2770,7 +2770,7 @@ impl VaultAnalysis {
             count_reused: 0,
             count_similar_to_other_passwords: 0,
             count_similar_to_past_passwords: 0,
-            analyzed_at: Utc::now().naive_utc(),
+            analyzed_at: NaiveDateTime::from_timestamp(0, 0),
         }
     }
 
