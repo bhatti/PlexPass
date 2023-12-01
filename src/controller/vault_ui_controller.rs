@@ -24,6 +24,8 @@ struct IndexTemplate<'a> {
     all_categories: Vec<String>,
     username: String,
     light_mode: bool,
+    build_version: &'a str,
+    build_date: &'a str,
 }
 
 impl<'a> IndexTemplate<'a> {
@@ -35,7 +37,10 @@ impl<'a> IndexTemplate<'a> {
         username: &str,
         light_mode: bool,
         top_categories: Vec<String>,
-        all_categories: Vec<String>, ) -> Self {
+        all_categories: Vec<String>,
+        build_version: &'a str,
+        build_date: &'a str,
+    ) -> Self {
         Self {
             selected_vault,
             q,
@@ -45,6 +50,8 @@ impl<'a> IndexTemplate<'a> {
             all_categories,
             username: username.to_string(),
             light_mode,
+            build_version,
+            build_date,
         }
     }
 }
@@ -99,7 +106,9 @@ pub async fn home_page(
         &auth.context.username,
         auth.context.light_mode,
         top_categories,
-        user_with_all_categories)
+        user_with_all_categories,
+        crate::VERSION,
+        crate::BUILD_DATE)
         .render().expect("could not find dashboard template");
     Ok(Html(html))
 }
@@ -110,7 +119,7 @@ pub async fn create_vault(
     auth: Authenticated,
 ) -> Result<HttpResponse, Error> {
     let mut vault = Vault::from_multipart(&mut payload, &auth.context.user_id,
-                                      &service_locator.config).await?;
+                                          &service_locator.config).await?;
     vault.vault_id = Uuid::new_v4().to_string();
     vault.version = 0;
     let _ = service_locator

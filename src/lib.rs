@@ -1,3 +1,5 @@
+include!(concat!(env!("OUT_DIR"), "/version_info.rs"));
+
 extern crate diesel;
 extern crate diesel_migrations;
 extern crate dotenv;
@@ -16,3 +18,5 @@ mod service;
 mod utils;
 mod locales;
 mod csv;
+
+

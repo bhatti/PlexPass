@@ -736,6 +736,9 @@ impl VaultEntity {
         } else {
             self.icon = vault.icon.clone();
         }
+        if vault.analysis.is_none() {
+            vault.analysis = old_vault.analysis.clone();
+        }
 
         vault.updated_at = Some(Utc::now().naive_utc());
 

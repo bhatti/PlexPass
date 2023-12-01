@@ -16,3 +16,5 @@ PlexPassData/
 .idea
 enc.out
 enc_accounts.csv
+*.txt
+*.sh

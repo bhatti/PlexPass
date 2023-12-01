@@ -118,7 +118,6 @@ impl AccountRepositoryImpl {
         let mut entries = vault.entries.unwrap_or(HashMap::new());
         entries.insert(account.details.account_id.clone(), account.details.clone());
         vault.entries = Some(entries);
-        vault.analyzed_at = None;
         self.vault_repository.update(ctx, &vault).await?;
         Ok(())
     }
@@ -133,7 +132,6 @@ impl AccountRepositoryImpl {
         let mut entries = vault.entries.unwrap_or(HashMap::new());
         entries.remove(&account.details.account_id);
         vault.entries = Some(entries);
-        vault.analyzed_at = None;
         self.vault_repository.update(ctx, &vault).await?;
         Ok(())
     }

@@ -13,7 +13,7 @@ use crate::domain::error::PassError;
 use crate::utils::metrics::PassMetrics;
 use crate::utils::text::{cosine_similarity, jaccard_similarity, jaro_winkler_similarity, levenshtein_distance};
 
-const VAULT_ANALYZE_DELAY_MILLIS: i64 = 3600 * 1000 * 2; // 2 hours
+const VAULT_ANALYZE_DELAY_MILLIS: i64 = 60 * 1000 * 30; // 30 minutes
 
 #[derive(Clone)]
 pub(crate) struct PasswordServiceImpl {
@@ -112,8 +112,8 @@ impl PasswordService for PasswordServiceImpl {
         let now = Utc::now().naive_utc();
 
         let vault = self.vault_service.get_vault(ctx, vault_id).await?;
-        if let Some(analyzed_at) = vault.analyzed_at {
-            let elapsed = now.timestamp_millis() - analyzed_at.timestamp_millis();
+        if let Some(analysis) = vault.analysis {
+            let elapsed = now.timestamp_millis() - analysis.analyzed_at.timestamp_millis();
             if elapsed < VAULT_ANALYZE_DELAY_MILLIS {
                 return Err(PassError::validation("vault was recently analyzed so skipping it", None));
             }
@@ -205,8 +205,8 @@ impl PasswordService for PasswordServiceImpl {
         // reading vault again because it would have been updated and version wouldn't match so it would fail to update.
         let mut vault = self.vault_service.get_vault(ctx, vault_id).await?;
         // update vault if needed
+        vault_analysis.analyzed_at = Utc::now().naive_utc();
         vault.analysis = Some(vault_analysis.clone());
-        vault.analyzed_at = Some(Utc::now().naive_utc());
         let _ = self.vault_service.update_vault(ctx, &vault).await?;
         vault_analysis.total_accounts = vault.entries.unwrap_or_default().len();
 

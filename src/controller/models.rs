@@ -215,8 +215,6 @@ pub struct VaultResponse {
     // The icon of vault.
     pub icon: String,
     pub analysis: VaultAnalysis,
-    // The metadata for date when passwords for the vault were analyzed.
-    pub analyzed_at: Option<NaiveDateTime>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
@@ -231,7 +229,6 @@ impl VaultResponse {
             kind: vault.kind.clone(),
             icon: vault.icon_string(),
             analysis: vault.analysis.clone().unwrap_or_default(),
-            analyzed_at: vault.analyzed_at,
             created_at: vault.created_at,
             updated_at: vault.updated_at,
         }

@@ -87,7 +87,13 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-12 text-right float-right">
+        <p>&nbsp;</p>
+        <div class="col-md-12 d-flex justify-content-center">
+            <div class="mb-3 me-3">
+                <label for="createdDate" class="form-label">Analysis-Created-Date:</label>
+                <span id="createdDate">{{summary.analyzed_at_string()}}</span>
+            </div>
+            &nbsp;
             <button type="button" class="btn btn-primary" onclick="scheduleAnalysis()">Schedule Password Analysis</button>
         </div>
     </div>

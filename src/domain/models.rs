@@ -1474,8 +1474,6 @@ pub struct Vault {
     pub icon: Option<String>,
     pub entries: Option<HashMap<String, AccountSummary>>,
     pub analysis: Option<VaultAnalysis>,
-    // The metadata for date when passwords for the vault were analyzed.
-    pub analyzed_at: Option<NaiveDateTime>,
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
 }
@@ -1491,7 +1489,6 @@ impl Vault {
             entries: None,
             analysis: None,
             icon: None,
-            analyzed_at: None,
             created_at: Some(Utc::now().naive_utc()),
             updated_at: Some(Utc::now().naive_utc()),
         }
@@ -1685,7 +1682,7 @@ impl PassConfig {
         if let Some(jwt_key) = jwt_key {
             self.jwt_key = jwt_key.clone();
         }
-        if let Some(session_timeout_minutes) = session_timeout_minutes{
+        if let Some(session_timeout_minutes) = session_timeout_minutes {
             self.session_timeout_minutes = *session_timeout_minutes;
         }
 
@@ -2750,6 +2747,8 @@ pub struct VaultAnalysis {
     pub count_reused: usize,
     pub count_similar_to_other_passwords: usize,
     pub count_similar_to_past_passwords: usize,
+    // The metadata for date when passwords for the vault were analyzed.
+    pub analyzed_at: NaiveDateTime,
 }
 
 impl Default for VaultAnalysis {
@@ -2771,7 +2770,12 @@ impl VaultAnalysis {
             count_reused: 0,
             count_similar_to_other_passwords: 0,
             count_similar_to_past_passwords: 0,
+            analyzed_at: Utc::now().naive_utc(),
         }
+    }
+
+    pub fn analyzed_at_string(&self) -> String {
+        self.analyzed_at.format("%Y-%m-%d %H:%M:%S").to_string()
     }
 
     pub fn risk_score(&self) -> usize {
