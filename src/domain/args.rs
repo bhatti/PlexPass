@@ -753,7 +753,7 @@ impl Args {
         } else if username.is_none() && email.is_none() && password.is_none() && notes.is_some() {
             AccountKind::Notes
         } else {
-            AccountKind::Login
+            AccountKind::Logins
         };
         let mut account = Account::new(vault_id, kind);
         account.details.label = label.clone();

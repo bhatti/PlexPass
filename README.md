@@ -732,7 +732,7 @@ Alternatively, you can use Docker for the server by pulling plexpass image as fo
 docker pull plexobject/plexpass:latest
 docker run -p 8080:8080 -p 8443:8443 -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
 	-e DATA_DIR=/data -e CERT_FILE=/data/cert-pass.pem 
-    -e KEY_FILE=/data/key-pass.pem -v $PARENT_DIR/PlexPassData:/data plexpass server
+    -e KEY_FILE=/data/key-pass.pem -v $PARENT_DIR/PlexPassData:/data plexobject/plexpass server
 ```
 
 Note: You only need to run server when using REST APIs or a UI for the web application.

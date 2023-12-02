@@ -127,7 +127,7 @@ mod tests {
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
         // WHEN creating a new account
-        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
         account.details.username = Some("user".into());
         account.credentials.password = Some("pass".into());
         // THEN it should succeed
@@ -182,7 +182,7 @@ mod tests {
         assert_eq!(1, vault_service.create_vault(&ctx, &vault).await.unwrap());
 
         // WHEN creating a new account
-        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
         account.details.username = Some("user".into());
         account.credentials.password = Some("pass".into());
         // THEN it should succeed
@@ -230,7 +230,7 @@ mod tests {
 
         for i in 0..5 {
             // WHEN creating a new account
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i));
             account.details.category = Some("cat1".into());
             account.details.tags = vec!["tag1".into(), "tag2".into()];

@@ -161,12 +161,12 @@ async function viewAccount(id) {
             stopFetchingOTP();
         });
     }
-    if (account.kind === 'Login') {
-        expandAccordionSection('collapseLoginInfo');
-    } else if (account.kind === 'Contact') {
+    if (account.kind === 'Contacts' || account.category === 'Contacts') {
         expandAccordionSection('collapseContactInfo');
-    } else if (account.kind === 'Notes' || account.kind === 'Custom') {
+    } else if (account.kind === 'Notes' || account.kind === 'Custom' || account.category === 'Notes' || account.category === 'Custom') {
         expandAccordionSection('collapseNotesInfo');
+    } else if (account.kind === 'Logins' || account.category === 'Logins') {
+        expandAccordionSection('collapseLoginInfo');
     }
     await viewModal.show();
 }
@@ -464,16 +464,17 @@ async function showAccountForm(account) {
     }
 
     const accountKind = document.getElementById('accountKind').value;
-    if (accountKind === 'Login') {
-        const loginCollapse = new bootstrap.Collapse(document.getElementById('collapseLogin'), {
-            toggle: true
-        });
-    } else if (accountKind === 'Contact') {
+    const editCategory = document.getElementById('editCategory').value;
+    if (accountKind === 'Contacts' || editCategory === 'Contacts') {
         const contactCollapse = new bootstrap.Collapse(document.getElementById('collapseContact'), {
             toggle: true
         });
-    } else if (accountKind === 'Notes' || accountKind === 'Custom') {
+    } else if (accountKind === 'Notes' || accountKind === 'Custom' || editCategory === 'Notes' || editCategory === 'Custom') {
         const notesCollapse = new bootstrap.Collapse(document.getElementById('collapseNotes'), {
+            toggle: true
+        });
+    } else if (accountKind === 'Logins' || editCategory === 'Logins') {
+        const loginCollapse = new bootstrap.Collapse(document.getElementById('collapseLogin'), {
             toggle: true
         });
     }

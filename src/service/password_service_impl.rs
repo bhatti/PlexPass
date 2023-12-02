@@ -348,7 +348,7 @@ mod tests {
         for vault in vault_service.get_user_vaults(&ctx).await.unwrap() {
             for password in &passwords {
                 // WHEN creating a new account
-                let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+                let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
                 account.details.username = Some(format!("user_{}", password));
                 account.credentials.password = Some(password.to_string());
                 assert_eq!(1, account_service.create_account(&ctx, &account).await.unwrap());
@@ -382,51 +382,51 @@ mod tests {
 
 
         // AND Given three accounts with passwords
-        let mut account1 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account1 = Account::new(&vault.vault_id, AccountKind::Logins);
         account1.details.label = Some("user1".into());
         account1.details.username = Some("user1".into());
         account1.credentials.password = Some("Rootbeer123".into());
         assert_eq!(1, account_service .create_account(&ctx, &account1).await.unwrap());
-        let mut account2 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account2 = Account::new(&vault.vault_id, AccountKind::Logins);
         account2.details.label = Some("user2".into());
         account2.details.username = Some("user2".into());
         account2.credentials.password = Some("sMU{b+CMP76T9g^>".into());
         assert_eq!(1, account_service .create_account(&ctx, &account2).await.unwrap());
-        let mut account3 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account3 = Account::new(&vault.vault_id, AccountKind::Logins);
         account3.details.label = Some("user3".into());
         account3.details.username = Some("user3".into());
         account3.credentials.password = Some("Rootbeer1".into());
         assert_eq!(1, account_service .create_account(&ctx, &account3).await.unwrap());
 
         // AND Given three accounts with usernames/emails but without passwords
-        let mut account4 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account4 = Account::new(&vault.vault_id, AccountKind::Logins);
         account4.details.label = Some("user4".into());
         account4.details.username = Some("user4".into());
         assert_eq!(1, account_service .create_account(&ctx, &account4).await.unwrap());
-        let mut account5 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account5 = Account::new(&vault.vault_id, AccountKind::Logins);
         account5.details.label = Some("user5".into());
         account5.details.email = Some("email5@bitvaulet.com".into());
         assert_eq!(1, account_service .create_account(&ctx, &account5).await.unwrap());
-        let mut account6 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account6 = Account::new(&vault.vault_id, AccountKind::Logins);
         account6.details.phone = Some("phone6".into());
         account6.details.label = Some("user6".into());
         assert_eq!(1, account_service .create_account(&ctx, &account6).await.unwrap());
 
         // AND Given a account without anything and another with just label
-        let account7 = Account::new(&vault.vault_id, AccountKind::Login);
+        let account7 = Account::new(&vault.vault_id, AccountKind::Logins);
         assert_eq!(1, account_service .create_account(&ctx, &account7).await.unwrap());
-        let mut account8 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account8 = Account::new(&vault.vault_id, AccountKind::Logins);
         account8.details.label = Some("user8".into());
         assert_eq!(1, account_service .create_account(&ctx, &account8).await.unwrap());
 
         // AND Given two accounts with notes
-        let mut account9 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account9 = Account::new(&vault.vault_id, AccountKind::Logins);
         account9.details.label = Some("user9".into());
         account9.details.username = Some("user9".into());
         account9.credentials.notes = Some("note9".into());
         assert_eq!(1, account_service .create_account(&ctx, &account9).await.unwrap());
 
-        let mut account10 = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account10 = Account::new(&vault.vault_id, AccountKind::Logins);
         account10.details.label = Some("user10".into());
         account10.details.username = Some("user10".into());
         account10.credentials.notes = Some("note10".into());

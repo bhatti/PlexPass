@@ -763,8 +763,8 @@ impl From<&str> for SettingKind {
 
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum AccountKind {
-    Login,
-    Contact,
+    Logins,
+    Contacts,
     Notes,
     Custom,
 }
@@ -772,8 +772,8 @@ pub enum AccountKind {
 impl AccountKind {
     pub fn to_vault_kind(&self) -> VaultKind {
         match self {
-            AccountKind::Login => VaultKind::Logins,
-            AccountKind::Contact => VaultKind::Contacts,
+            AccountKind::Logins => VaultKind::Logins,
+            AccountKind::Contacts => VaultKind::Contacts,
             AccountKind::Notes => VaultKind::SecureNotes,
             AccountKind::Custom => VaultKind::Custom,
         }
@@ -783,8 +783,8 @@ impl AccountKind {
 impl Display for AccountKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AccountKind::Login => write!(f, "Login"),
-            AccountKind::Contact => write!(f, "Contact"),
+            AccountKind::Logins => write!(f, "Logins"),
+            AccountKind::Contacts => write!(f, "Contacts"),
             AccountKind::Notes => write!(f, "Notes"),
             AccountKind::Custom => write!(f, "Custom"),
         }
@@ -800,7 +800,7 @@ impl PartialEq for AccountKind {
 impl From<&str> for AccountKind {
     fn from(s: &str) -> AccountKind {
         match s {
-            "Login" => AccountKind::Login,
+            "Login" => AccountKind::Logins,
             "Custom" => AccountKind::Custom,
             "Notes" => AccountKind::Notes,
             _ => {
@@ -810,7 +810,7 @@ impl From<&str> for AccountKind {
                 } else if s.contains("data") || s.contains("custom") || s.contains("form") {
                     AccountKind::Custom
                 } else {
-                    AccountKind::Login
+                    AccountKind::Logins
                 }
             }
         }
@@ -1404,7 +1404,7 @@ pub const DEFAULT_CATEGORIES: [&str; 10] = [
     "Gaming",
     "Notes",
     "Credit Cards",
-    "Miscellaneous",
+    "Custom",
 ];
 
 pub fn top_categories() -> Vec<String> {
@@ -2942,7 +2942,7 @@ mod tests {
 
     #[test]
     fn test_should_create_account() {
-        let account = Account::new("vault0", AccountKind::Login);
+        let account = Account::new("vault0", AccountKind::Logins);
         assert_ne!("", &account.details.account_id);
         assert_eq!("vault0", &account.vault_id);
         assert_eq!(0, account.details.version);
@@ -2969,7 +2969,7 @@ mod tests {
 
     #[test]
     fn test_should_validate_account() {
-        let mut account = Account::new("vault", AccountKind::Login);
+        let mut account = Account::new("vault", AccountKind::Logins);
         account.details.username = Some("user".into());
         account.details.website_url = Some("url".into());
         account.credentials.password = Some("pass".into());
@@ -2980,7 +2980,7 @@ mod tests {
 
     #[test]
     fn test_should_before_save_account() {
-        let mut account = Account::new("vault", AccountKind::Login);
+        let mut account = Account::new("vault", AccountKind::Logins);
         account.details.category = Some("login".into());
         account.details.tags = vec!["personal".into(), "work".into()];
         account.before_save();
@@ -2988,9 +2988,9 @@ mod tests {
 
     #[test]
     fn test_should_equal_account() {
-        let account1 = Account::new("vault1", AccountKind::Login);
-        let account2 = Account::new("vault1", AccountKind::Login);
-        let account3 = Account::new("vault1", AccountKind::Login);
+        let account1 = Account::new("vault1", AccountKind::Logins);
+        let account2 = Account::new("vault1", AccountKind::Logins);
+        let account3 = Account::new("vault1", AccountKind::Logins);
         assert_ne!(account1.details, account2.details);
         assert_ne!(account1.details, account3.details);
         let mut hasher = DefaultHasher::new();

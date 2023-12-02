@@ -607,7 +607,7 @@ mod tests {
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
         // WHEN creating an account
-        let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+        let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
 
         // THEN it should succeed
         assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
@@ -654,7 +654,7 @@ mod tests {
         assert_eq!(1, vault_repo.create(&ctx, &vault).await.unwrap());
 
         // WHEN creating an account
-        let account = Account::new(&vault.vault_id, AccountKind::Login);
+        let account = Account::new(&vault.vault_id, AccountKind::Logins);
 
         // THEN it should succeed
         assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());
@@ -698,7 +698,7 @@ mod tests {
 
         for i in 0..3 {
             // WHEN creating an account
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             // THEN it should succeed only if value has is distinct
             if i == 0 {
                 assert_eq!(1, account_repo.create(&ctx, &account).await.unwrap());

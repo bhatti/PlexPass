@@ -88,7 +88,7 @@ mod tests {
         // WHEN creating a new accounts
         let account_names = ["user1", "user2"];
         for account_name in account_names {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(account_name.into());
             account.credentials.password = Some("pass".into());
             // THEN it should succeed
@@ -151,7 +151,7 @@ mod tests {
 
         // User 2 should also be able to create accounts for write permissions.
         for i in 0..2 {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));
@@ -181,7 +181,7 @@ mod tests {
         // WHEN creating a new accounts
         let account_names = ["user1", "user2"];
         for account_name in account_names {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(account_name.into());
             account.credentials.password = Some("pass".into());
             // THEN it should succeed
@@ -256,7 +256,7 @@ mod tests {
         // WHEN creating a new accounts
         let account_names = ["user1", "user2"];
         for account_name in account_names {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(account_name.into());
             account.credentials.password = Some("pass".into());
             // THEN it should succeed

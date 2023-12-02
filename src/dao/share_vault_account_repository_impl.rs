@@ -410,7 +410,7 @@ mod tests {
 
         for i in 0..2 {
             // WHEN creating an account
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));
@@ -482,7 +482,7 @@ mod tests {
 
         // User 2 should also be able to create accounts for write permissions.
         for i in 0..2 {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));
@@ -530,7 +530,7 @@ mod tests {
 
         for i in 0..2 {
             // WHEN creating an account
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));
@@ -598,7 +598,7 @@ mod tests {
 
         // User 2 should not be able to create accounts for read permissions.
         for i in 0..2 {
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));
@@ -645,7 +645,7 @@ mod tests {
 
         for i in 0..2 {
             // WHEN creating an account
-            let mut account = Account::new(&vault.vault_id, AccountKind::Login);
+            let mut account = Account::new(&vault.vault_id, AccountKind::Logins);
             account.details.username = Some(format!("user_{}", i.clone()));
             account.details.email = Some(format!("email_{}@domain.io", i.clone()));
             account.credentials.password = Some(format!("pass_{}", i.clone()));

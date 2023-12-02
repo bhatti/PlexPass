@@ -362,7 +362,7 @@ impl CreateAccountRequest {
         if self.username.is_none() && self.email.is_none() && self.password.is_none() && self.notes.is_some() {
             return AccountKind::Notes;
         }
-        AccountKind::Login
+        AccountKind::Logins
     }
 
     pub fn to_account(&self) -> Account {
@@ -744,7 +744,7 @@ impl UpdateAccountRequest {
         if self.username.is_none() && self.email.is_none() && self.password.is_none() && self.notes.is_some() {
             return AccountKind::Notes;
         }
-        AccountKind::Login
+        AccountKind::Logins
     }
 
     pub fn to_account(&self) -> Account {
@@ -834,7 +834,7 @@ async fn load_string_from_multipart(field: &mut Field) -> PassResult<String> {
 
 impl Account {
     pub async fn from_multipart(payload: &mut Multipart, new_rec: bool, _config: &PassConfig) -> PassResult<Self> {
-        let mut account = Self::new("", AccountKind::Login);
+        let mut account = Self::new("", AccountKind::Logins);
         let mut custom_names = vec![];
         let mut custom_values = vec![];
         while let Some(item) = payload.next().await {

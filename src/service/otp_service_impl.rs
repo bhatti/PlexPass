@@ -45,7 +45,7 @@ impl OTPServiceImpl {
                 .find(|(key, _)| key == "secret")
                 .map(|(_, value)| value.into_owned()) {
                 let mut account = AccountResponse::new(
-                    &Account::new("", AccountKind::Login));
+                    &Account::new("", AccountKind::Logins));
                 account.label = Some(url.domain().unwrap_or("").to_string());
                 account.otp = Some(secret.to_string());
                 account.generated_otp = Some(TOTP::new(secret).generate(30, 0));

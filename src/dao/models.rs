@@ -1766,7 +1766,7 @@ mod tests {
 
     #[test]
     fn test_should_create_account() {
-        let account = Account::new("vault0", AccountKind::Login);
+        let account = Account::new("vault0", AccountKind::Logins);
         let account_entity = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         assert_ne!("", account_entity.account_id.as_str());
         assert_eq!("vault0", account_entity.vault_id.as_str());
@@ -1781,7 +1781,7 @@ mod tests {
 
     #[test]
     fn test_should_equal_account() {
-        let account = Account::new("vault0", AccountKind::Login);
+        let account = Account::new("vault0", AccountKind::Logins);
         let account_entity1 = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         let account_entity2 = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         assert_eq!(account_entity1, account_entity2);
@@ -1798,7 +1798,7 @@ mod tests {
         let ctx =
             UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "password")
                 .unwrap();
-        let account = Account::new("vault0", AccountKind::Login);
+        let account = Account::new("vault0", AccountKind::Logins);
         let account_entity = AccountEntity::new(&account, "salt", "nonce", "enc-value");
         let (crypto_key, _) =
             CryptoKeyEntity::new_with_input(&ctx, "pass", &user.user_id, "id", "type", "").unwrap();
@@ -1841,7 +1841,7 @@ mod tests {
         )
             .unwrap();
 
-        let mut account = Account::new("vault0", AccountKind::Login);
+        let mut account = Account::new("vault0", AccountKind::Logins);
         let (mut account_entity, account_crypto_key) = AccountEntity::from_context_vault_account(
             &ctx,
             &user_crypto_key,
