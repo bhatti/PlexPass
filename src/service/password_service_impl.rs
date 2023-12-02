@@ -359,7 +359,7 @@ mod tests {
         }
         let all_analysis = password_service.analyze_all_vault_passwords(&ctx, false).await.unwrap();
         assert!(!all_analysis.is_empty());
-        assert!(password_service.analyze_all_vault_passwords(&ctx, true).await.is_err());
+        assert!(password_service.analyze_all_vault_passwords(&ctx, false).await.is_err());
     }
 
     #[tokio::test]
