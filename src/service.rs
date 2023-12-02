@@ -266,17 +266,17 @@ pub trait PasswordService {
 
     // analyze passwords and accounts of all accounts in given vault
     // It returns hashmap by account-id and password analysis
-    async fn analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<VaultAnalysis>;
+    async fn analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str, force: bool) -> PassResult<VaultAnalysis>;
 
     // analyze passwords and accounts of all accounts in all vaults
     // It returns hashmap by (vault-id, account-id) and password analysis
-    async fn analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<HashMap<String, VaultAnalysis>>;
+    async fn analyze_all_vault_passwords(&self, ctx: &UserContext, force: bool) -> PassResult<HashMap<String, VaultAnalysis>>;
 
     // schedule password analysis for vault
-    async fn schedule_analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<()>;
+    async fn schedule_analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str, force: bool) -> PassResult<()>;
 
     // schedule password analysis for all vaults
-    async fn schedule_analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<()>;
+    async fn schedule_analyze_all_vault_passwords(&self, ctx: &UserContext, force: bool) -> PassResult<()>;
 }
 
 #[async_trait]

@@ -32,67 +32,121 @@ async function viewAccount(id) {
 
     modalBody.innerHTML = `
         <table class="table table-striped-columns">
-        <tr>
-            <td><strong>ID:</strong></td><td><span id="viewLabel">${account.account_id || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Label:</strong></td><td><span id="viewLabel">${account.label || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Favorite:</strong></td><td><input type="checkbox" id="viewFavorite" ${favorite} disabled></td>
-        </tr>
-        <tr>
-            <td><strong>Description:</strong></td><td><span id="viewDescription">${account.description || ''}.</span></td>
-        </tr>
-        <tr>
-            <td><strong>Username:</strong></td><td> <span id="viewUsername">${account.username || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Password:</strong> </td>
-            <td class="d-flex">
-                <input type="password" class="form-control" id="accountPassword" name="accountPassword" value="${account.password || ''}" disabled>
-                &nbsp;
-                <button id="viewPasswordButton" class="btn btn-outline-info" onclick="togglePasswordVisibility()">Show</button>
-                &nbsp;
-                <button class="btn btn-outline-warning" onclick="copyToClipboard('${account.password}')">Copy</button>
-            </td>
-        </tr>
-        <tr>
-            <td><strong>Email:</strong></td><td> <span id="viewEmail">${account.email || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Phone:</strong></td><td> <span id="viewPhone">${account.phone || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Address:</strong></td><td> <span id="viewAddress">${account.address || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.website_url || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Category:</strong></td><td> <span id="viewCategory">${account.category || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Tags:</strong></td><td> <span id="viewTags">${account.tags || ''}</span></td>
-        </tr>
-        ${otpData}
-        <tr>
-            <td><strong>Notes:</strong></td><td> <span id="viewNotes">${account.notes || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Account Risk:</strong></td><td>${riskImage}&nbsp;<span id="viewNotes">${account.risk}</span></td>
-        </tr>
+            <tr>
+                <td><strong>ID:</strong></td>
+                <td><span id="viewLabel">${account.account_id || ''}</span></td>
+            </tr>
+            <tr>
+                <td><strong>Label:</strong></td>
+                <td><span id="viewLabel">${account.label || ''}</span></td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Favorite:</strong><br>
+                    <input type="checkbox" id="viewFavorite" ${favorite} disabled>
+                </td>
+                <td>
+                    <strong>Category:</strong><br>
+                    <span id="viewCategory">${account.category || ''}</span>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Tags:</strong></td>
+                <td><span id="viewTags">${account.tags || ''}</span></td>
+            </tr>
         </table>
-        <h5>Advisories:</h5>
-        <div id="customFieldsView">
+        
+        <div class="accordion" id="accountDetailsAccordion theme-container">
+            <!-- Login Information Section -->
+            <div class="accordion-item theme-container">
+                <h2 class="accordion-header theme-container" id="headingLoginInfo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLoginInfo" aria-expanded="false" aria-controls="collapseLoginInfo">
+                        Login Details
+                    </button>
+                </h2>
+                <div id="collapseLoginInfo" class="accordion-collapse collapse" aria-labelledby="headingLoginInfo" data-bs-parent="#accountDetailsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped-columns">
+                            <tr>
+                                <td><strong>Username:</strong></td><td> <span id="viewUsername">${account.username || ''}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Password:</strong> </td>
+                                <td class="d-flex">
+                                    <input type="password" class="form-control" id="accountPassword" name="accountPassword" value="${account.password || ''}" disabled>
+                                    &nbsp;
+                                    <button id="viewPasswordButton" class="btn btn-outline-info" onclick="togglePasswordVisibility()">Show</button>
+                                    &nbsp;
+                                    <button class="btn btn-outline-warning" onclick="copyToClipboard('${account.password}')">Copy</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.website_url || ''}</span></td>
+                            </tr>
+                        </table>
+                        ${otpData}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information Section -->
+            <div class="accordion-item theme-container">
+                <h2 class="accordion-header theme-container" id="headingContactInfo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContactInfo" aria-expanded="false" aria-controls="collapseContactInfo">
+                        Contact Details
+                    </button>
+                </h2>
+                <div id="collapseContactInfo" class="accordion-collapse collapse" aria-labelledby="headingContactInfo" data-bs-parent="#accountDetailsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped-columns">
+                            <tr>
+                                <td><strong>Description:</strong></td><td><span id="viewDescription">${account.description || ''}.</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email:</strong></td><td> <span id="viewEmail">${account.email || ''}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phone:</strong></td><td> <span id="viewPhone">${account.phone || ''}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Address:</strong></td><td> <span id="viewAddress">${account.address || ''}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item theme-container">
+                <h2 class="accordion-header theme-container" id="headingNotesInfo">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotesInfo" aria-expanded="false" aria-controls="collapseNotesInfo">
+                        Notes & Custom Fields
+                    </button>
+                </h2>
+                <div id="collapseNotesInfo" class="accordion-collapse collapse" aria-labelledby="headingNotesInfo" data-bs-parent="#accountDetailsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped-columns">
+                            <tr>
+                                <td><strong>Notes:</strong></td><td> <span id="viewNotes">${account.notes || ''}</span></td>
+                            </tr>
+                        </table>
+                        <h5>Custom Fields:</h5>
+                        <div id="customFieldsView">
+                            ${customFields}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <table class="table table-striped-columns">
+            <tr>
+                <td><strong>Account Risk:</strong></td><td>${riskImage}&nbsp;<span id="viewNotes">${account.risk}</span></td>
+            </tr>
+        </table>
+        <div id="advisoryFieldsView">
             ${advisories}
         </div>
-        <!-- Custom Fields for View -->
-        <h5>Custom Fields:</h5>
-        <div id="customFieldsView">
-            ${customFields}
-        </div>
-    `;
+        `;
     // Show modal
     const viewModalElem = document.getElementById('viewAccountModal');
     const viewModal = new bootstrap.Modal(viewModalElem);
@@ -107,6 +161,13 @@ async function viewAccount(id) {
             stopFetchingOTP();
         });
     }
+    if (account.kind === 'Login') {
+        expandAccordionSection('collapseLoginInfo');
+    } else if (account.kind === 'Contact') {
+        expandAccordionSection('collapseContactInfo');
+    } else if (account.kind === 'Notes' || account.kind === 'Custom') {
+        expandAccordionSection('collapseNotesInfo');
+    }
     await viewModal.show();
 }
 
@@ -115,31 +176,31 @@ function buildOtpSection(otp, generatedOtp) {
         return '';
     }
     return `
-        <tr>
-            <td><strong>OTP Secret:</strong></td><td> <span id="viewOtp">${otp || ''}</span></td>
-        </tr>
-        <tr>
-            <td><strong>Generated OTP:</strong></td><td>
-                <div class="row align-items-center">
+<table class="table table-striped-columns">
+    <tr>
+        <td><strong>OTP Secret:</strong></td>
+        <td> 
+            <span id="viewOtp">${otp || ''}</span>
+        </td>
+    </tr>
+    <tr>
+        <td><strong>Generated OTP:</strong></td>
+        <td>
+            <!-- OTP Display and Copy Button Row -->
+            <div class="d-flex justify-content-between align-items-center">
+                <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
+                    <span id="viewGeneratedOtp">${generatedOtp}</span>
                 </div>
+                <button class="btn btn-outline-warning" onclick="copyOtpToClipboard()">Copy</button>
+            </div>
 
-                <div class="col">
-                    <div id="otp" class="alert alert-primary" role="alert" style="font-size: 1.5rem;">
-                        <span id="viewGeneratedOtp">${generatedOtp}</span>
-                    </div>
-                </div>
-                <!-- Progress Bar -->
-                <div class="col">
-                    <div class="progress">
-                        <div id="otpTimer" class="progress-bar" role="progressbar" style="width: 100%;"></div>
-                    </div>
-                </div>
-                &nbsp;
-                <div class="col-auto">
-                    <button class="btn btn-outline-warning" onclick="copyOtpToClipboard()">Copy</button>
-                </div>
-            </td>
-        </tr>
+            <!-- Progress Bar -->
+            <div class="progress mt-2">
+                <div id="otpTimer" class="progress-bar" role="progressbar" style="width: 100%;"></div>
+            </div>
+        </td>
+    </tr>
+</table>
         `;
 }
 
@@ -281,70 +342,117 @@ async function showAccountForm(account) {
     }
     modalBody.innerHTML = `
                     <div class="form-group mb-3">
-                        <label>Name:</label>
                         <input type="hidden" name="account_id" value="${account.account_id}">
                         <input type="hidden" name="vault_id" value="${account.vault_id}">
                         <input type="hidden" name="version" name="version" value="${account.version}">
-                        <input type="hidden" name="kind" name="kind" value="${account.kind}">
+                        <input type="hidden" id="accountKind" name="kind" value="${account.kind}">
+                        <label>Label:</label>
                         <input type="text" class="form-control" name="label" value="${account.label || ''}">
                     </div>
-                    <div class="form-group mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="favorite" name="favorite">
-                        <label class="form-check-label" for="favorite" ${favorite}>Favorite</label>
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="description" class="form-label">Description:</label>
-                        <input type="text" class="form-control" id="description" name="description" value="${account.description || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="editCategory" class="form-label">Category: </label>
-                        <select class="form-select" id="editCategory" name="category">
-                          ${category_opts}
-                        </select>
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="username" class="form-label">Username:</label>
-                        <input type="text" class="form-control" id="username" name="username" value="${account.username || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="password" class="form-label">Password:</label>
-                        <input type="password" class="form-control" id="password" name="password" value="${account.password || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label>Email:</label>
-                        <input type="email" class="form-control" name="email" value="${account.email || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label>Phone:</label>
-                        <input type="tel" class="form-control" name="phone" value="${account.phone || ''}">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label>Address:</label>
-                        <textarea class="form-control" id="address" name="address">${account.address || ''}</textarea>
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="website_url" class="form-label">Website URL:</label>
-                        <input type="url" class="form-control" id="website_url" name="website_url" value="${account.website_url || ''}">
+                    <div class="row mb-3">
+                        <!-- Favorite Checkbox -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="favorite" name="favorite" ${favorite}>
+                                <label class="form-check-label" for="favorite">Favorite</label>
+                            </div>
+                        </div>
+
+                        <!-- Category Dropdown -->
+                        <div class="col-md-6">
+                            <label for="editCategory" class="form-label">Category: </label>
+                            <select class="form-select" id="editCategory" name="category">
+                                ${category_opts}
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group mb-3">
                         <label>Tags (separated by commas):</label>
                         <input type="text" class="form-control" name="tags" value="${account.tags || ''}" placeholder="Add tags...">
                     </div>
-                    <div class="form-group mb-3">
-                        <label>OTP Secret (Base32):</label>
-                        <input type="text" class="form-control" name="otp" value="${account.otp || ''}" placeholder="Base32 TOTP secret">
-                    </div>
-                    <div class="form-group mb-3">
-                        <label for="notes" class="form-label">Notes:</label>
-                        <textarea class="form-control" id="notes" name="notes">${account.notes}</textarea>
-                    </div>
+                                    
+                    <!-- Collapsible Group for Login Details -->
+                    <div class="accordion theme-container" id="accordionAccount">
+                        <div class="accordion-item theme-container">
+                            <h2 class="accordion-header theme-container" id="headingLogin">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLogin" aria-expanded="false" aria-controls="collapseLogin">
+                                    Login Details
+                                </button>
+                            </h2>
+                            <div id="collapseLogin" class="accordion-collapse collapse" aria-labelledby="headingLogin" data-bs-parent="#accordionAccount">
+                                <div class="accordion-body">
+                                    <div class="form-group mb-3">
+                                        <label for="username" class="form-label">Username:</label>
+                                        <input type="text" class="form-control" id="username" name="username" value="${account.username || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="password" class="form-label">Password:</label>
+                                        <input type="password" class="form-control" id="password" name="password" value="${account.password || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label for="website_url" class="form-label">Website URL:</label>
+                                        <input type="url" class="form-control" id="website_url" name="website_url" value="${account.website_url || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>OTP Secret (Base32):</label>
+                                        <input type="text" class="form-control" name="otp" value="${account.otp || ''}" placeholder="Base32 TOTP secret">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <!-- Custom Fields for Edit -->
-                    <h5>Custom Fields:</h5>
-                    <div class="form-group mb-3" id="customFieldsEdit">
-                    </div>
+                        <!-- Collapsible Group for Contact Details -->
+                        <div class="accordion-item theme-container">
+                            <h2 class="accordion-header theme-container" id="headingContact">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContact" aria-expanded="false" aria-controls="collapseContact">
+                                    Contact Details
+                                </button>
+                            </h2>
+                            <div id="collapseContact" class="accordion-collapse collapse" aria-labelledby="headingContact" data-bs-parent="#accordionAccount">
+                                <div class="accordion-body">
+                                    <!-- Contact specific fields here (email, phone, address)... -->
+                                    <div class="form-group mb-3">
+                                        <label for="description" class="form-label">Description:</label>
+                                        <input type="text" class="form-control" id="description" name="description" value="${account.description || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>Email:</label>
+                                        <input type="email" class="form-control" name="email" value="${account.email || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>Phone:</label>
+                                        <input type="tel" class="form-control" name="phone" value="${account.phone || ''}">
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        <label>Address:</label>
+                                        <textarea class="form-control" id="address" name="address">${account.address || ''}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <button class="btn btn-info mb-3" type="button" onclick="addCustomField()">+ Add Custom Field</button>
+                        <!-- Collapsible Group for Notes Details -->
+                        <div class="accordion-item theme-container">
+                            <h2 class="accordion-header theme-container" id="headingNotes">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotes" aria-expanded="false" aria-controls="collapseNotes">
+                                    Notes and Custom Fields
+                                </button>
+                            </h2>
+                            <div id="collapseNotes" class="accordion-collapse collapse" aria-labelledby="headingNotes" data-bs-parent="#accordionAccount">
+                                <div class="accordion-body">
+                                    <div class="form-group mb-3">
+                                        <label for="notes" class="form-label">Notes:</label>
+                                        <textarea class="form-control" id="notes" name="notes">${account.notes}</textarea>
+                                    </div>
+                                    <!-- Custom Fields for Edit -->
+                                    <h5>Custom Fields:</h5>
+                                    <div class="form-group mb-3" id="customFieldsEdit">
+                                    </div>
+                                    <button class="btn btn-info mb-3" type="button" onclick="addCustomField()">+ Add Custom Field</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>                    
     `;
 
     const customFieldsContainer = document.getElementById('customFieldsEdit');
@@ -354,8 +462,33 @@ async function showAccountForm(account) {
             customFieldsContainer.appendChild(rowDiv);
         }
     }
+
+    const accountKind = document.getElementById('accountKind').value;
+    if (accountKind === 'Login') {
+        const loginCollapse = new bootstrap.Collapse(document.getElementById('collapseLogin'), {
+            toggle: true
+        });
+    } else if (accountKind === 'Contact') {
+        const contactCollapse = new bootstrap.Collapse(document.getElementById('collapseContact'), {
+            toggle: true
+        });
+    } else if (accountKind === 'Notes' || accountKind === 'Custom') {
+        const notesCollapse = new bootstrap.Collapse(document.getElementById('collapseNotes'), {
+            toggle: true
+        });
+    }
+
     const editModal = new bootstrap.Modal(document.getElementById('editAccountModal'));
     await editModal.show();
+}
+
+function expandAccordionSection(sectionId) {
+    const collapseSection = document.getElementById(sectionId);
+    const accordionButton = collapseSection.previousElementSibling.querySelector('.accordion-button');
+
+    collapseSection.classList.add('show');
+    accordionButton.setAttribute('aria-expanded', 'true');
+    accordionButton.classList.remove('collapsed');
 }
 
 function buildCustomField(name, value) {

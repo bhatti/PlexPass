@@ -130,7 +130,7 @@ impl AuthenticationService for AuthenticationServiceImpl {
         ctx.roles = user.roles.clone();
         self.share_vault_account_repository.handle_shared_vaults_accounts(&ctx).await?;
 
-        let _ = self.password_service.schedule_analyze_all_vault_passwords(&ctx).await?;
+        let _ = self.password_service.schedule_analyze_all_vault_passwords(&ctx, false).await?;
 
         // Storing secret key temporarily while the login session is active
         self.hsm_store

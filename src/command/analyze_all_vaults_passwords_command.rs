@@ -7,5 +7,5 @@ pub async fn execute(
     args_ctx: &ArgsContext,
 ) -> PassResult<HashMap<String, VaultAnalysis>> {
     args_ctx.service_locator.password_service.analyze_all_vault_passwords(
-        &args_ctx.user_context).await
+        &args_ctx.user_context, true).await
 }

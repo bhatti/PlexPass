@@ -7,5 +7,5 @@ pub async fn execute(
     vault_id: &str,
 ) -> PassResult<VaultAnalysis> {
     args_ctx.service_locator.password_service.analyze_vault_passwords(
-        &args_ctx.user_context, vault_id).await
+        &args_ctx.user_context, vault_id, true).await
 }

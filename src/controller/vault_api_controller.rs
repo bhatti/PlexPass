@@ -42,7 +42,7 @@ pub async fn analyze_vault_passwords(
     let id = path.into_inner();
     service_locator
         .password_service
-        .schedule_analyze_vault_passwords(&auth.context, &id)
+        .schedule_analyze_vault_passwords(&auth.context, &id, true)
         .await?;
     Ok(HttpResponse::Accepted().finish())
 }

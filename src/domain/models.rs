@@ -764,16 +764,18 @@ impl From<&str> for SettingKind {
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum AccountKind {
     Login,
-    Custom,
+    Contact,
     Notes,
+    Custom,
 }
 
 impl AccountKind {
     pub fn to_vault_kind(&self) -> VaultKind {
         match self {
             AccountKind::Login => VaultKind::Logins,
-            AccountKind::Custom => VaultKind::FormData,
+            AccountKind::Contact => VaultKind::Contacts,
             AccountKind::Notes => VaultKind::SecureNotes,
+            AccountKind::Custom => VaultKind::Custom,
         }
     }
 }
@@ -782,8 +784,9 @@ impl Display for AccountKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AccountKind::Login => write!(f, "Login"),
-            AccountKind::Custom => write!(f, "Custom"),
+            AccountKind::Contact => write!(f, "Contact"),
             AccountKind::Notes => write!(f, "Notes"),
+            AccountKind::Custom => write!(f, "Custom"),
         }
     }
 }
@@ -979,7 +982,12 @@ impl AccountSummary {
     }
 
     pub fn has_url(&self) -> bool {
-        self.website_url.is_some()
+        if let Some(url) = &self.website_url {
+            if !url.is_empty() && !url.chars().all(char::is_whitespace) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn has_risk_image(&self) -> bool {
@@ -1412,22 +1420,23 @@ pub fn all_categories() -> Vec<String> {
 #[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub enum VaultKind {
     Logins,
-    FormData,
+    Contacts,
     SecureNotes,
+    Custom,
 }
 
 impl From<&str> for VaultKind {
     fn from(s: &str) -> VaultKind {
         match s {
             "Logins" => VaultKind::Logins,
-            "FormData" => VaultKind::FormData,
+            "Contacts" => VaultKind::Contacts,
             "SecureNotes" => VaultKind::SecureNotes,
             _ => {
                 let s = s.to_lowercase();
                 if s.contains("note") {
                     VaultKind::SecureNotes
                 } else if s.contains("data") || s.contains("custom") {
-                    VaultKind::FormData
+                    VaultKind::Custom
                 } else {
                     VaultKind::Logins
                 }
@@ -1440,8 +1449,9 @@ impl Display for VaultKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             VaultKind::Logins => write!(f, "Logins"),
-            VaultKind::FormData => write!(f, "FormData"),
+            VaultKind::Contacts => write!(f, "Contacts"),
             VaultKind::SecureNotes => write!(f, "SecureNotes"),
+            VaultKind::Custom => write!(f, "Custom"),
         }
     }
 }
@@ -2798,6 +2808,9 @@ impl VaultAnalysis {
             self.count_reused += other.count_reused;
             self.count_similar_to_other_passwords += other.count_similar_to_other_passwords;
             self.count_similar_to_past_passwords += other.count_similar_to_past_passwords;
+            if other.analyzed_at.timestamp_millis() > self.analyzed_at.timestamp_millis() {
+                self.analyzed_at = other.analyzed_at;
+            }
         }
     }
 

@@ -688,7 +688,7 @@ mod tests {
         assert_eq!(0, vault_size);
         assert_eq!(0, account_size);
 
-        let vault2 = Vault::new(user2.user_id.as_str(), "title2", VaultKind::FormData);
+        let vault2 = Vault::new(user2.user_id.as_str(), "title2", VaultKind::Custom);
         assert_eq!(1, vault_repo.create(&ctx2, &vault2).await.unwrap());
 
         // WHEN sharing account with another user THEN it should succeed

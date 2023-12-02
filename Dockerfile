@@ -23,6 +23,9 @@ RUN apt-get update \
 # Copy the build artifact from the build stage
 COPY --from=builder /plexpass/target/release/plexpass /usr/local/bin
 
+# Copy the assets directory
+COPY assets /assets
+
 # Create directories for data and certificates
 RUN mkdir /data /certs
 

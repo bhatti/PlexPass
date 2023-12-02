@@ -29,6 +29,7 @@ pub(crate) struct CSVRecord {
     icon: Option<String>,
     renew_interval_days: Option<i32>,
     expires_at: Option<String>,
+    favorite: Option<bool>,
 }
 
 impl CSVRecord {
@@ -50,6 +51,7 @@ impl CSVRecord {
             icon: account.details.icon.clone(),
             renew_interval_days: account.details.renew_interval_days,
             expires_at: account.details.expires_at.map(|expires_at| format!("{}", expires_at.format("2015-09-05"))),
+            favorite: Some(account.details.favorite),
         }
     }
 
@@ -94,6 +96,7 @@ impl CSVRecord {
         if let Some(expires_at) = &self.expires_at {
             account.details.expires_at = safe_parse_str_date(expires_at);
         }
+        account.details.favorite = self.favorite.unwrap_or(false);
 
         account.credentials.password = self.password.clone();
         account.credentials.form_fields = HashMap::new();

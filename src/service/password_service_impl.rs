@@ -107,14 +107,16 @@ impl PasswordService for PasswordServiceImpl {
 
     // analyze passwords and accounts of all accounts in given vault
     // It returns hashmap by account-id and password analysis
-    async fn analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<VaultAnalysis> {
+    async fn analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str, force: bool) -> PassResult<VaultAnalysis> {
         let _ = self.metrics.new_metric("analyze_all_account_passwords");
         let now = Utc::now().naive_utc();
 
         let vault = self.vault_service.get_vault(ctx, vault_id).await?;
         if let Some(analysis) = vault.analysis {
             let elapsed = now.timestamp_millis() - analysis.analyzed_at.timestamp_millis();
-            if elapsed < VAULT_ANALYZE_DELAY_MILLIS {
+            if !force && elapsed < VAULT_ANALYZE_DELAY_MILLIS {
+                log::info!("skipping password analysis for {} because it was created {} millis ago at {}.",
+                    vault_id, &elapsed, &analysis.analyzed_at);
                 return Err(PassError::validation("vault was recently analyzed so skipping it", None));
             }
         }
@@ -217,19 +219,19 @@ impl PasswordService for PasswordServiceImpl {
 
     // analyze passwords and accounts of all accounts in all vaults
     // It returns hashmap by (vault-id, account-id) and password analysis
-    async fn analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<HashMap<String, VaultAnalysis>> {
+    async fn analyze_all_vault_passwords(&self, ctx: &UserContext, force: bool) -> PassResult<HashMap<String, VaultAnalysis>> {
         let _ = self.metrics.new_metric("analyze_all_vault_passwords");
         let vaults = self.vault_service.get_user_vaults(ctx).await?;
         let mut all_analysis = HashMap::new();
         for vault in vaults {
-            let vault_analysis = self.analyze_vault_passwords(ctx, &vault.vault_id).await?;
+            let vault_analysis = self.analyze_vault_passwords(ctx, &vault.vault_id, force).await?;
             all_analysis.insert(vault.vault_id.clone(), vault_analysis);
         }
         Ok(all_analysis)
     }
 
     // schedule password analysis for vault
-    async fn schedule_analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str) -> PassResult<()> {
+    async fn schedule_analyze_vault_passwords(&self, ctx: &UserContext, vault_id: &str, force: bool) -> PassResult<()> {
         let password_service_copy = self.clone();
         // Schedule a delayed task
         let vault_id = vault_id.to_string();
@@ -239,7 +241,7 @@ impl PasswordService for PasswordServiceImpl {
             ctx.clone(),
             Box::new(move |ctx: UserContext| {
                 Box::pin(async move {
-                    match password_service_copy.analyze_vault_passwords(&ctx, &vault_id).await {
+                    match password_service_copy.analyze_vault_passwords(&ctx, &vault_id, force).await {
                         Ok(analysis) => {
                             log::info!("executed analyze_all_account_passwords {}", &analysis.total_accounts);
                         }
@@ -253,7 +255,7 @@ impl PasswordService for PasswordServiceImpl {
     }
 
     // schedule password analysis for all vaults
-    async fn schedule_analyze_all_vault_passwords(&self, ctx: &UserContext) -> PassResult<()> {
+    async fn schedule_analyze_all_vault_passwords(&self, ctx: &UserContext, force: bool) -> PassResult<()> {
         let password_service_copy = self.clone();
         // Schedule a delayed task
         self.scheduler.schedule(
@@ -262,7 +264,7 @@ impl PasswordService for PasswordServiceImpl {
             ctx.clone(),
             Box::new(move |ctx: UserContext| {
                 Box::pin(async move {
-                    match password_service_copy.analyze_all_vault_passwords(&ctx).await {
+                    match password_service_copy.analyze_all_vault_passwords(&ctx, force).await {
                         Ok(analysis) => {
                             log::info!("executed analyze_all_vault_passwords {}", analysis.len());
                         }
@@ -355,9 +357,9 @@ mod tests {
                 let _ = account_service.update_account(&ctx, &retrieved).await.unwrap();
             }
         }
-        let all_analysis = password_service.analyze_all_vault_passwords(&ctx).await.unwrap();
+        let all_analysis = password_service.analyze_all_vault_passwords(&ctx, false).await.unwrap();
         assert!(!all_analysis.is_empty());
-        assert!(password_service.analyze_all_vault_passwords(&ctx).await.is_err());
+        assert!(password_service.analyze_all_vault_passwords(&ctx, true).await.is_err());
     }
 
     #[tokio::test]
@@ -431,7 +433,7 @@ mod tests {
         assert_eq!(1, account_service .create_account(&ctx, &account10).await.unwrap());
 
         // WHEN analyzing accounts
-        let analysis = password_service.analyze_vault_passwords(&ctx, &vault.vault_id).await.unwrap();
+        let analysis = password_service.analyze_vault_passwords(&ctx, &vault.vault_id, false).await.unwrap();
         // THEN it should return proper analysis.
 
         // AND verify account updates
