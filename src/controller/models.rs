@@ -529,10 +529,12 @@ pub struct AccountResponse {
     // renew interval
     pub renew_interval_days: Option<i32>,
     // expiration
-    pub expires_at: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
+    pub expires_at_short: Option<String>,
     pub expired: bool,
     // due
-    pub due_at: Option<String>,
+    pub due_at: Option<NaiveDateTime>,
+    pub due_at_short: Option<String>,
     pub overdue: bool,
     // 2023-12-02T05:11:50.543995
     // The metadata for dates of the account.
@@ -594,8 +596,10 @@ impl AccountResponse {
             password_max_length: Some(account.credentials.password_policy.max_length),
             renew_interval_days: account.details.renew_interval_days,
             expires_at: None,
+            expires_at_short: None,
             expired: account.details.is_expired(),
             due_at: None,
+            due_at_short: None,
             overdue: account.details.is_due(),
             credentials_updated_at: None,
             analyzed_at: None,
@@ -603,10 +607,12 @@ impl AccountResponse {
             updated_at: account.updated_at,
         };
         if let Some(expires_at) = &account.details.expires_at {
-            res.expires_at = Some(expires_at.format("%Y-%m-%d").to_string())
+            res.expires_at = Option::from(expires_at.clone());
+            res.expires_at_short = Some(expires_at.format("%Y-%m-%d").to_string())
         }
         if let Some(due_at) = &account.details.due_at {
-            res.due_at = Some(due_at.format("%Y-%m-%d").to_string())
+            res.due_at = Option::from(due_at.clone());
+            res.due_at_short = Some(due_at.format("%Y-%m-%d").to_string())
         }
         if let Some(credentials_updated_at) = &account.details.credentials_updated_at {
             res.credentials_updated_at = Some(credentials_updated_at.format("%Y-%m-%d").to_string())

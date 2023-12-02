@@ -30,8 +30,8 @@ async function viewAccount(id) {
     }
     const riskImage = account.risk_image ? `<img width="32" height="32" src="${account.risk_image}">` : '';
 
-    let expiration = buildExpiration(account.expired, account.expires_at);
-    let due = buildExpiration(account.overdue, account.due_at);
+    let expiration = buildExpiration(account.expired, account.expires_at_short);
+    let due = buildExpiration(account.overdue, account.due_at_short);
     modalBody.innerHTML = `
         <table class="table table-striped-columns">
             <tr>
@@ -423,7 +423,7 @@ async function showAccountForm(account) {
                                     </div>
                                     <div class="mb-3">
                                         <label for="expiresAt" class="form-label">Expires At:</label>
-                                        <input type="date" class="form-control" id="expiresAt" name="expires_at" value="${account.expires_at || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
+                                        <input type="date" class="form-control" id="expiresAt" name="expires_at" value="${account.expires_at_short || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
                                         <div class="form-text">Please select password expiration date.</div>
                                     </div>
                                     <div class="form-group mb-3">
@@ -475,7 +475,7 @@ async function showAccountForm(account) {
                                 <div class="accordion-body">
                                     <div class="mb-3">
                                         <label for="dueAt" class="form-label">Due At:</label>
-                                        <input type="date" class="form-control" id="dueAt" name="due_at" value="${account.due_at || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
+                                        <input type="date" class="form-control" id="dueAt" name="due_at" value="${account.due_at_short || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
                                         <div class="form-text">Please select due date.</div>
                                     </div>
                                     <div class="form-group mb-3">
