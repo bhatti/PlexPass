@@ -30,6 +30,8 @@ async function viewAccount(id) {
     }
     const riskImage = account.risk_image ? `<img width="32" height="32" src="${account.risk_image}">` : '';
 
+    let expiration = buildExpiration(account.expired, account.expires_at);
+    let due = buildExpiration(account.overdue, account.due_at);
     modalBody.innerHTML = `
         <table class="table table-striped-columns">
             <tr>
@@ -81,6 +83,9 @@ async function viewAccount(id) {
                                 </td>
                             </tr>
                             <tr>
+                                <td><strong>Expires At:</strong></td><td>${expiration}</td>
+                            </tr>
+                            <tr>
                                 <td><strong>URL:</strong></td><td> <span id="viewUrl">${account.website_url || ''}</span></td>
                             </tr>
                         </table>
@@ -126,6 +131,9 @@ async function viewAccount(id) {
                     <div class="accordion-body">
                         <table class="table table-striped-columns">
                             <tr>
+                                <td><strong>Due At:</strong></td><td>${due}</td>
+                            </tr>
+                            <tr>
                                 <td><strong>Notes:</strong></td><td> <span id="viewNotes">${account.notes || ''}</span></td>
                             </tr>
                         </table>
@@ -169,6 +177,26 @@ async function viewAccount(id) {
         expandAccordionSection('collapseLoginInfo');
     }
     await viewModal.show();
+}
+
+function buildExpiration(expired, expires_at) {
+    if (expired) {
+        return `<div class="alert alert-danger d-flex align-items-center" role="alert">
+  <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Danger:"><use xlink:href="#exclamation-triangle-fill"/></svg>
+  <div>
+    ${expires_at}
+  </div>
+</div>`;
+    } else if (expires_at) {
+        return `<div class="alert alert-primary d-flex align-items-center" role="alert">
+  <svg class="bi flex-shrink-0 me-2" width="24" height="24" role="img" aria-label="Info:"><use xlink:href="#info-fill"/></svg>
+  <div>
+    ${expires_at}
+  </div>
+</div>`;
+    } else {
+        return '';
+    }
 }
 
 function buildOtpSection(otp, generatedOtp) {
@@ -278,13 +306,13 @@ async function editAccount(id) {
     await showAccountForm(account);
 }
 
-async function addAccount(vault_id) {
+async function addAccount(vault_id, kind) {
     document.getElementById('editAccountTitle').innerText = 'Add Account';
     const account = {
         account_id: '',
         vault_id: vault_id,
         version: 0,
-        kind: 'Login',
+        kind: kind || 'Logins',
         label: '',
         description: '',
         favorite: false,
@@ -330,14 +358,14 @@ function clearClipboardAfterDelay(text, delay) {
     }
 }
 
-
 async function showAccountForm(account) {
     const favorite = account.favorite ? 'checked' : '';
     const modalBody = document.querySelector('#editAccountModal .modal-body');
     let category_opts = '';
     for (let i = 0; i < document.allCategories.length; i++) {
         const next = document.allCategories[i];
-        const selected = account.category === next ? 'selected' : '';
+        const selected = account.category ? (account.category === next ? 'selected' : '') :
+            (account.kind === next ? 'selected' : '');
         category_opts += `<option value="${next}" ${selected}>${next}</option>\n`;
     }
     modalBody.innerHTML = `
@@ -393,6 +421,11 @@ async function showAccountForm(account) {
                                         <label for="website_url" class="form-label">Website URL:</label>
                                         <input type="url" class="form-control" id="website_url" name="website_url" value="${account.website_url || ''}">
                                     </div>
+                                    <div class="mb-3">
+                                        <label for="expiresAt" class="form-label">Expires At:</label>
+                                        <input type="date" class="form-control" id="expiresAt" name="expires_at" value="${account.expires_at || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
+                                        <div class="form-text">Please select password expiration date.</div>
+                                    </div>
                                     <div class="form-group mb-3">
                                         <label>OTP Secret (Base32):</label>
                                         <input type="text" class="form-control" name="otp" value="${account.otp || ''}" placeholder="Base32 TOTP secret">
@@ -440,9 +473,14 @@ async function showAccountForm(account) {
                             </h2>
                             <div id="collapseNotes" class="accordion-collapse collapse" aria-labelledby="headingNotes" data-bs-parent="#accordionAccount">
                                 <div class="accordion-body">
+                                    <div class="mb-3">
+                                        <label for="dueAt" class="form-label">Due At:</label>
+                                        <input type="date" class="form-control" id="dueAt" name="due_at" value="${account.due_at || ''}" pattern="\\d{4}-\\d{2}-\\d{2}">
+                                        <div class="form-text">Please select due date.</div>
+                                    </div>
                                     <div class="form-group mb-3">
                                         <label for="notes" class="form-label">Notes:</label>
-                                        <textarea class="form-control" id="notes" name="notes">${account.notes}</textarea>
+                                        <textarea class="form-control" id="notes" name="notes" rows="5">${account.notes || ''}</textarea>
                                     </div>
                                     <!-- Custom Fields for Edit -->
                                     <h5>Custom Fields:</h5>
@@ -1263,7 +1301,6 @@ async function registerMFAKey() {
         let response = await fetch('/ui/webauthn/register_start');
         let options = await response.json();
 
-        console.log(JSON.stringify(options));
         // Convert challenge from Base64URL to Base64, then to Uint8Array
         const challengeBase64 = base64UrlToBase64(options.publicKey.challenge);
         options.publicKey.challenge = Uint8Array.from(atob(challengeBase64), c => c.charCodeAt(0));

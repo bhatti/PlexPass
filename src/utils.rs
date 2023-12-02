@@ -27,6 +27,9 @@ pub fn safe_parse_str_date(d: &str) -> Option<NaiveDateTime> {
     if let Ok(parsed) = NaiveDate::parse_from_str(d, "%Y-%m-%d") {
         return Some(NaiveDateTime::new(parsed, NaiveTime::from_hms(0, 0, 0)));
     }
+    if let Ok(parsed) = NaiveDate::parse_from_str(d, "%Y-%m-%d %H:%M:%S") {
+        return Some(NaiveDateTime::new(parsed, NaiveTime::from_hms(0, 0, 0)));
+    }
     if let Ok(parsed) = NaiveDate::parse_from_str(d, "%Y/%m/%d") {
         return Some(NaiveDateTime::new(parsed, NaiveTime::from_hms(0, 0, 0)));
     }

@@ -774,7 +774,7 @@ impl AccountKind {
         match self {
             AccountKind::Logins => VaultKind::Logins,
             AccountKind::Contacts => VaultKind::Contacts,
-            AccountKind::Notes => VaultKind::SecureNotes,
+            AccountKind::Notes => VaultKind::Notes,
             AccountKind::Custom => VaultKind::Custom,
         }
     }
@@ -869,6 +869,8 @@ pub struct AccountSummary {
     pub renew_interval_days: Option<i32>,
     // expiration
     pub expires_at: Option<NaiveDateTime>,
+    // due-at
+    pub due_at: Option<NaiveDateTime>,
     // The metadata for date when password was changed.
     pub credentials_updated_at: Option<NaiveDateTime>,
     // The metadata for date when password was analyzed.
@@ -909,6 +911,7 @@ impl AccountSummary {
             advisories: HashMap::new(),
             renew_interval_days: None,
             expires_at: None,
+            due_at: None,
             credentials_updated_at: None,
             analyzed_at: None,
         }
@@ -928,6 +931,9 @@ impl AccountSummary {
             return true;
         }
         if lq.contains("favorite") && self.favorite {
+            return true;
+        }
+        if lq.contains("expire") && self.is_expired() || self.is_due() {
             return true;
         }
         if lq.contains("high_risk") &&
@@ -1010,6 +1016,28 @@ impl AccountSummary {
         }
     }
 
+    pub fn is_expired_or_overdue(&self) -> bool {
+        self.is_expired() || self.is_due()
+    }
+
+    pub fn is_expired(&self) -> bool {
+        if let Some(expires_at) = &self.expires_at {
+            if expires_at.timestamp_millis() < Utc::now().naive_utc().timestamp_millis() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_due(&self) -> bool {
+        if let Some(due_at) = &self.due_at {
+            if due_at.timestamp_millis() < Utc::now().naive_utc().timestamp_millis() {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn favicon(&self) -> String {
         if let Some(u) = &self.website_url {
             if let Ok(mut u) = url::Url::parse(u) {
@@ -1025,6 +1053,19 @@ impl AccountSummary {
             return "/assets/images/note.svg".into();
         }
         String::new()
+    }
+
+    pub fn expires_at(&self) -> String {
+        if let Some(expires_at) = &self.expires_at {
+            return expires_at.format("%Y-%m-%d").to_string();
+        }
+        String::from("")
+    }
+    pub fn due_at(&self) -> String {
+        if let Some(due_at) = &self.due_at {
+            return due_at.format("%Y-%m-%d").to_string();
+        }
+        String::from("")
     }
 
     pub fn email(&self) -> String {
@@ -1395,20 +1436,20 @@ impl AccountPasswordSummary {
 
 pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
 pub const DEFAULT_CATEGORIES: [&str; 10] = [
-    "Contacts",
     "Logins",
+    "Contacts",
+    "Notes",
+    "Custom",
     "Finance",
     "Social",
     "Shopping",
     "Travel",
     "Gaming",
-    "Notes",
     "Credit Cards",
-    "Custom",
 ];
 
 pub fn top_categories() -> Vec<String> {
-    DEFAULT_CATEGORIES[0..5].to_vec().iter().map(|s| s.to_string()).collect()
+    DEFAULT_CATEGORIES[0..3].to_vec().iter().map(|s| s.to_string()).collect()
 }
 
 pub fn all_categories() -> Vec<String> {
@@ -1421,7 +1462,7 @@ pub fn all_categories() -> Vec<String> {
 pub enum VaultKind {
     Logins,
     Contacts,
-    SecureNotes,
+    Notes,
     Custom,
 }
 
@@ -1430,11 +1471,11 @@ impl From<&str> for VaultKind {
         match s {
             "Logins" => VaultKind::Logins,
             "Contacts" => VaultKind::Contacts,
-            "SecureNotes" => VaultKind::SecureNotes,
+            "Notes" => VaultKind::Notes,
             _ => {
                 let s = s.to_lowercase();
                 if s.contains("note") {
-                    VaultKind::SecureNotes
+                    VaultKind::Notes
                 } else if s.contains("data") || s.contains("custom") {
                     VaultKind::Custom
                 } else {
@@ -1450,7 +1491,7 @@ impl Display for VaultKind {
         match self {
             VaultKind::Logins => write!(f, "Logins"),
             VaultKind::Contacts => write!(f, "Contacts"),
-            VaultKind::SecureNotes => write!(f, "SecureNotes"),
+            VaultKind::Notes => write!(f, "Notes"),
             VaultKind::Custom => write!(f, "Custom"),
         }
     }

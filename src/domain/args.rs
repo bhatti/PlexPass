@@ -190,6 +190,9 @@ pub enum CommandActions {
         /// expiration
         #[arg(long)]
         expires_at: Option<String>,
+        /// due-at
+        #[arg(long)]
+        due_at: Option<String>,
     },
     UpdateAccount {
         /// id of account
@@ -266,6 +269,10 @@ pub enum CommandActions {
         /// expiration
         #[arg(long)]
         expires_at: Option<String>,
+
+        /// due-at
+        #[arg(long)]
+        due_at: Option<String>,
     },
     GetAccount {
         /// id of account
@@ -465,8 +472,7 @@ pub enum CommandActions {
         #[arg(long)]
         account_id: String,
     },
-    GenerateUserOTP {
-    },
+    GenerateUserOTP {},
     GenerateAPIToken {
         /// duration of token
         #[arg(long)]
@@ -606,6 +612,7 @@ impl Args {
                 notes,
                 renew_interval_days,
                 expires_at,
+                due_at,
             } => {
                 let account = self.build_account(
                     &vault_id,
@@ -626,6 +633,7 @@ impl Args {
                     notes,
                     renew_interval_days,
                     expires_at,
+                    due_at,
                 );
                 Some(account)
             }
@@ -648,7 +656,8 @@ impl Args {
                 icon,
                 notes,
                 renew_interval_days,
-                expires_at, ..
+                expires_at,
+                due_at,
             } => {
                 let mut account = self.build_account(
                     &vault_id,
@@ -669,6 +678,7 @@ impl Args {
                     notes,
                     renew_interval_days,
                     expires_at,
+                    due_at,
                 );
                 account.details.account_id = account_id.clone();
                 Some(account)
@@ -747,6 +757,7 @@ impl Args {
                      notes: &Option<String>,
                      renew_interval_days: &Option<i32>,
                      expires_at: &Option<String>,
+                     due_at: &Option<String>,
     ) -> Account {
         let kind = if let Some(kind) = kind {
             kind.clone()
@@ -769,6 +780,7 @@ impl Args {
         account.details.icon = icon.clone();
         account.details.renew_interval_days = *renew_interval_days;
         account.details.expires_at = safe_parse_string_date(expires_at.clone());
+        account.details.due_at = safe_parse_string_date(due_at.clone());
 
         account.credentials.password = password.clone();
         account.credentials.form_fields = HashMap::new();

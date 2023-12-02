@@ -302,6 +302,9 @@ pub struct CreateAccountRequest {
     pub renew_interval_days: Option<i32>,
     // expiration
     pub expires_at: Option<NaiveDateTime>,
+    // due
+    pub due_at: Option<NaiveDateTime>,
+    // 2023-12-02T05:11:50.543995
     // The custom fields of the account.
     pub custom_name: Option<Vec<String>>,
     // The custom fields of the account.
@@ -344,6 +347,7 @@ impl CreateAccountRequest {
             notes: None,
             renew_interval_days: None,
             expires_at: None,
+            due_at: None,
             custom_name: None,
             custom_value: None,
             password_min_uppercase: None,
@@ -380,6 +384,7 @@ impl CreateAccountRequest {
         account.details.icon = self.icon.clone();
         account.details.renew_interval_days = self.renew_interval_days;
         account.details.expires_at = self.expires_at;
+        account.details.due_at = self.due_at;
 
         account.credentials.password = self.password.clone();
         account.credentials.form_fields = self.form_fields.clone().unwrap_or_default();
@@ -524,11 +529,16 @@ pub struct AccountResponse {
     // renew interval
     pub renew_interval_days: Option<i32>,
     // expiration
-    pub expires_at: Option<NaiveDateTime>,
+    pub expires_at: Option<String>,
+    pub expired: bool,
+    // due
+    pub due_at: Option<String>,
+    pub overdue: bool,
+    // 2023-12-02T05:11:50.543995
     // The metadata for dates of the account.
-    pub credentials_updated_at: Option<NaiveDateTime>,
+    pub credentials_updated_at: Option<String>,
     // The metadata for date when password was analyzed.
-    pub analyzed_at: Option<NaiveDateTime>,
+    pub analyzed_at: Option<String>,
     // minimum number of upper_case letters should be included.
     pub password_min_uppercase: Option<usize>,
     // minimum number of lower_case letters should be included.
@@ -583,12 +593,27 @@ impl AccountResponse {
             password_min_length: Some(account.credentials.password_policy.min_length),
             password_max_length: Some(account.credentials.password_policy.max_length),
             renew_interval_days: account.details.renew_interval_days,
-            expires_at: account.details.expires_at,
-            credentials_updated_at: account.details.credentials_updated_at,
-            analyzed_at: account.details.analyzed_at,
+            expires_at: None,
+            expired: account.details.is_expired(),
+            due_at: None,
+            overdue: account.details.is_due(),
+            credentials_updated_at: None,
+            analyzed_at: None,
             created_at: account.created_at,
             updated_at: account.updated_at,
         };
+        if let Some(expires_at) = &account.details.expires_at {
+            res.expires_at = Some(expires_at.format("%Y-%m-%d").to_string())
+        }
+        if let Some(due_at) = &account.details.due_at {
+            res.due_at = Some(due_at.format("%Y-%m-%d").to_string())
+        }
+        if let Some(credentials_updated_at) = &account.details.credentials_updated_at {
+            res.credentials_updated_at = Some(credentials_updated_at.format("%Y-%m-%d").to_string())
+        }
+        if let Some(analyzed_at) = &account.details.analyzed_at {
+            res.analyzed_at = Some(analyzed_at.format("%Y-%m-%d").to_string())
+        }
         if let Some(ref otp) = res.otp {
             res.generated_otp = Option::from(TOTP::new(otp).generate(30, Utc::now().timestamp() as u64));
         }
@@ -685,7 +710,9 @@ pub struct UpdateAccountRequest {
     // renew interval
     pub renew_interval_days: Option<i32>,
     // expiration
-    pub expires_at: Option<NaiveDateTime>,
+    pub expires_at: Option<NaiveDateTime>, // 2023-12-02T05:11:50.543995
+    // due
+    pub due_at: Option<NaiveDateTime>, // 2023-12-02T05:11:50.543995
 
     // minimum number of upper_case letters should be included.
     pub password_min_uppercase: Option<usize>,
@@ -728,6 +755,7 @@ impl UpdateAccountRequest {
             custom_value: None,
             renew_interval_days: None,
             expires_at: None,
+            due_at: None,
             password_min_uppercase: None,
             password_min_lowercase: None,
             password_min_digits: None,
@@ -769,6 +797,7 @@ impl UpdateAccountRequest {
         account.credentials.otp = self.otp.clone();
         account.details.renew_interval_days = self.renew_interval_days;
         account.details.expires_at = self.expires_at;
+        account.details.due_at = self.due_at;
 
         let mut password_policy = PasswordPolicy::new();
 
@@ -869,6 +898,7 @@ impl Account {
                 "icon" => account.details.icon = Some(value),
                 "renew_interval_days" => account.details.renew_interval_days = Some(value.parse::<i32>().unwrap_or(0)),
                 "expires_at" => account.details.expires_at = safe_parse_string_date(Option::from(value)),
+                "due_at" => account.details.due_at= safe_parse_string_date(Option::from(value)),
                 "custom_name" => custom_names.push(value),
                 "custom_value" => custom_values.push(value),
                 _ => {}
@@ -1058,3 +1088,48 @@ pub struct QueryAccountParams {
     pub q: Option<String>,
 }
 
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+    use crate::controller::models::{AccountResponse, UpdateAccountRequest};
+    use crate::domain::models::{Account, AccountKind};
+
+    #[test]
+    fn test_should_serialize_account() {
+        let mut account = Account::new("vault0", AccountKind::Logins);
+        account.details.label = Some("my label".into());
+        account.details.version = 10;
+        account.details.favorite = true;
+        account.details.username = Some("test1".into());
+        account.credentials.password = Some("pass".into());
+        account.credentials.notes = Some("my notes".into());
+        account.details.email = Some("email@mail.cc".into());
+        account.details.website_url = Some("https://mail.cc".into());
+        account.details.category = Some("Contacts".into());
+        account.details.tags = vec!["Personal".to_string()];
+        account.details.renew_interval_days = Some(3);
+        account.details.expires_at = Some(Utc::now().naive_utc());
+        account.details.due_at = Some(Utc::now().naive_utc());
+        let account_response = AccountResponse::new(&account);
+        let account_json = serde_json::to_string(&account_response).unwrap();
+        let des_update_account: UpdateAccountRequest = serde_json::from_str(&account_json).unwrap();
+        let des_account = des_update_account.to_account();
+        assert_eq!(account.vault_id, des_account.vault_id);
+        assert_eq!(account.details.account_id, des_account.details.account_id);
+        assert_eq!(account.details.version, des_account.details.version);
+        assert_eq!(account.details.label, des_account.details.label);
+        assert_eq!(account.details.kind, des_account.details.kind);
+        assert_eq!(account.details.favorite, des_account.details.favorite);
+        assert_eq!(account.details.risk, des_account.details.risk);
+        assert_eq!(account.details.username, des_account.details.username);
+        assert_eq!(account.details.email, des_account.details.email);
+        assert_eq!(account.details.category, des_account.details.category);
+        assert_eq!(account.details.website_url, des_account.details.website_url);
+        assert_eq!(account.credentials.password, des_account.credentials.password);
+        assert_eq!(account.credentials.notes, des_account.credentials.notes);
+        assert_eq!(account.details.tags, des_account.details.tags);
+        assert_eq!(account.details.renew_interval_days, des_account.details.renew_interval_days);
+        assert_eq!(account.details.expires_at, des_account.details.expires_at);
+        assert_eq!(account.details.due_at , des_account.details.due_at);
+    }
+}
