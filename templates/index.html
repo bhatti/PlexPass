@@ -117,7 +117,7 @@
                 <tr>
                     <th>Label</th>
                     <th>Username</th>
-                    <th>Expires/Due Date</th>
+                    <th>Expires/Due & Update Date</th>
                     <th>Category & Tags</th>
                     <th>Action</th>
                 </tr>
@@ -143,7 +143,7 @@
                     {% if account.is_expired_or_overdue() %}
                         <td class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</td>
                     {% else %}
-                        <td>{{account.expires_at()}} {{account.due_at()}}</td>
+                        <td>{{account.expires_at()}} {{account.due_at()}} {{account.updated_at()}}</td>
                     {% endif %}
                     <td>{{account.all_cat_tags()}}</td>
                     <td>

@@ -998,7 +998,7 @@ impl AccountEntity {
         if account.details.favicon.is_none() {
             account.details.favicon = old_account.details.favicon;
         }
-        account.updated_at = Some(Utc::now().naive_utc());
+        account.details.updated_at = Some(Utc::now().naive_utc());
 
         // Encrypting without pepper key so that we can share it
         let (nonce, encrypted_value) =
@@ -1036,8 +1036,8 @@ impl AccountEntity {
         let mut account: Account = serde_json::from_str(&account_json)?;
         account.value_hash = self.value_hash.clone();
         account.details.version = self.version;
-        account.created_at = Some(self.created_at);
-        account.updated_at = Some(self.updated_at);
+        account.details.created_at = Some(self.created_at);
+        account.details.updated_at = Some(self.updated_at);
         Ok(account)
     }
 
@@ -1156,8 +1156,8 @@ impl ArchivedAccountEntity {
         let mut account: Account = serde_json::from_str(&account_json)?;
         account.value_hash = self.value_hash.clone();
         account.details.version = self.version;
-        account.created_at = Some(self.created_at);
-        account.updated_at = Some(self.created_at);
+        account.details.created_at = Some(self.created_at);
+        account.details.updated_at = Some(self.created_at);
         Ok(account)
     }
 }

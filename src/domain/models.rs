@@ -875,6 +875,8 @@ pub struct AccountSummary {
     pub credentials_updated_at: Option<NaiveDateTime>,
     // The metadata for date when password was analyzed.
     pub analyzed_at: Option<NaiveDateTime>,
+    pub created_at: Option<NaiveDateTime>,
+    pub updated_at: Option<NaiveDateTime>,
 }
 
 impl PartialEq for AccountSummary {
@@ -914,6 +916,8 @@ impl AccountSummary {
             due_at: None,
             credentials_updated_at: None,
             analyzed_at: None,
+            created_at: Some(Utc::now().naive_utc()),
+            updated_at: Some(Utc::now().naive_utc()),
         }
     }
 
@@ -988,12 +992,7 @@ impl AccountSummary {
     }
 
     pub fn has_url(&self) -> bool {
-        if let Some(url) = &self.website_url {
-            if !url.is_empty() && !url.chars().all(char::is_whitespace) {
-                return true;
-            }
-        }
-        false
+        not_empty(&self.website_url)
     }
 
     pub fn has_risk_image(&self) -> bool {
@@ -1064,6 +1063,13 @@ impl AccountSummary {
     pub fn due_at(&self) -> String {
         if let Some(due_at) = &self.due_at {
             return due_at.format("%Y-%m-%d").to_string();
+        }
+        String::from("")
+    }
+
+    pub fn updated_at(&self) -> String {
+        if let Some(updated_at) = &self.updated_at {
+            return updated_at.format("%Y-%m-%d").to_string();
         }
         String::from("")
     }
@@ -1209,12 +1215,7 @@ impl AccountCredentials {
     }
 
     pub fn has_password(&self) -> bool {
-        if let Some(password) = &self.password {
-            if !password.is_empty() && !password.chars().all(char::is_whitespace) {
-                return true;
-            }
-        }
-        false
+        not_empty(&self.password)
     }
 }
 
@@ -1231,8 +1232,6 @@ pub struct Account {
     pub credentials: AccountCredentials,
     // The hash of primary attributes
     pub value_hash: String,
-    pub created_at: Option<NaiveDateTime>,
-    pub updated_at: Option<NaiveDateTime>,
 }
 
 impl Account {
@@ -1243,8 +1242,6 @@ impl Account {
             archived_version: None,
             credentials: AccountCredentials::new(),
             value_hash: "".into(),
-            created_at: Some(Utc::now().naive_utc()),
-            updated_at: Some(Utc::now().naive_utc()),
         }
     }
 
@@ -1257,8 +1254,8 @@ impl Account {
         copy.details.analyzed_at = None;
         copy.details.favorite = false;
         copy.value_hash = "".into();
-        copy.created_at = Some(Utc::now().naive_utc());
-        copy.updated_at = Some(Utc::now().naive_utc());
+        copy.details.created_at = Some(Utc::now().naive_utc());
+        copy.details.updated_at = Some(Utc::now().naive_utc());
 
         copy.before_save();
         copy
@@ -1303,7 +1300,7 @@ impl Account {
         }
 
         self.value_hash = self.compute_primary_attributes_hash();
-        self.updated_at = Some(Utc::now().naive_utc());
+        self.details.updated_at = Some(Utc::now().naive_utc());
     }
 
     pub fn update_analysis(&mut self, analysis: &AccountPasswordSummary) -> bool {
@@ -1425,16 +1422,11 @@ pub struct AccountPasswordSummary {
 
 impl AccountPasswordSummary {
     pub fn has_password(&self) -> bool {
-        if let Some(password) = &self.password {
-            if !password.is_empty() && !password.chars().all(char::is_whitespace) {
-                return true;
-            }
-        }
-        false
+        not_empty(&self.password)
     }
 }
 
-pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Financial", "Secure Notes"];
+pub const DEFAULT_VAULT_NAMES: [&str; 5] = ["Identity", "Personal", "Work", "Contacts", "Secure Notes"];
 pub const DEFAULT_CATEGORIES: [&str; 10] = [
     "Logins",
     "Contacts",
@@ -2899,7 +2891,7 @@ impl PartialEq for VaultAnalysis {
 }
 
 pub fn icon_string(icon: &Option<String>, def_icon: &str) -> String {
-    if let Some(icon) = icon {
+    if let Some(icon) = non_empty_string(icon) {
         format!("data:image/png;base64,{}", icon)
     } else {
         def_icon.to_string()
@@ -2915,6 +2907,23 @@ pub fn base64_trim_icon(icon: Vec<u8>) -> String {
     general_purpose::STANDARD_NO_PAD.encode(bytes)
 }
 
+pub fn non_empty_string(opt: &Option<String>) -> Option<String> {
+    if let Some(s) = opt {
+        if !s.is_empty() && !s.chars().all(char::is_whitespace) {
+            return Option::from(s.clone());
+        }
+    }
+    None
+}
+
+pub fn not_empty(opt: &Option<String>) -> bool {
+    if let Some(s) = opt {
+        if !s.is_empty() && !s.chars().all(char::is_whitespace) {
+            return true;
+        }
+    }
+    false
+}
 
 #[cfg(test)]
 mod tests {
@@ -3002,8 +3011,8 @@ mod tests {
         assert_eq!(1, account.credentials.password_policy.min_digits);
         assert!(account.credentials.form_fields.is_empty());
         assert_eq!(None, account.details.credentials_updated_at);
-        assert_ne!(None, account.created_at);
-        assert_ne!(None, account.updated_at);
+        assert_ne!(None, account.details.created_at);
+        assert_ne!(None, account.details.updated_at);
         assert!(account.details.category.is_none());
         assert!(account.details.tags.is_empty());
     }

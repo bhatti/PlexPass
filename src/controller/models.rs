@@ -603,8 +603,8 @@ impl AccountResponse {
             overdue: account.details.is_due(),
             credentials_updated_at: None,
             analyzed_at: None,
-            created_at: account.created_at,
-            updated_at: account.updated_at,
+            created_at: account.details.created_at,
+            updated_at: account.details.updated_at,
         };
         if let Some(expires_at) = &account.details.expires_at {
             res.expires_at = Option::from(expires_at.clone());
