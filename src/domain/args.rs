@@ -738,6 +738,7 @@ impl Args {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_account(&self,
                      vault_id: &&String,
                      kind: &Option<AccountKind>,

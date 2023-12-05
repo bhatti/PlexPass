@@ -803,12 +803,15 @@ impl From<&str> for AccountKind {
             "Login" => AccountKind::Logins,
             "Custom" => AccountKind::Custom,
             "Notes" => AccountKind::Notes,
+            "Contacts" => AccountKind::Contacts,
             _ => {
                 let s = s.to_lowercase();
                 if s.contains("note") {
                     AccountKind::Notes
                 } else if s.contains("data") || s.contains("custom") || s.contains("form") {
                     AccountKind::Custom
+                } else if s.contains("contact") {
+                    AccountKind::Contacts
                 } else {
                     AccountKind::Logins
                 }
@@ -937,7 +940,7 @@ impl AccountSummary {
         if lq.contains("favorite") && self.favorite {
             return true;
         }
-        if lq.contains("expire") && self.is_expired() || self.is_due() {
+        if (lq.contains("expire") || lq.contains("overdue")) && (self.is_expired() || self.is_due()) {
             return true;
         }
         if lq.contains("high_risk") &&
@@ -1019,6 +1022,10 @@ impl AccountSummary {
         self.is_expired() || self.is_due()
     }
 
+    pub fn has_expiration_due(&self) -> bool {
+        self.expires_at.is_some() || self.due_at.is_some()
+    }
+
     pub fn is_expired(&self) -> bool {
         if let Some(expires_at) = &self.expires_at {
             if expires_at.timestamp_millis() < Utc::now().naive_utc().timestamp_millis() {
@@ -1063,6 +1070,13 @@ impl AccountSummary {
     pub fn due_at(&self) -> String {
         if let Some(due_at) = &self.due_at {
             return due_at.format("%Y-%m-%d").to_string();
+        }
+        String::from("")
+    }
+
+    pub fn created_at(&self) -> String {
+        if let Some(created_at) = &self.created_at {
+            return created_at.format("%Y-%m-%d").to_string();
         }
         String::from("")
     }
@@ -1298,7 +1312,9 @@ impl Account {
         if self.details.credentials_updated_at.is_none() {
             self.details.credentials_updated_at = Some(Utc::now().naive_utc());
         }
-
+        if let Some(category) = &self.details.category {
+            self.details.kind = AccountKind::from(category.as_str());
+        }
         self.value_hash = self.compute_primary_attributes_hash();
         self.details.updated_at = Some(Utc::now().naive_utc());
     }
@@ -1456,6 +1472,20 @@ pub enum VaultKind {
     Contacts,
     Notes,
     Custom,
+}
+
+impl VaultKind {
+    pub fn is_login(&self) -> bool {
+        matches!(self, VaultKind::Logins)
+    }
+
+    pub fn is_contact(&self) -> bool {
+        matches!(self, VaultKind::Contacts)
+    }
+
+    pub fn is_note(&self) -> bool {
+        matches!(self, VaultKind::Notes)
+    }
 }
 
 impl From<&str> for VaultKind {
@@ -1698,6 +1728,7 @@ impl PassConfig {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn override_server_args(&mut self,
                                 http_port: &Option<String>,
                                 https_port: &Option<String>,
@@ -2609,6 +2640,7 @@ pub struct DecryptRequest {
 }
 
 impl DecryptRequest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         salt: &str,
         device_pepper: &str,
@@ -2632,6 +2664,8 @@ impl DecryptRequest {
         }
     }
 
+
+    #[allow(clippy::too_many_arguments)]
     pub fn from_string(
         salt: &str,
         device_pepper: &str,

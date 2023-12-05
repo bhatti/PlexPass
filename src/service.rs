@@ -206,6 +206,7 @@ pub trait EncryptionService {
 #[async_trait]
 pub trait ImportExportService {
     // import accounts.
+    #[allow(clippy::too_many_arguments)]
     async fn import_accounts(&self,
                              ctx: &UserContext,
                              vault_id: Option<String>,

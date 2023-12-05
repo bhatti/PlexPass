@@ -35,6 +35,8 @@ pub struct UserContext {
 }
 
 impl UserContext {
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         username: &str,
         user_id: &str,
@@ -58,6 +60,8 @@ impl UserContext {
         }
     }
 
+
+    #[allow(clippy::too_many_arguments)]
     pub fn from_master_password(
         username: &str,
         user_id: &str,
@@ -862,7 +866,7 @@ impl UserVaultEntity {
 
     pub fn is_favorite_account(&self, account_id: &str) -> bool {
         let favorites = self.get_favorite_accounts();
-        favorites.get(account_id).unwrap_or(&false).clone()
+        *favorites.get(account_id).unwrap_or(&false)
     }
 
     pub fn get_favorite_accounts(&self) -> HashMap<String, bool> {

@@ -29,6 +29,7 @@ struct IndexTemplate<'a> {
 }
 
 impl<'a> IndexTemplate<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         selected_vault: Vault,
         q: &'a str,
@@ -92,10 +93,11 @@ pub async fn home_page(
         let mut user_categories = service_locator.lookup_service
             .get_lookups(&auth.context, LookupKind::CATEGORY).await?
             .into_iter().map(|l| l.name).collect::<Vec<String>>();
+        user_categories.append(&mut top_categories());
+        user_categories.sort();
         if user_categories.len() > 5 {
             user_categories = user_categories[0..5].to_vec().iter().map(|s| s.to_string()).collect();
         }
-        user_categories.sort();
         user_categories
     };
     let html = IndexTemplate::new(
@@ -169,4 +171,8 @@ pub async fn get_vault_icon(
         Ok(data) => HttpResponse::Ok().content_type("image/png").body(data),
         Err(_) => HttpResponse::NotFound().finish(),
     }
+}
+
+pub async fn check_session() -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().finish())
 }

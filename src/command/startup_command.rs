@@ -272,6 +272,9 @@ fn config_services(service_config: &mut web::ServiceConfig) {
 
     // ui audit logs
     service_config.route("/ui/audit_logs", web::get().to(audit_ui_controller::audit_logs));
+
+    // check session
+    service_config.route("/ui/check_session", web::get().to(vault_ui_controller::check_session));
 }
 
 fn ssl_builder(config: &PassConfig) -> PassResult<SslAcceptorBuilder> {

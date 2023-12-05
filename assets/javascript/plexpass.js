@@ -2,6 +2,10 @@ let otpIntervalId;
 let clipboardTimer;
 let otpDuration = 30; // Duration of OTP in seconds
 let otpTimeLeft = otpDuration;
+let idleTimer;
+let sessionCheckInterval;
+const IDLE_TIME_LIMIT = 300000; // 5 minutes in milliseconds
+
 
 async function viewAccount(id) {
     const account = await fetchAccount(id);
@@ -154,6 +158,14 @@ async function viewAccount(id) {
         <div id="advisoryFieldsView">
             ${advisories}
         </div>
+        <table class="table table-striped-columns">
+            <tr>
+                <td><strong>Created At:</strong></td><td><span id="viewCreated">${account.created_at}</span></td>
+            </tr>
+            <tr>
+                <td><strong>Updated At:</strong></td><td><span id="viewCreated">${account.updated_at}</span></td>
+            </tr>
+        </table>
         `;
     // Show modal
     const viewModalElem = document.getElementById('viewAccountModal');
@@ -249,7 +261,7 @@ function updateProgressBar() {
 function fetchOTP() {
     const secret = document.getElementById('viewOtp').textContent;
     // Replace 'your_api_endpoint' with the actual API endpoint
-    fetch('/ui/otp/generate?otp_secret=' + secret)
+    doFetch('/ui/otp/generate?otp_secret=' + secret)
         .then(response => response.json())
         .then(data => {
             otpTimeLeft = otpDuration;
@@ -300,14 +312,23 @@ function stopFetchingOTP() {
     }
 }
 
-async function editAccount(id) {
-    document.getElementById('editAccountTitle').innerText = 'Edit Account';
+async function editAccount(id, kind) {
+    document.getElementById('editAccountTitle').innerText = `Edit ${getAccountDisplayKind(kind)}`;
     const account = await fetchAccount(id);
     await showAccountForm(account);
 }
 
+function getAccountDisplayKind(kind) {
+    if (kind === 'Notes') {
+        return 'Note';
+    } else if (kind === 'Contacts') {
+        return 'Contact';
+    }
+    return 'Account';
+}
+
 async function addAccount(vault_id, kind) {
-    document.getElementById('editAccountTitle').innerText = 'Add Account';
+    document.getElementById('editAccountTitle').innerText = `Add ${getAccountDisplayKind(kind)}`;
     const account = {
         account_id: '',
         vault_id: vault_id,
@@ -599,10 +620,19 @@ async function shareVault() {
     await viewModal.show();
 }
 
+async function doFetch(path, headers) {
+    const response = await fetch(path, headers);
+    if (response.status === 401 || response.headers.get('X-Signin') === 'required') {
+        window.location.href = '/ui/signin';
+        throw new Error(`Signin required Status: ${response.status} ${response.statusText}`);
+    }
+    return response;
+}
+
 async function handleShareUnShareVault(vaultId) {
     const username = document.getElementById('shareVaultUserInput').value;
     const shareUnshare = document.getElementById('shareVaultButton').innerText === 'Share' ? 'share' : 'unshare';
-    const response = await fetch(`/ui/vaults/${vaultId}/${shareUnshare}?target_username=${username}`, {
+    const response = await doFetch(`/ui/vaults/${vaultId}/${shareUnshare}?target_username=${username}`, {
         method: 'POST',
     });
     if (!response.ok) {
@@ -633,7 +663,7 @@ async function unshareVault() {
 async function handleShareAccount(vaultId) {
     const shareAccountId = document.getElementById('shareAccountId').value;
     const username = document.getElementById('shareAccountUserInput').value;
-    const response = await fetch(`/ui/vaults/${vaultId}/accounts/${shareAccountId}/share?target_username=${username}`, {
+    const response = await doFetch(`/ui/vaults/${vaultId}/accounts/${shareAccountId}/share?target_username=${username}`, {
         method: 'POST',
     });
     if (!response.ok) {
@@ -691,7 +721,7 @@ async function handleImportAccounts(vaultId) {
     const path = password ? `/ui/vaults/${vaultId}/accounts/import?password=${password}` : `/ui/vaults/${vaultId}/accounts/import`;
 
     try {
-        const response = await fetch(path, {
+        const response = await doFetch(path, {
             method: 'POST',
             body: formData
         });
@@ -754,7 +784,7 @@ async function handleExportAccounts(vaultId) {
 async function deleteAccount(id) {
     if (confirm('Are you sure you want to delete this account?')) {
         try {
-            const response = await fetch(`/ui/accounts/${id}/delete`, {
+            const response = await doFetch(`/ui/accounts/${id}/delete`, {
                     method: 'DELETE'
                 }
             );
@@ -798,7 +828,7 @@ function togglePasswordVisibility() {
 }
 
 async function fetchAccount(id) {
-    const response = await fetch(`/ui/accounts/${id}`, {
+    const response = await doFetch(`/ui/accounts/${id}`, {
         method: 'GET',
         headers: {
             'Accept': 'application/json',
@@ -816,7 +846,7 @@ async function fetchAccount(id) {
 }
 
 async function postData(path, data) {
-    const response = await fetch(path, {
+    const response = await doFetch(path, {
         method: 'POST',
         body: data,
     });
@@ -829,13 +859,19 @@ async function postData(path, data) {
 async function initEventHandlers() {
     await initEventHandler(document.getElementById('shareVaultUserInput'));
     await initEventHandler(document.getElementById('shareAccountUserInput'));
+
+    // Start checking the session 5 minutes after login
+    setTimeout(() => {
+        // Check session every minute
+        sessionCheckInterval = setInterval(checkSession, 60000);
+    }, 300000); // 300000 milliseconds = 5 minutes
 }
 
 async function autocompleteUsername(term) {
     if (term.length < 2) {
         return [];
     }
-    const response = await fetch(`/ui/users/autocomplete?term=${term}`);
+    const response = await doFetch(`/ui/users/autocomplete?term=${term}`);
     return await response.json();
 }
 
@@ -1017,7 +1053,7 @@ function buildGauge(riskGaugeCtx, data, score, chartType, lightMode) {
 }
 
 async function scheduleAnalysis() {
-    const response = await fetch(`/ui/password/schedule_password_analysis`, {
+    const response = await doFetch(`/ui/password/schedule_password_analysis`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1035,7 +1071,7 @@ async function generatePassword() {
     const formData = new FormData(form);
     const queryParams = new URLSearchParams(formData).toString();
 
-    const response = await fetch(`/ui/password/generate?${queryParams}`, {
+    const response = await doFetch(`/ui/password/generate?${queryParams}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1055,7 +1091,7 @@ async function generatePassword() {
 async function checkPassword() {
     const inputPassword = document.getElementById('inputPassword').value;
 
-    const response = await fetch(`/ui/password/${inputPassword}/compromised`, {
+    const response = await doFetch(`/ui/password/${inputPassword}/compromised`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -1099,7 +1135,7 @@ async function checkPassword() {
 async function checkEmailUrl() {
     const inputEmailOrUrl = document.getElementById('inputEmailOrUrl').value;
 
-    const response = await fetch(`/ui/emails/${inputEmailOrUrl}/compromised`, {
+    const response = await doFetch(`/ui/emails/${inputEmailOrUrl}/compromised`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -1138,7 +1174,7 @@ function prepareNewCategoryModal() {
 async function saveCategory() {
     const name = document.getElementById('categoryName').value;
 
-    const response = await fetch(`/ui/categories/${name}`, {
+    const response = await doFetch(`/ui/categories/${name}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1159,7 +1195,7 @@ async function saveCategory() {
 async function deleteCategory(name) {
     if (confirm(`Are you sure you want to delete this category '${name}'?`)) {
         try {
-            const response = await fetch(`/ui/categories/${name}/delete`, {
+            const response = await doFetch(`/ui/categories/${name}/delete`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1201,7 +1237,7 @@ async function removeMFAKey(id) {
     if (confirm('Are you sure you want to delete multi-factor authentication key?')) {
         try {
             // Send the credentials to the server
-            const response = await fetch('/ui/webauthn/unregister?id=' + id, {
+            const response = await doFetch('/ui/webauthn/unregister?id=' + id, {
                 method: 'POST'
             });
             if (response.ok) {
@@ -1257,7 +1293,7 @@ async function signinMFA(options) {
     try {
         if (!options) {
             // Fetch options for authentication from the server
-            const response = await fetch('/ui/webauthn/login_start');
+            const response = await doFetch('/ui/webauthn/login_start');
             options = await response.json();
         }
 
@@ -1275,7 +1311,7 @@ async function signinMFA(options) {
         const assertion = await navigator.credentials.get(options);
 
         // Send the assertion to the server for verification
-        let response = await fetch('/ui/webauthn/login_finish', {
+        let response = await doFetch('/ui/webauthn/login_finish', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(assertion)
@@ -1298,7 +1334,7 @@ async function showRegisterMFAKey() {
 async function registerMFAKey() {
     const keyName = document.getElementById('mfaKeyName').value;
     try {
-        let response = await fetch('/ui/webauthn/register_start');
+        let response = await doFetch('/ui/webauthn/register_start');
         let options = await response.json();
 
         // Convert challenge from Base64URL to Base64, then to Uint8Array
@@ -1334,7 +1370,7 @@ async function registerMFAKey() {
         };
 
         // Send the new credential to the server for verification and storage
-        response = await fetch('/ui/webauthn/register_finish?name=' + keyName, {
+        response = await doFetch('/ui/webauthn/register_finish?name=' + keyName, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(credentialForServer)
@@ -1372,7 +1408,7 @@ async function showAPIToken(id) {
     const tokenDisplay = document.getElementById('tokenDisplay');
 
     try {
-        const response = await fetch('/ui/api_token');
+        const response = await doFetch('/ui/api_token');
         const data = await response.json();
         tokenDisplay.textContent = data.token;
     } catch (error) {
@@ -1406,7 +1442,7 @@ async function updateVaultDetails(vaultId, version) {
 
     const path = vaultId ? `/ui/vaults/${vaultId}/update` : '/ui/vaults';
     try {
-        const response = await fetch(path, {
+        const response = await doFetch(path, {
             method: 'POST',
             body: formData,
         });
@@ -1425,7 +1461,7 @@ async function updateVaultDetails(vaultId, version) {
 async function deleteVault(vaultId, title) {
     if (confirm(`Are you sure you want to delete '${title}' Vault?`)) {
         try {
-            const response = await fetch(`/ui/vaults/${vaultId}/delete`, {
+            const response = await doFetch(`/ui/vaults/${vaultId}/delete`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1445,3 +1481,31 @@ async function deleteVault(vaultId, title) {
     }
 }
 
+
+async function checkSession() {
+    try {
+        const response = await doFetch('/ui/check_session');
+        if (response.headers.get('X-Signin') === 'required') {
+            window.location.href = '/ui/signin';
+        }
+    } catch (error) {
+        console.error('Session check failed:', error);
+    }
+}
+
+function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(async () => {
+        // User is considered idle after IDLE_TIME_LIMIT
+        await checkSession();
+    }, IDLE_TIME_LIMIT);
+}
+
+function initCheckSession() {
+    resetIdleTimer();
+
+    window.addEventListener('mousemove', resetIdleTimer, false);
+    window.addEventListener('keydown', resetIdleTimer, false);
+    window.addEventListener('scroll', resetIdleTimer, false);
+    window.addEventListener('touchmove', resetIdleTimer, false);
+}

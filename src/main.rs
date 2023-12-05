@@ -502,7 +502,7 @@ async fn main() -> std::io::Result<()> {
         }
         CommandActions::ResetMultiFactorAuthentication { recovery_code } => {
             let ctx_args = args.to_args_context(&config).await.expect("failed to create args-context");
-            let _ = reset_mfa_command::execute(
+            reset_mfa_command::execute(
                 &ctx_args,
                 recovery_code)
                 .await.expect("could not reset multi-factor authentication");

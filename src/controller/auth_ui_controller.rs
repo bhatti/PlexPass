@@ -71,8 +71,14 @@ impl<'a> Sigup<'a> {
 /// Show signin page
 pub async fn user_signin() -> actix_web::Result<impl Responder> {
     let html = Sigin::new().render().expect("template should be valid");
-    Ok(Html(html))
+
+    // Create a response with the custom header
+    Ok(HttpResponse::Ok()
+        .content_type("text/html")
+        .insert_header(("X-Signin", "required"))
+        .body(html))
 }
+
 
 /// Handle Signin POST request
 pub async fn handle_user_signin(

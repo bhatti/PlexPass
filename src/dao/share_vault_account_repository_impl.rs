@@ -26,6 +26,8 @@ pub(crate) struct ShareVaultAccountRepositoryImpl {
 }
 
 impl ShareVaultAccountRepositoryImpl {
+
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(pool: DbPool,
                       message_repository: Arc<dyn MessageRepository + Send + Sync>,
                       account_repository: Arc<dyn AccountRepository + Send + Sync>,

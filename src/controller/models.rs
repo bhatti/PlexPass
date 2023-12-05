@@ -607,11 +607,11 @@ impl AccountResponse {
             updated_at: account.details.updated_at,
         };
         if let Some(expires_at) = &account.details.expires_at {
-            res.expires_at = Option::from(expires_at.clone());
+            res.expires_at = Option::from(expires_at).copied();
             res.expires_at_short = Some(expires_at.format("%Y-%m-%d").to_string())
         }
         if let Some(due_at) = &account.details.due_at {
-            res.due_at = Option::from(due_at.clone());
+            res.due_at = Option::from(due_at).copied();
             res.due_at_short = Some(due_at.format("%Y-%m-%d").to_string())
         }
         if let Some(credentials_updated_at) = &account.details.credentials_updated_at {

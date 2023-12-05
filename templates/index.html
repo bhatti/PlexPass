@@ -64,16 +64,16 @@
             <!-- Tabs -->
             <ul class="nav nav-tabs">
                 <li class="nav-item" id="allTab">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&tab_name=all">All Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&tab_name=all">All</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=favorite&tab_name=favorite">Favorite Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=favorite&tab_name=favorite">Favorites</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=high_risk&tab_name=high_risk">High-Risk Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=high_risk&tab_name=high_risk">High-Risk</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=expired&tab_name=expired">Expired Accounts</a>
+                    <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&q=expired&tab_name=expired">Expired/Overdue</a>
                 </li>
                 {% for category in top_categories %}
                 <li class="nav-item">
@@ -87,12 +87,20 @@
             </div>
             <div class="my-3 ms-auto">
                 <button class="btn btn-outline-primary" data-toggle="modal" data-target="#editAccountModal"
-                        onclick="addAccount('{{selected_vault.vault_id}}', '{{selected_vault.kind}}')">Add Account
+                        onclick="addAccount('{{selected_vault.vault_id}}', '{{selected_vault.kind}}')">
+                    <span class="fa fa-plus"></span>&nbsp;Add New
+                    {% if selected_vault.kind.is_contact() %}
+                    Contact
+                    {% else if selected_vault.kind.is_note() %}
+                    Note
+                    {% else %}
+                    Account
+                    {% endif %}
                 </button>
                 <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="importAccounts('{{selected_vault.vault_id}}')">Import Accounts</button>
+                        onclick="importAccounts('{{selected_vault.vault_id}}')">Import Vault</button>
                 <button class="btn btn-outline-success" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Accounts</button>
+                        onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Vault</button>
                 <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
                         onclick="shareVault('{{selected_vault.vault_id}}')">Share Vault</button>
                 <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
@@ -116,7 +124,12 @@
                 <thead>
                 <tr>
                     <th>Label</th>
+                    {% if selected_vault.kind.is_login() %}
                     <th>Username</th>
+                    {% endif %}
+                    {% if selected_vault.kind.is_contact() %}
+                    <th>Email/Phone</th>
+                    {% endif %}
                     <th>Expires/Due & Update Date</th>
                     <th>Category & Tags</th>
                     <th>Action</th>
@@ -139,11 +152,18 @@
                         <img width="32" height="32" src="{{account.risk_image()}}">
                         {% endif %}
                     </td>
+                    {% if selected_vault.kind.is_login() %}
                     <td>{{account.username()}}</td>
+                    {% endif %}
+                    {% if selected_vault.kind.is_contact() %}
+                    <td>{{account.email()}} {{account.phone()}}</td>
+                    {% endif %}
                     {% if account.is_expired_or_overdue() %}
-                        <td class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</td>
+                        <td><span class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
+                    {% else if account.has_expiration_due() %}
+                        <td><span class="alert-info">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
                     {% else %}
-                        <td>{{account.expires_at()}} {{account.due_at()}} {{account.updated_at()}}</td>
+                    <td>{{account.updated_at()}}</td>
                     {% endif %}
                     <td>{{account.all_cat_tags()}}</td>
                     <td>
@@ -151,7 +171,7 @@
                                 onclick="viewAccount('{{account.account_id}}')">View
                         </button>
                         <button class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#editAccountModal"
-                                onclick="editAccount('{{account.account_id}}')">Edit
+                                onclick="editAccount('{{account.account_id}}', '{{account.kind}}')">Edit
                         </button>
                         <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
                                 onclick="deleteAccount('{{account.account_id}}')">Delete
@@ -393,6 +413,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         initEventHandlers();
+        initCheckSession();
     }, false);
 
     document.addEventListener('DOMContentLoaded', (_event) => {

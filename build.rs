@@ -12,7 +12,7 @@ fn main() {
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("version_info.rs");
-    let mut f = File::create(&dest_path).unwrap();
+    let mut f = File::create(dest_path).unwrap();
 
     f.write_all(format!("pub const VERSION: &str = \"{}\";\n", version).as_bytes()).unwrap();
     f.write_all(format!("pub const BUILD_DATE: &str = \"{}\";\n", date_string).as_bytes()).unwrap();

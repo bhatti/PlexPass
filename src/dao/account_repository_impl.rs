@@ -30,6 +30,7 @@ pub(crate) struct AccountRepositoryImpl {
 }
 
 impl AccountRepositoryImpl {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         max_vaults_per_user: u32,
         max_accounts_per_vault: u32,
