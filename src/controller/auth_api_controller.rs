@@ -34,7 +34,7 @@ pub async fn signin_user(
     let context = build_context_with_ip_address(req);
     let (ctx, _user, token, session_status) = service_locator
         .auth_service
-        .signin_user(&payload.username, &payload.master_password, payload.otp_code, context)
+        .signin_user(&payload.username.to_lowercase(), &payload.master_password, payload.otp_code, context)
         .await?;
     if session_status == SessionStatus::RequiresMFA {
         return Err(

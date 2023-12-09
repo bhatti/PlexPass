@@ -7,23 +7,21 @@
     <table class="table theme-table">
         <thead class="theme-table-header">
         <tr>
-            <th>ID</th>
+            <th>Timestamp</th>
             <th>Kind</th>
             <th>IP Address</th>
             <th>Context</th>
             <th>Message</th>
-            <th>Timestamp</th>
         </tr>
         </thead>
         <tbody>
         {% for log in audit_logs %}
         <tr>
-            <td>{{log.audit_id}}</td>
+            <td>{{log.created_at}}}</td>
             <td>{{log.kind}}</td>
             <td>{{log.safe_ip_address()}}</td>
             <td>{{log.context}}</td>
             <td>{{log.message}}.</td>
-            <td>{{log.created_at}}}</td>
         </tr>
         {% endfor %}
         </tbody>

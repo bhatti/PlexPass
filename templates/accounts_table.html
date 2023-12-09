@@ -1,0 +1,65 @@
+<!-- Table -->
+<table class="table table-bordered">
+    <thead>
+    <tr>
+        <th>Label</th>
+        {% if selected_vault.kind.is_login() %}
+        <th>Username</th>
+        {% endif %}
+        {% if selected_vault.kind.is_contact() %}
+        <th>Email/Phone</th>
+        {% endif %}
+        <th>Expires/Due & Update Date</th>
+        <th>Category & Tags</th>
+        <th>Action</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for account in accounts %}
+    <tr>
+        <td>
+            {% if account.has_favicon() %}
+            <img width="16" height="16" src="{{account.favicon()}}">
+            &nbsp;
+            {% endif %}
+            {% if account.has_url() %}
+            <a href="{{account.website_url()}}">{{account.label_description()}}</a>
+            {% else %}
+            {{account.label_description()}}
+            {% endif %}
+            {% if account.has_risk_image() %}
+            <img width="32" height="32" src="{{account.risk_image()}}">
+            {% endif %}
+        </td>
+        {% if selected_vault.kind.is_login() %}
+        <td>{{account.username()}}</td>
+        {% endif %}
+        {% if selected_vault.kind.is_contact() %}
+        <td>{{account.email()}} {{account.phone()}}</td>
+        {% endif %}
+        {% if account.is_expired_or_overdue() %}
+        <td><span class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
+        {% else if account.has_expiration_due() %}
+        <td><span class="alert-info">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
+        {% else %}
+        <td>{{account.updated_at()}}</td>
+        {% endif %}
+        <td>{{account.all_cat_tags()}}</td>
+        <td>
+            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#viewAccountModal"
+                    onclick="viewAccount('{{account.account_id}}')">View
+            </button>
+            <button class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#editAccountModal"
+                    onclick="editAccount('{{account.account_id}}', '{{account.kind}}')">Edit
+            </button>
+            <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
+                    onclick="deleteAccount('{{account.account_id}}')">Delete
+            </button>
+            <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#shareAccountModal"
+                    onclick="shareAccount('{{account.account_id}}')">Share
+            </button>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>

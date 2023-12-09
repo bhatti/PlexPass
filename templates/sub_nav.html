@@ -1,0 +1,28 @@
+<div class="my-3 ms-auto">
+    <ul>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#editAccountModal"
+                onclick="addAccount('{{selected_vault.vault_id}}', '{{selected_vault.kind}}')">
+            <span class="fa fa-plus"></span>&nbsp;New
+            {% if selected_vault.kind.is_contact() %}
+            Contact
+            {% else if selected_vault.kind.is_note() %}
+            Note
+            {% else %}
+            Account
+            {% endif %}
+        </button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
+                onclick="importAccounts('{{selected_vault.vault_id}}')">Import Vault</button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
+                onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Vault</button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+                onclick="shareVault('{{selected_vault.vault_id}}')">Share Vault</button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+                onclick="unshareVault('{{selected_vault.vault_id}}')">UnShare Vault</button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+                onclick="showAddEditVault('{{selected_vault.vault_id}}', {{selected_vault.version}}, '{{selected_vault.title}}', '{{selected_vault.kind}}');">Edit Vault</button></li>
+        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+                onclick="deleteVault('{{selected_vault.vault_id}}', '{{selected_vault.title}}');">Delete Vault</button></li>
+    </ul>
+</div>
+

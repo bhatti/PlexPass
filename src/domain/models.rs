@@ -502,7 +502,11 @@ impl User {
     }
 
     pub fn set_icon(&mut self, icon: Vec<u8>) {
-        self.icon = Some(base64_trim_icon(icon));
+        if icon.is_empty() {
+            self.icon = None;
+        } else {
+            self.icon = Some(base64_trim_icon(icon));
+        }
     }
 
     pub fn icon_string(&self) -> String {
@@ -574,7 +578,9 @@ impl User {
         self.email = other.email.clone();
         self.locale = other.locale.clone();
         self.light_mode = other.light_mode;
-        self.icon = other.icon.clone();
+        if not_empty(&other.icon) {
+            self.icon = other.icon.clone();
+        }
         self.notifications = other.notifications;
         if let Some(keys) = other.clone().hardware_keys {
             self.hardware_keys = Some(keys);
@@ -925,7 +931,11 @@ impl AccountSummary {
     }
 
     pub fn set_icon(&mut self, icon: Vec<u8>) {
-        self.icon = Some(base64_trim_icon(icon));
+        if icon.is_empty() {
+            self.icon = None;
+        } else {
+            self.icon = Some(base64_trim_icon(icon));
+        }
     }
 
     pub fn icon_string(&self) -> String {
@@ -1568,7 +1578,11 @@ impl Vault {
     }
 
     pub fn set_icon(&mut self, icon: Vec<u8>) {
-        self.icon = Some(base64_trim_icon(icon));
+        if icon.is_empty() {
+            self.icon = None;
+        } else {
+            self.icon = Some(base64_trim_icon(icon));
+        }
     }
 
     pub fn icon_string(&self) -> String {

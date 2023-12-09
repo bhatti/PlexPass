@@ -757,7 +757,7 @@ async function handleImportAccounts(vaultId) {
     }
 }
 
-async function handleExportAccounts(vaultId) {
+async function handleExportAccounts(vaultId, kind) {
     const password = document.getElementById("exportPasswordInput").value;
     const progressBar = document.getElementById("exportProgress");
     progressBar.style.width = '0%';
@@ -772,9 +772,10 @@ async function handleExportAccounts(vaultId) {
     //         evtSource.close();
     //     }
     // };
+    const suffix = getAccountDisplayKind(kind).toLowerCase();
     const a = document.createElement('a');
     a.href = password ? `/ui/vaults/${vaultId}/accounts/export?password=${password}` : `/ui/vaults/${vaultId}/accounts/export`;
-    a.download = password ? 'exported_accounts.encrypted_csv' : 'exported_accounts.csv';
+    a.download = password ? `exported_${suffix}s.encrypted_csv` : `exported_${suffix}s.csv`;
     a.click();
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('exportAccountsModal'));
     await viewModal.hide();

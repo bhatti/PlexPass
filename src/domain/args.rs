@@ -572,13 +572,13 @@ impl Args {
         let username = self.master_username.clone().expect("Please specify username with --master-username");
         match &self.action {
             CommandActions::CreateUser { name, email, locale, light_mode } => {
-                let mut user = User::new(&username, name.clone(), email.clone());
+                let mut user = User::new(&username.to_lowercase(), name.clone(), email.clone());
                 user.locale = UserLocale::match_any(locale);
                 user.light_mode = *light_mode;
                 Some(user)
             }
             CommandActions::UpdateUser { name, email, locale, light_mode, icon } => {
-                let mut user = User::new(&username, name.clone(), email.clone());
+                let mut user = User::new(&username.to_lowercase(), name.clone(), email.clone());
                 user.locale = UserLocale::match_any(locale);
                 user.light_mode = *light_mode;
                 if let Some(icon) = icon {

@@ -169,3 +169,11 @@ body {
     /* background-color: #505050; Dark grey background for active item */
     color: #ffffff;
 }
+
+:root {
+    --card-bg-color: #1a1a1a; /* Dark background for dark theme */
+    --card-text-color: #ffffff; /* White text for dark theme */
+    --card-border-color: #333333; /* Darker border for dark theme */
+    /* ... other variables ... */
+}
+

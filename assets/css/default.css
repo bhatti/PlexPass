@@ -65,3 +65,22 @@
         font-size: 0.9rem;
     }
 }
+
+.card {
+    background-color: var(--card-bg-color);
+    color: var(--card-text-color);
+    border-color: var(--card-border-color);
+    /* ... other styles ... */
+}
+
+.card-actions button {
+    margin-right: 5px;
+    /* Additional button styling */
+    /* ... */
+}
+
+.theme-container .card {
+    background-color: var(--card-bg-color) !important;
+    color: var(--card-text-color) !important;
+}
+

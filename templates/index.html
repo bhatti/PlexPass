@@ -14,55 +14,61 @@
 
 {% block content %}
     <div class="row h-100">
-        <!-- Sidebar -->
-        <div class="col-2 d-flex flex-column justify-content-between" id="vaultSidebar">
-            <!-- Top Navigation Buttons -->
-            <div class="text-left">
-                <b><span class="fa fa-bars"></span>&nbsp;PlexPass Vaults</b>
-                <nav class="sidenav">
-                </nav>
-                <ul class="nav nav-pills flex-column mb-auto">
-                    {% for vault in vaults %}
-                    {% if selected_vault.vault_id == vault.vault_id %}
-                    <li class="nav-item">
-                        <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
-                            <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link">
-                            <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
-                    </li>
-                    {% endif %}
-                    {% endfor %}
-                    </li>
+        <!-- Collapsible Sidebar for Mobile -->
+        <div class="col-md-2 d-flex flex-column justify-content-between" id="vaultSidebar">
+            <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileSidebar" aria-expanded="false" aria-controls="mobileSidebar">
+                <span class="fa fa-bars"></span> Menu
+            </button>
+            <div class="collapse d-md-block" id="mobileSidebar">
+                <!-- Sidebar content -->
+                <div class="text-left">
+                    <b><span class="fa fa-bars"></span>&nbsp;PlexPass Vaults</b>
+                    <nav class="sidenav">
+                    </nav>
+                    <ul class="nav nav-pills flex-column mb-auto">
+                        {% for vault in vaults %}
+                        {% if selected_vault.vault_id == vault.vault_id %}
+                        <li class="nav-item">
+                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link active" aria-current="page">
+                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
+                            {% include "sub_nav.html" %}
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a href="?selected_vault_id={{vault.vault_id}}" class="nav-link" aria-current="page">
+                                <img width="32" height="32" src="{{vault.icon}}">&nbsp;{{vault.title}}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                        </li>
 
-                    <li class="nav-item">
-                        <button class="nav-link" data-bs-toggle="modal" onclick="showAddEditVault();" data-bs-target="#addVaultModal">
-                            <span class="fa fa-plus"></span>&nbsp;Add New Vault
-                        </button>
-                    </li>
-                </ul>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="modal" onclick="showAddEditVault();" data-bs-target="#addVaultModal">
+                                <span class="fa fa-plus"></span>&nbsp;New Vault
+                            </button>
+                        </li>
+                    </ul>
 
-                <div class="sidebar-avatar">
-                    <img src="/ui/avatar" alt="User Avatar">
+                    <div class="sidebar-avatar">
+                        <img src="/ui/avatar" alt="User Avatar">
+                    </div>
+
+                    <hr/>
+                    <nav class="sidenav theme-sidenav">
+                        <a class="nav-link" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
+                        <a class="nav-link" href="/ui/signout"><span class="fa sign-out"></span>&nbsp;Signout</a>
+                        <p>&nbsp;</p>
+                        <p>&nbsp;</p>
+                        <span class="d-flex justify-content-center" id="buildVersionDate">V{{build_version}} - {{build_date}}</span>
+                    </nav>
                 </div>
-
-                <hr/>
-                <nav class="sidenav theme-sidenav">
-                    <a class="nav-link" aria-current="page" href="/ui/users/profile">[{{username}}]</a>
-                    <a class="nav-link" href="/ui/signout"><span class="fa sign-out"></span>&nbsp;Signout</a>
-                    <p>&nbsp;</p>
-                    <p>&nbsp;</p>
-                    <span class="d-flex justify-content-center" id="buildVersionDate">V{{build_version}} - {{build_date}}</span>
-                </nav>
             </div>
         </div>
 
         <!-- Main Content -->
-        <div id="top_tabs" class="col-10">
-            <!-- Tabs -->
-            <ul class="nav nav-tabs">
+        <div id="top_tabs" class="col-md-10">
+            <!-- Responsive Nav Tabs -->
+            <ul class="nav nav-tabs flex-nowrap overflow-auto">
                 <li class="nav-item" id="allTab">
                     <a class="nav-link" href="?selected_vault_id={{selected_vault.vault_id}}&tab_name=all">All</a>
                 </li>
@@ -81,64 +87,21 @@
                 </li>
                 {% endfor %}
             </ul>
+            <form action="/">
+                <input type="hidden" name="selected_vault_id" value="{{selected_vault.vault_id}}">
+                <div class="d-flex form-group mb-5">
+                    <input class="form-control me-2" type="search" name="q" value="{{q}}" placeholder="Filter..."
+                           aria-label="Filter">
+                    <button class="btn btn-outline-success" type="submit">Filter</button>
+                </div>
+            </form>
 
-            <!-- Filter accounts -->
-            <div class="d-flex">
-            </div>
-            <div class="my-3 ms-auto">
-                <button class="btn btn-outline-primary" data-toggle="modal" data-target="#editAccountModal"
-                        onclick="addAccount('{{selected_vault.vault_id}}', '{{selected_vault.kind}}')">
-                    <span class="fa fa-plus"></span>&nbsp;Add New
-                    {% if selected_vault.kind.is_contact() %}
-                    Contact
-                    {% else if selected_vault.kind.is_note() %}
-                    Note
-                    {% else %}
-                    Account
-                    {% endif %}
-                </button>
-                <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="importAccounts('{{selected_vault.vault_id}}')">Import Vault</button>
-                <button class="btn btn-outline-success" data-toggle="modal" data-target="#importAccountsModal"
-                        onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Vault</button>
-                <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="shareVault('{{selected_vault.vault_id}}')">Share Vault</button>
-                <button class="btn btn-outline-warning" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="unshareVault('{{selected_vault.vault_id}}')">UnShare Vault</button>
-                <button class="btn btn-outline-info" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="showAddEditVault('{{selected_vault.vault_id}}', {{selected_vault.version}}, '{{selected_vault.title}}', '{{selected_vault.kind}}');">Edit Vault</button>
-                <button class="btn btn-outline-danger" data-toggle="modal" data-target="#shareVaultModal"
-                        onclick="deleteVault('{{selected_vault.vault_id}}', '{{selected_vault.title}}');">Delete Vault</button>
-                <form action="/">
-                    <input type="hidden" name="selected_vault_id" value="{{selected_vault.vault_id}}">
-                    <div class="d-flex form-group mb-5">
-                        <input class="form-control me-2" type="search" name="q" value="{{q}}" placeholder="Filter..."
-                               aria-label="Filter">
-                        <button class="btn btn-outline-success" type="submit">Filter</button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Table -->
-            <table class="table table-bordered">
-                <thead>
-                <tr>
-                    <th>Label</th>
-                    {% if selected_vault.kind.is_login() %}
-                    <th>Username</th>
-                    {% endif %}
-                    {% if selected_vault.kind.is_contact() %}
-                    <th>Email/Phone</th>
-                    {% endif %}
-                    <th>Expires/Due & Update Date</th>
-                    <th>Category & Tags</th>
-                    <th>Action</th>
-                </tr>
-                </thead>
-                <tbody>
+            <div class="theme-container card-layout">
+                <!-- Card layout -->
                 {% for account in accounts %}
-                <tr>
-                    <td>
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <h5 class="card-title">Label:
                         {% if account.has_favicon() %}
                         <img width="16" height="16" src="{{account.favicon()}}">
                         &nbsp;
@@ -151,39 +114,39 @@
                         {% if account.has_risk_image() %}
                         <img width="32" height="32" src="{{account.risk_image()}}">
                         {% endif %}
-                    </td>
-                    {% if selected_vault.kind.is_login() %}
-                    <td>{{account.username()}}</td>
-                    {% endif %}
-                    {% if selected_vault.kind.is_contact() %}
-                    <td>{{account.email()}} {{account.phone()}}</td>
-                    {% endif %}
-                    {% if account.is_expired_or_overdue() %}
-                        <td><span class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
-                    {% else if account.has_expiration_due() %}
-                        <td><span class="alert-info">{{account.expires_at()}} {{account.due_at()}}</span>&nbsp; {{account.updated_at()}}</td>
-                    {% else %}
-                    <td>{{account.updated_at()}}</td>
-                    {% endif %}
-                    <td>{{account.all_cat_tags()}}</td>
-                    <td>
-                        <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#viewAccountModal"
-                                onclick="viewAccount('{{account.account_id}}')">View
-                        </button>
-                        <button class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#editAccountModal"
-                                onclick="editAccount('{{account.account_id}}', '{{account.kind}}')">Edit
-                        </button>
-                        <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
-                                onclick="deleteAccount('{{account.account_id}}')">Delete
-                        </button>
-                        <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#shareAccountModal"
-                                onclick="shareAccount('{{account.account_id}}')">Share
-                        </button>
-                    </td>
-                </tr>
+                        </h5>
+                        {% if selected_vault.kind.is_login() %}
+                            <p class="card-text"> Username: {{account.username()}}</p>
+                        {% endif %}
+                        {% if selected_vault.kind.is_contact() %}
+                            <p class="card-text"> Email/Phone: {{account.email()}} {{account.phone()}}</p>
+                        {% endif %}
+                        {% if account.is_expired_or_overdue() %}
+                        <p class="card-text">Expires/Due: <span class="alert-danger">{{account.expires_at()}} {{account.due_at()}}</span></p>
+                        {% else if account.has_expiration_due() %}
+                        <p class="card-text">Expires/Due: <span class="alert-info">{{account.expires_at()}} {{account.due_at()}}</span></p>
+                        {% endif %}
+                        <p class="card-text">Updated: {{account.updated_at()}}</p>
+                        <p class="card-text">Category & Tags: {{account.all_cat_tags()}}</p>
+                        <div class="card-actions">
+                            <!-- Action buttons -->
+                            <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#viewAccountModal"
+                                    onclick="viewAccount('{{account.account_id}}')">View
+                            </button>
+                            <button class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#editAccountModal"
+                                    onclick="editAccount('{{account.account_id}}', '{{account.kind}}')">Edit
+                            </button>
+                            <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deletetModal"
+                                    onclick="deleteAccount('{{account.account_id}}')">Delete
+                            </button>
+                            <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#shareAccountModal"
+                                    onclick="shareAccount('{{account.account_id}}')">Share
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 {% endfor %}
-                </tbody>
-            </table>
+            </div>
         </div>
 {% endblock content %}
 
@@ -279,7 +242,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="hideExportAccounts();">Close</button>
-                <button type="button" class="btn btn-primary" id="exportButton" onclick="handleExportAccounts('{{selected_vault.vault_id}}');">Export Accounts</button>
+                <button type="button" class="btn btn-primary" id="exportButton" onclick="handleExportAccounts('{{selected_vault.vault_id}}', '{{selected_vault.kind}}');">Export Accounts</button>
             </div>
         </div>
     </div>

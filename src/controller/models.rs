@@ -14,7 +14,7 @@ use uuid::Uuid;
 
 use crate::dao::models::UserContext;
 use crate::domain::error::PassError;
-use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, MAX_ICON_LENGTH, NameValue, PaginatedResult, PassConfig, PassResult, PasswordPolicy, Roles, User, UserLocale, UserToken, Vault, VaultAnalysis, VaultKind};
+use crate::domain::models::{Account, AccountKind, AccountRisk, Advisory, AuditLog, Lookup, LookupKind, MAX_ICON_LENGTH, NameValue, non_empty_string, PaginatedResult, PassConfig, PassResult, PasswordPolicy, Roles, User, UserLocale, UserToken, Vault, VaultAnalysis, VaultKind};
 use crate::utils::safe_parse_string_date;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +66,7 @@ pub struct SignupUserRequest {
 
 impl SignupUserRequest {
     pub fn to_user(&self) -> User {
-        let mut u = User::new(&self.username, self.name.clone(), self.email.clone());
+        let mut u = User::new(&self.username.to_lowercase(), self.name.clone(), self.email.clone());
         if let Some(attrs) = &self.attributes {
             let mut attributes = vec![];
             for (k, v) in attrs {
@@ -146,7 +146,7 @@ pub struct UpdateUserRequest {
 
 impl UpdateUserRequest {
     pub fn to_user(&self) -> User {
-        let mut u = User::new(&self.username, self.name.clone(), self.email.clone());
+        let mut u = User::new(&self.username.to_lowercase(), self.name.clone(), self.email.clone());
         u.user_id = self.user_id.clone();
         u.version = self.version;
         u.locale = self.locale.clone();
@@ -850,7 +850,7 @@ async fn load_icon_from_multipart(field: &mut Field) -> PassResult<Vec<u8>> {
 }
 
 fn store_icon(id: &str, icon: &Option<String>, config: &PassConfig) -> PassResult<()> {
-    if let Some(icon) = icon {
+    if let Some(icon) = non_empty_string(icon) {
         let file_path = config.build_data_file(id);
         if let Ok(decoded) = general_purpose::STANDARD_NO_PAD.decode(icon) {
             fs::write(file_path, decoded)?;
@@ -968,7 +968,7 @@ impl User {
                                 user_id: &str, username: &str,
                                 roles: &Option<Roles>,
                                 config: &PassConfig) -> PassResult<Self> {
-        let mut user = User::new(username, None, None);
+        let mut user = User::new(&username.to_lowercase(), None, None);
         user.user_id = user_id.to_string();
         user.roles = roles.clone();
         while let Some(item) = payload.next().await {

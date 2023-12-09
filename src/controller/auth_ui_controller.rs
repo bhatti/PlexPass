@@ -94,7 +94,7 @@ pub async fn handle_user_signin(
 
     match service_locator
         .auth_service
-        .signin_user(&params.username, &params.master_password, None, context)
+        .signin_user(&params.username.to_lowercase(), &params.master_password, None, context)
         .await {
         Ok((_, _user, token, session_status)) => {
             session.insert(USER_SESSION_KEY, (token.user_id, token.login_session))?;
@@ -143,7 +143,7 @@ pub async fn handle_user_signup(
         context.insert(CONTEXT_IP_ADDRESS.into(), addr.ip().to_string());
     }
 
-    let user = User::new(&params.username, params.name.clone(), None);
+    let user = User::new(&params.username.to_lowercase(), params.name.clone(), None);
     match service_locator
         .user_service
         .register_user(&user, &params.master_password, context)

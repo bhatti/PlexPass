@@ -8,6 +8,7 @@ use actix_session::SessionMiddleware;
 use actix_session::storage::CookieSessionStore;
 use actix_web::{App, HttpResponse, HttpServer, middleware, web};
 use actix_web::cookie::Key;
+use actix_web::http::KeepAlive;
 use actix_web_prom::PrometheusMetricsBuilder;
 use openssl::pkey::{PKey, Private};
 use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod};
@@ -66,9 +67,13 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
         let secret_key = Key::derive_from(&config.session_key);
         App::new()
             .app_data(web::Data::new(service_locator.clone()))
+            .wrap(middleware::Compress::default())
             .route("/favicon.ico", web::get().to(fav_icon))
             .service(
                 Files::new("/assets", "./assets")
+                    .prefer_utf8(true)
+                    .use_last_modified(true)
+                    .use_etag(true)
             )
             .wrap(middleware::Logger::default())
             .wrap(auth_middleware::Authentication)
@@ -94,6 +99,7 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
         Ok(server_config) => {
             log::info!("starting TLS based API server on {}", https_port);
             server
+                .keep_alive(KeepAlive::Timeout(core::time::Duration::from_secs(75)))
                 .bind_rustls_021(&format!("0.0.0.0:{}", https_port.clone()), server_config)?
                 .workers(4)
                 .run()
@@ -107,6 +113,7 @@ pub async fn execute(config: PassConfig) -> PassResult<()> {
                 Ok(builder) => {
                     log::info!("starting openSSL based API server on {}", https_port);
                     server
+                        .keep_alive(KeepAlive::Timeout(core::time::Duration::from_secs(75)))
                         .bind_openssl(&format!("0.0.0.0:{}", https_port.clone()), builder)?
                         .workers(4)
                         .run()
