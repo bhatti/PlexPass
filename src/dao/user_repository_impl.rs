@@ -405,32 +405,32 @@ mod tests {
         assert!(user_repo.get(&ctx, &user.user_id).await.is_err());
     }
 
-    // #[tokio::test]
-    // async fn test_should_change_password() {
-    //     let config = PassConfig::new();
-    //     // GIVEN a user repository
-    //     let user_repo = create_user_repository(&config).await.unwrap();
-    //     let mut user = User::new(&Uuid::new_v4().to_string(), None, None);
-    //     user.email = Some("my-email".into());
-    //     user.name = Some("my-name".into());
-    //     let salt = hex::encode(crypto::generate_nonce());
-    //     let pepper = hex::encode(crypto::generate_secret_key());
-    //     let ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "pass")
-    //         .unwrap();
-    //     let new_ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "new_pass")
-    //         .unwrap();
-    //
-    //     // WHEN creating the user THEN it should succeed
-    //     assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
-    //
-    //     // WHEN deleting the user THEN it should succeed
-    //     assert_eq!(1, user_repo.change_password(&ctx, &new_ctx).await.unwrap());
-    //     // WHEN retrieving the user with old context THEN it should fail
-    //     assert!(user_repo.get(&ctx, &user.user_id).await.is_err());
-    //     let loaded = user_repo.get(&new_ctx, &user.user_id).await.unwrap();
-    //     assert_eq!(Some("my-email".into()), loaded.email);
-    //     assert_eq!(Some("my-name".into()), loaded.name);
-    // }
+    #[tokio::test]
+    async fn test_should_change_password() {
+        let config = PassConfig::new();
+        // GIVEN a user repository
+        let user_repo = create_user_repository(&config).await.unwrap();
+        let mut user = User::new(&Uuid::new_v4().to_string(), None, None);
+        user.email = Some("my-email".into());
+        user.name = Some("my-name".into());
+        let salt = hex::encode(crypto::generate_nonce());
+        let pepper = hex::encode(crypto::generate_secret_key());
+        let ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "pass")
+            .unwrap();
+        let new_ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "new_pass")
+            .unwrap();
+
+        // WHEN creating the user THEN it should succeed
+        assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
+
+        // WHEN deleting the user THEN it should succeed
+        assert_eq!(1, user_repo.change_password(&ctx, &new_ctx).await.unwrap());
+        // WHEN retrieving the user with old context THEN it should fail
+        assert!(user_repo.get(&ctx, &user.user_id).await.is_err());
+        let loaded = user_repo.get(&new_ctx, &user.user_id).await.unwrap();
+        assert_eq!(Some("my-email".into()), loaded.email);
+        assert_eq!(Some("my-name".into()), loaded.name);
+    }
 
     #[tokio::test]
     async fn test_should_create_find_users() {

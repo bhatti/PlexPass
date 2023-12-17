@@ -399,6 +399,7 @@ mod tests {
             &ctx,
             "cru5h&r]fIt@$@v!or",
             "cru5h&r]fIt@$@v!or111",
+            "cru5h&r]fIt@$@v!or111",
         &token.login_session).await.unwrap();
         assert_eq!(1, size);
     }
