@@ -41,3 +41,4 @@ pub mod reset_mfa_command;
 pub mod generate_api_token;
 pub mod asymmetric_user_decrypt_command;
 pub mod asymmetric_user_encrypt_command;
+pub mod change_password_command;

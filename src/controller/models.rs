@@ -716,7 +716,8 @@ pub struct UpdateAccountRequest {
     // renew interval
     pub renew_interval_days: Option<i32>,
     // expiration
-    pub expires_at: Option<NaiveDateTime>, // 2023-12-02T05:11:50.543995
+    pub expires_at: Option<NaiveDateTime>,
+    // 2023-12-02T05:11:50.543995
     // due
     pub due_at: Option<NaiveDateTime>, // 2023-12-02T05:11:50.543995
 
@@ -904,7 +905,7 @@ impl Account {
                 "icon" => account.details.icon = Some(value),
                 "renew_interval_days" => account.details.renew_interval_days = Some(value.parse::<i32>().unwrap_or(0)),
                 "expires_at" => account.details.expires_at = safe_parse_string_date(Option::from(value)),
-                "due_at" => account.details.due_at= safe_parse_string_date(Option::from(value)),
+                "due_at" => account.details.due_at = safe_parse_string_date(Option::from(value)),
                 "custom_name" => custom_names.push(value),
                 "custom_value" => custom_values.push(value),
                 _ => {}
@@ -997,6 +998,38 @@ impl User {
         Ok(user)
     }
 }
+
+/// ChangePasswordParams parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChangePasswordParams {
+    pub old_password: String,
+    pub new_password: String,
+    pub confirm_new_password: String,
+}
+
+impl ChangePasswordParams {
+    pub async fn from_multipart(payload: &mut Multipart) -> PassResult<Self> {
+        let mut params = ChangePasswordParams {
+            old_password: "".to_string(),
+            new_password: "".to_string(),
+            confirm_new_password: "".to_string()
+        };
+        while let Some(item) = payload.next().await {
+            let mut field = item?;
+            let content_disposition = field.content_disposition().clone();
+            let name = content_disposition.get_name().unwrap();
+            let value = load_string_from_multipart(&mut field).await?;
+            match name {
+                "old_password" => params.old_password = value,
+                "new_password" => params.new_password = value,
+                "confirm_new_password" => params.confirm_new_password = value,
+                _ => {}
+            };
+        }
+        Ok(params)
+    }
+}
+
 
 /// ShareVaultParams parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1136,6 +1169,6 @@ mod tests {
         assert_eq!(account.details.tags, des_account.details.tags);
         assert_eq!(account.details.renew_interval_days, des_account.details.renew_interval_days);
         assert_eq!(account.details.expires_at, des_account.details.expires_at);
-        assert_eq!(account.details.due_at , des_account.details.due_at);
+        assert_eq!(account.details.due_at, des_account.details.due_at);
     }
 }

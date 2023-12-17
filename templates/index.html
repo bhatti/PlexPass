@@ -101,7 +101,7 @@
                 {% for account in accounts %}
                 <div class="card mb-2">
                     <div class="card-body">
-                        <h5 class="card-title">Label:
+                        <h5 class="card-title">
                         {% if account.has_favicon() %}
                         <img width="16" height="16" src="{{account.favicon()}}">
                         &nbsp;
@@ -376,7 +376,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         initEventHandlers();
-        initCheckSession();
     }, false);
 
     document.addEventListener('DOMContentLoaded', (_event) => {

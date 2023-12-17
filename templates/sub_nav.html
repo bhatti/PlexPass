@@ -11,17 +11,17 @@
             Account
             {% endif %}
         </button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
                 onclick="importAccounts('{{selected_vault.vault_id}}')">Import Vault</button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#importAccountsModal"
                 onclick="exportAccounts('{{selected_vault.vault_id}}')">Export Vault</button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
                 onclick="shareVault('{{selected_vault.vault_id}}')">Share Vault</button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
                 onclick="unshareVault('{{selected_vault.vault_id}}')">UnShare Vault</button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
                 onclick="showAddEditVault('{{selected_vault.vault_id}}', {{selected_vault.version}}, '{{selected_vault.title}}', '{{selected_vault.kind}}');">Edit Vault</button></li>
-        <li><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
+        <li class="nav-item"><button class="btn btn-sm btn-link" data-toggle="modal" data-target="#shareVaultModal"
                 onclick="deleteVault('{{selected_vault.vault_id}}', '{{selected_vault.title}}');">Delete Vault</button></li>
     </ul>
 </div>

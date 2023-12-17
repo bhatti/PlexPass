@@ -14,7 +14,7 @@ use crate::dao::setting_repository_impl::SettingRepositoryImpl;
 use crate::dao::user_repository_impl::UserRepositoryImpl;
 use crate::dao::user_vault_repository_impl::UserVaultRepositoryImpl;
 use crate::dao::vault_repository_impl::VaultRepositoryImpl;
-use crate::dao::{common, invoke_with_retry_attempts, CryptoKeyRepository, LoginSessionRepository, LookupRepository, MessageRepository, RetryableRepository, SettingRepository, UserRepository, UserVaultRepository, AuditRepository, ShareVaultAccountRepository, RetryableShareVaultAccountRepository, ACLRepository, UserLookupRepository};
+use crate::dao::{common, invoke_with_retry_attempts, CryptoKeyRepository, LoginSessionRepository, LookupRepository, MessageRepository, RetryableRepository, SettingRepository, UserRepository, UserVaultRepository, AuditRepository, ShareVaultAccountRepository, RetryableShareVaultAccountRepository, ACLRepository, UserLookupRepository, RetryableUserRepository};
 use crate::dao::{AccountRepository, DbPool, VaultRepository};
 use crate::dao::acl_repository_impl::ACLRepositoryImpl;
 use crate::dao::audit_repository_impl::AuditRepositoryImpl;
@@ -34,7 +34,7 @@ lazy_static! {
 pub async fn create_user_repository(
     config: &PassConfig,
 ) -> PassResult<Arc<dyn UserRepository + Send + Sync>> {
-    Ok(Arc::new(RetryableRepository::new(
+    Ok(Arc::new(RetryableUserRepository::new(
         config,
         Arc::new(UserRepositoryImpl::new(
             POOL.clone(),

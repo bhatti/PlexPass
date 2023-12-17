@@ -9,7 +9,7 @@ use crate::dao::models::{CONTEXT_IP_ADDRESS, UserContext};
 
 use crate::dao::{LoginSessionRepository, ShareVaultAccountRepository, UserRepository};
 use crate::domain::error::PassError;
-use crate::domain::models::{HardwareSecurityKey, LoginSession, PassConfig, PassResult, SessionStatus, User, USER_KEY_PARAMS_NAME, USER_SECRET_KEY_NAME, UserKeyParams, UserToken};
+use crate::domain::models::{HardwareSecurityKey, LoginSession, PassConfig, PassResult, PasswordPolicy, PasswordStrength, SessionStatus, User, USER_KEY_PARAMS_NAME, USER_SECRET_KEY_NAME, UserKeyParams, UserToken};
 use crate::locales::safe_localized_message;
 use crate::service::{AuthenticationService, PasswordService};
 use crate::store::HSMStore;
@@ -162,6 +162,56 @@ impl AuthenticationService for AuthenticationServiceImpl {
             .set_property(&ctx.username, USER_SECRET_KEY_NAME, "")?;
         Ok(())
     }
+
+    // change password for the user.
+    async fn change_password(
+        &self,
+        ctx: &UserContext,
+        old_master_password: &str,
+        new_master_password: &str,
+        confirm_new_master_password: &str,
+        login_session_id: &str,
+    ) -> PassResult<usize> {
+        if new_master_password != confirm_new_master_password {
+            return Err(PassError::validation(&safe_localized_message("new-master-confirm-mismatch", None), None));
+        }
+        if old_master_password == new_master_password {
+            return Err(PassError::validation(&safe_localized_message("same-new-master-password", None), None));
+        }
+
+        let password_info = PasswordPolicy::password_info(new_master_password);
+        if password_info.strength != PasswordStrength::STRONG {
+            let sample_password = PasswordPolicy::new().generate_strong_memorable_password(3).unwrap_or("".into());
+            let err_msg = safe_localized_message(
+                "weak-master-password",
+                Some(&["info", &password_info.to_string(),
+                    "sample_password", &sample_password]));
+            return Err(PassError::validation(&err_msg, None));
+        }
+
+        let key_params_str = self.hsm_store
+            .get_property(&ctx.username, USER_KEY_PARAMS_NAME).
+            map_err(|_| PassError::authentication(safe_localized_message("auth-error", None).as_str()))?;
+        let key_params = UserKeyParams::deserialize(&key_params_str)?;
+
+        let secret_key = UserContext::build_secret_key(
+            &key_params.salt, &key_params.pepper, old_master_password,
+            self.config.hash_algorithm(),
+        )?;
+        if secret_key != ctx.secret_key {
+            return Err(PassError::validation(&safe_localized_message("old-master-mismatch", None), None));
+        }
+        let mut new_ctx = ctx.clone();
+        new_ctx.secret_key = UserContext::build_secret_key(
+            &key_params.salt, &key_params.pepper, new_master_password,
+            self.config.hash_algorithm(),
+        )?;
+        let size = self.user_repository.change_password(ctx, &new_ctx).await?;
+
+        self.signout_user(ctx, login_session_id).await?;
+        Ok(size)
+    }
+
 
     // Start MFA registration
     async fn start_register_key(&self,
@@ -324,5 +374,32 @@ mod tests {
         assert_eq!(ctx.roles, user.roles);
         assert_ne!("", ctx.pepper);
         assert_ne!("", ctx.secret_key);
+    }
+
+    #[tokio::test]
+    async fn test_should_change_password() {
+        let mut config = PassConfig::new();
+        config.hsm_provider = HSMProvider::EncryptedFile.to_string();
+        // GIVEN user-service and auth-service
+        let user_service = create_user_service(&config).await.unwrap();
+        let auth_service = create_auth_service(&config).await.unwrap();
+
+        let user = User::new(Uuid::new_v4().to_string().as_str(), None, None);
+
+        // AND user is already signed up
+        let _ = user_service.register_user(&user, "cru5h&r]fIt@$@v!or", HashMap::new()).await.unwrap();
+
+        // THEN Sign in should succeed
+        let (ctx, _, token, _) = auth_service
+            .signin_user(&user.username, "cru5h&r]fIt@$@v!or", None, HashMap::new())
+            .await
+            .unwrap();
+
+        let size = auth_service.change_password(
+            &ctx,
+            "cru5h&r]fIt@$@v!or",
+            "cru5h&r]fIt@$@v!or111",
+        &token.login_session).await.unwrap();
+        assert_eq!(1, size);
     }
 }

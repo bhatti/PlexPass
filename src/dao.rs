@@ -81,7 +81,14 @@ pub trait Repository<T, E> {
 
 /// Repository interface for User.
 #[async_trait]
-pub trait UserRepository: Repository<User, UserEntity> {}
+pub trait UserRepository: Repository<User, UserEntity> {
+    // change password for the user.
+    async fn change_password(
+        &self,
+        ctx: &UserContext,
+        new_ctx: &UserContext,
+    ) -> PassResult<usize>;
+}
 
 /// Repository interface for ACL.
 #[async_trait]
@@ -167,6 +174,15 @@ pub trait CryptoKeyRepository {
         match_keyable_type: &str,
         conn: &mut DbConnection,
     ) -> Result<CryptoKeyEntity, diesel::result::Error>;
+
+    // updates private key
+    fn update_private_key(
+        &self,
+        other_id: &str,
+        other_private_key: &str,
+        other_nonce: &str,
+        conn: &mut DbConnection,
+    ) -> PassResult<usize>;
 
     // delete an existing crypto_key.
     fn delete(
@@ -397,8 +413,117 @@ impl<T: Sync + Send, E: Sync + Send> Repository<T, E> for RetryableRepository<T,
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct RetryableUserRepository {
+    config: PassConfig,
+    delegate: Arc<dyn UserRepository + Send + Sync>,
+}
+
+impl RetryableUserRepository {
+    fn new(config: &PassConfig, delegate: Arc<dyn UserRepository + Send + Sync>) -> Self {
+        RetryableUserRepository {
+            config: config.clone(),
+            delegate,
+        }
+    }
+}
+
 #[async_trait]
-impl UserRepository for RetryableRepository<User, UserEntity> {}
+impl Repository<User, UserEntity> for RetryableUserRepository {
+    async fn create(&self, ctx: &UserContext, entity: &User) -> PassResult<usize> {
+        invoke_with_retry_attempts(&self.config, "create", || async {
+            self.delegate.create(ctx, entity).await
+        })
+            .await
+    }
+
+    async fn update(&self, ctx: &UserContext, entity: &User) -> PassResult<usize> {
+        invoke_with_retry_attempts(&self.config, "update", || async {
+            self.delegate.update(ctx, entity).await
+        })
+            .await
+    }
+
+    async fn get(&self, ctx: &UserContext, id: &str) -> PassResult<User> {
+        invoke_with_retry_attempts(&self.config, "get", || async {
+            self.delegate.get(ctx, id).await
+        })
+            .await
+    }
+
+    async fn delete(&self, ctx: &UserContext, id: &str) -> PassResult<usize> {
+        invoke_with_retry_attempts(&self.config, "delete", || async {
+            self.delegate.delete(ctx, id).await
+        })
+            .await
+    }
+
+    // get crypto key by id
+    async fn get_crypto_key(&self, ctx: &UserContext, id: &str) -> PassResult<CryptoKeyEntity> {
+        invoke_with_retry_attempts(&self.config, "get_crypto_key", || async {
+            self.delegate.get_crypto_key(ctx, id).await
+        })
+            .await
+    }
+
+    // get entity by id
+    async fn get_entity(&self, ctx: &UserContext, id: &str) -> PassResult<UserEntity> {
+        invoke_with_retry_attempts(&self.config, "get_entity", || async {
+            self.delegate.get_entity(ctx, id).await
+        })
+            .await
+    }
+
+    // find one entity by predication -- must have only one record, i.e., it will throw error if 0 or 2+ records exist.
+    async fn find_one(
+        &self,
+        ctx: &UserContext,
+        predicates: HashMap<String, String>,
+    ) -> PassResult<User> {
+        invoke_with_retry_attempts(&self.config, "find_one", || async {
+            self.delegate.find_one(ctx, predicates.clone()).await
+        })
+            .await
+    }
+
+    // find all entities matching predicates with pagination
+    async fn find(
+        &self,
+        ctx: &UserContext,
+        predicates: HashMap<String, String>,
+        offset: i64,
+        limit: usize,
+    ) -> PassResult<PaginatedResult<User>> {
+        invoke_with_retry_attempts(&self.config, "find", || async {
+            self.delegate
+                .find(ctx, predicates.clone(), offset, limit)
+                .await
+        })
+            .await
+    }
+
+    // count all entities
+    async fn count(
+        &self,
+        ctx: &UserContext,
+        predicates: HashMap<String, String>,
+    ) -> PassResult<i64> {
+        invoke_with_retry_attempts(&self.config, "count", || async {
+            self.delegate.count(ctx, predicates.clone()).await
+        })
+            .await
+    }
+}
+
+#[async_trait]
+impl UserRepository for RetryableUserRepository {
+    async fn change_password(&self, ctx: &UserContext, new_ctx: &UserContext) -> PassResult<usize> {
+        invoke_with_retry_attempts(&self.config, "change_password", || async {
+            self.delegate.change_password(ctx, new_ctx).await
+        })
+            .await
+    }
+}
 
 #[async_trait]
 impl ACLRepository for RetryableRepository<ACLEntity, ACLEntity> {}

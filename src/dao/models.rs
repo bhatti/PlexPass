@@ -35,7 +35,6 @@ pub struct UserContext {
 }
 
 impl UserContext {
-
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         username: &str,
@@ -417,6 +416,7 @@ pub struct CryptoKeyEntity {
     // The encrypted symmetric key for encrypting value.
     pub encrypted_symmetric_key: String,
     pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
 }
 
 impl PartialEq for CryptoKeyEntity {
@@ -475,6 +475,7 @@ impl CryptoKeyEntity {
                 encrypted_private_key,
                 encrypted_symmetric_key,
                 created_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc(),
             },
             symmetric_key,
         ))
@@ -506,6 +507,7 @@ impl CryptoKeyEntity {
                 encrypted_private_key,
                 encrypted_symmetric_key: other_crypto_key.encrypted_symmetric_key.clone(),
                 created_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc(),
             }
         )
     }
@@ -553,6 +555,7 @@ impl CryptoKeyEntity {
                 encrypted_private_key,
                 encrypted_symmetric_key,
                 created_at: Utc::now().naive_utc(),
+                updated_at: Utc::now().naive_utc(),
             },
             symmetric_key,
         ))
@@ -580,6 +583,7 @@ impl CryptoKeyEntity {
             encrypted_private_key: decrypted_private_key, // decrypted
             encrypted_symmetric_key: self.encrypted_symmetric_key.clone(),
             created_at: Utc::now().naive_utc(),
+            updated_at: Utc::now().naive_utc(),
         };
         let json_shared_crypto_key = serde_json::to_string(&shared_crypto_key)?;
 
@@ -624,6 +628,21 @@ impl CryptoKeyEntity {
         decrypted_private_key: &str,
     ) -> PassResult<String> {
         crypto::ec_decrypt_hex(decrypted_private_key, &self.encrypted_symmetric_key)
+    }
+    pub fn re_encrypt_private_key(
+        &mut self,
+        ctx: &UserContext,
+        new_ctx: &UserContext,
+    ) -> PassResult<()> {
+        let decrypted_private_ky =
+            self.decrypted_private_key_with_symmetric_input(ctx, &ctx.secret_key)?;
+
+        // Encrypt private secret key with new password
+        let (nonce, encrypted_private_key) = encrypt_with(
+            new_ctx, &self.salt, &new_ctx.pepper, &new_ctx.secret_key, &decrypted_private_ky)?;
+        self.nonce = nonce;
+        self.encrypted_private_key = encrypted_private_key;
+        Ok(())
     }
 }
 
@@ -707,7 +726,7 @@ impl VaultEntity {
         vault: &Vault,
         vault_crypto_key: &CryptoKeyEntity,
     ) -> PassResult<()> {
-        let old_vault= self.to_vault(ctx, user_crypto_key, vault_crypto_key)?;
+        let old_vault = self.to_vault(ctx, user_crypto_key, vault_crypto_key)?;
         self.title = vault.title.clone();
         self.version += 1;
 
@@ -780,7 +799,7 @@ impl VaultEntity {
         let mut vault: Vault = serde_json::from_str(&vault_json)?;
         vault.version = self.version;
         vault.title = self.title.clone();
-        vault.icon  = self.icon.clone();
+        vault.icon = self.icon.clone();
         vault.kind = VaultKind::from(self.kind.as_str());
         vault.created_at = Some(self.created_at);
         vault.updated_at = Some(self.updated_at);
@@ -1407,6 +1426,7 @@ pub enum AuditKind {
     Signout,
     UserUpdated,
     UserDeleted,
+    UserChangedPassword,
     CreatedVault,
     UpdatedVault,
     DeletedVault,
@@ -1431,6 +1451,7 @@ impl Display for AuditKind {
             AuditKind::Signout => { write!(f, "Signout") }
             AuditKind::UserUpdated => { write!(f, "UserUpdated") }
             AuditKind::UserDeleted => { write!(f, "UserDeleted") }
+            AuditKind::UserChangedPassword => { write!(f, "UserChangedPassword") }
             AuditKind::CreatedVault => { write!(f, "CreatedVault") }
             AuditKind::UpdatedVault => { write!(f, "UpdatedVault") }
             AuditKind::DeletedVault => { write!(f, "DeletedVault") }
@@ -1457,6 +1478,7 @@ impl From<&str> for AuditKind {
             "Signout" => AuditKind::Signout,
             "UserUpdated" => AuditKind::UserUpdated,
             "UserDeleted" => AuditKind::UserDeleted,
+            "UserChangedPassword" => AuditKind::UserChangedPassword,
             "CreatedVault" => AuditKind::CreatedVault,
             "UpdatedVault" => AuditKind::UpdatedVault,
             "DeletedVault" => AuditKind::DeletedVault,

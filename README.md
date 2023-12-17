@@ -858,6 +858,8 @@ Commands:
   create-user
           
   update-user
+
+  change-user-password
           
   delete-user
           
@@ -1019,9 +1021,11 @@ You can update your user profile using CLI as follows:
 
 You can update your user profile using REST APIs as follows:
 ```bash
-./target/release/plexpass -j true --master-username charlie 
-	--master-password *** --name "Charles" --email "charlie@mail.com"
+curl -k https://localhost:8443/api/v1/users/me 
+	--header "Content-Type: application/json; charset=UTF-8"  
+    --header "Authorization: Bearer $AUTH_TOKEN" -d '{"user_id"...}'
 ```
+
 #### 11.5.3 Docker CLI
 
 You can update your user profile using docker CLI as follows:
@@ -1039,6 +1043,38 @@ You can also update your user profile using web UI as displayed in following scr
 
 The UI allows you to view/edit user profile, manage security-keys for multi-factor authentication and generate API tokens:
 ![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/settings.png)
+
+### 11.5b Update User Password
+
+#### 11.5b.1 Command Line
+
+You can update your user password using CLI as follows:
+```bash
+./target/release/plexpass -j true --master-username george@cat.us --master-password ** \
+    change-user-password --new-password ** --confirm-new-password **
+```
+#### 11.5b.2 REST API
+
+You can update your user password using REST APIs as follows:
+```bash
+curl -k https://localhost:8443/api/v1/users/me 
+	--header "Content-Type: application/json; charset=UTF-8"  
+    --header "Authorization: Bearer $AUTH_TOKEN" -d '{"old_password": "*", "new_password": "*", "confirm_new_password": "*"}'
+```
+#### 11.5b.3 Docker CLI
+
+You can update your user profile using docker CLI as follows:
+```bash
+docker run -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
+	-e DATA_DIR=/data -v $PARENT_DIR/PlexPassData:/data 
+    -j true --master-username george@cat.us --master-password ** \
+    change-user-password --new-password ** --confirm-new-password **
+```
+
+#### 11.5b.4 Web UI
+
+You can also update your user password from user settings using web UI as displayed in following screenshot:
+![](https://raw.githubusercontent.com/bhatti/PlexPass/main/docs/change_password.png)
 
 ### 11.6 Creating Vaults
 

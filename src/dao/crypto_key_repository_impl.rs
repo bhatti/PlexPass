@@ -1,3 +1,4 @@
+use chrono::Utc;
 use diesel::prelude::*;
 
 use crate::dao::models::{CryptoKeyEntity};
@@ -6,6 +7,8 @@ use crate::dao::schema::crypto_keys::dsl as ck;
 use crate::dao::schema::acls::dsl as acl;
 
 use crate::dao::{CryptoKeyRepository, DbConnection};
+use crate::domain::error::PassError;
+use crate::domain::models::{PassResult};
 
 #[derive(Clone)]
 pub(crate) struct CryptoKeyRepositoryImpl {}
@@ -79,6 +82,38 @@ impl CryptoKeyRepository for CryptoKeyRepositoryImpl {
             return Err(diesel::result::Error::NotFound);
         }
         Ok(items.remove(0))
+    }
+
+    // update_private key
+    fn update_private_key(
+        &self, other_id: &str,
+        other_private_key: &str,
+        other_nonce: &str,
+        conn: &mut DbConnection,
+    ) -> PassResult<usize> {
+        match diesel::update(
+            ck::crypto_keys.filter(ck::crypto_key_id.eq(&other_id)),
+        )
+            .set((
+                ck::encrypted_private_key.eq(other_private_key.to_string()),
+                ck::nonce.eq(other_nonce),
+                ck::updated_at.eq(Utc::now().naive_utc()),
+            ))
+            .execute(conn)
+        {
+            Ok(size) => {
+                if size > 0 {
+                    Ok(size)
+                } else {
+                    Err(PassError::database(
+                        format!("failed to update private key {}", other_id, ).as_str(),
+                        None,
+                        false,
+                    ))
+                }
+            }
+            Err(err) => Err(PassError::from(err)),
+        }
     }
 
     // delete an existing crypto_key.
@@ -201,6 +236,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_should_create_update_crypto_key() {
+        let config = PassConfig::new();
+        // GIVEN a user, acl and crypto repository repository
+        let user_repo = create_user_repository(&config).await.unwrap();
+        let crypto_repo = CryptoKeyRepositoryImpl::new();
+        let db_pool = common::build_sqlite_pool(&config).expect("Failed to create db pool");
+
+        let user1 = User::new(&Uuid::new_v4().to_string(), None, None);
+        let ctx1 = UserContext::default_new(&user1.username, &user1.user_id,
+                                            &hex::encode(crypto::generate_nonce()),
+                                            &hex::encode(crypto::generate_secret_key()),
+                                            "pass1").unwrap();
+
+        // WHEN creating the user THEN it should succeed
+        assert_eq!(1, user_repo.create(&ctx1, &user1).await.unwrap());
+
+        let (crypto_key, _) = CryptoKeyEntity::new_with_input(
+            &ctx1,
+            "input",
+            &user1.user_id,
+            "keyable-id",
+            "keyable-type",
+            "").unwrap();
+        let mut conn = db_pool.get().unwrap();
+        let size = crypto_repo.create(&crypto_key, &mut conn).unwrap();
+        assert_eq!(1, size);
+
+        let size = crypto_repo.update_private_key(
+            &crypto_key.crypto_key_id,
+            "new-key",
+            "new-nonce",
+            &mut conn).unwrap();
+        assert_eq!(1, size);
+
+        let loaded = crypto_repo.get(&user1.user_id,
+                                     "keyable-id",
+                                     "keyable-type",
+                                     &mut conn).unwrap();
+        assert_eq!("new-key", loaded.encrypted_private_key);
+        assert_eq!("new-nonce", loaded.nonce);
+    }
+
+    #[tokio::test]
     async fn test_should_create_get_delete_crypto_key_with_parent() {
         let config = PassConfig::new();
         // GIVEN a user, acl and crypto repository repository
@@ -242,7 +320,7 @@ mod tests {
             &user1.user_id,
             "keyable-id",
             "keyable-type",
-        "").unwrap();
+            "").unwrap();
         child_crypto_key.parent_crypto_key_id = parent_crypto_key.crypto_key_id.clone();
         let mut conn = db_pool.get().unwrap();
         let size = crypto_repo.create(&child_crypto_key, &mut conn).unwrap();

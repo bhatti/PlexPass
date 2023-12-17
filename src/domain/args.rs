@@ -89,6 +89,15 @@ pub enum CommandActions {
         #[arg(long)]
         icon: Option<Vec<u8>>,
     },
+    ChangeUserPassword {
+        // The new password of user.
+        #[arg(long)]
+        new_password: String,
+
+        // The conform new password of user.
+        #[arg(long)]
+        confirm_new_password: String,
+    },
     DeleteUser {
         /// Optional user-id if user is admin and can see other users.
         #[arg(long)]

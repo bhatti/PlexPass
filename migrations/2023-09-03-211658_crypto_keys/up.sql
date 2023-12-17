@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS crypto_keys
     encrypted_private_key    VARCHAR(100) NOT NULL,
     encrypted_symmetric_key  VARCHAR(100) NOT NULL,
     created_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (crypto_key_id)
 );
 

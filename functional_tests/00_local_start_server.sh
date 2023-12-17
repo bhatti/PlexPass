@@ -1,4 +1,5 @@
 #!/bin/bash -e
+#export DOMAIN=plexpass
 source env.sh
 #export RUST_LOG="actix_web=trace"
 #export RUST_LOG="actix_web=trace"

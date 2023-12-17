@@ -89,6 +89,9 @@
             <button id="editProfileBtn" onclick="showEditProfile()" class="btn btn-primary float-center theme-btn">Edit
                 Profile
             </button>
+            <button type="button" class="btn btn-warning theme-btn" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                Change Master Password
+            </button>
             <button id="addAPITokenBtn" onclick="showAPIToken()" class="btn btn-secondary float-end theme-btn">Generate
                 API Token (JWT)
             </button>
@@ -234,6 +237,39 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade theme-modal" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Form inside the modal -->
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label for="oldPassword" class="form-label">Old Master Password</label>
+                        <input type="password" class="form-control" name="old_password" id="oldPassword" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{12,}" title="Must contain at least 12 characters, including uppercase, lowercase, numbers, and special characters" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Master Password</label>
+                        <input type="password" class="form-control" name="new_password" id="newPassword" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{12,}" title="Must contain at least 12 characters, including uppercase, lowercase, numbers, and special characters" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmNewPassword" class="form-label">Confirm New Master Password</label>
+                        <input type="password" class="form-control" name="confirm_new_password" id="confirmNewPassword" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W]).{12,}" title="Must contain at least 12 characters, including uppercase, lowercase, numbers, and special characters" required>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        Your password should be a minimum of 12 characters, containing uppercase and lowercase letters, numbers, and special symbols.
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="changePassword();">Change Master Password</button>
+                </form>
             </div>
         </div>
     </div>

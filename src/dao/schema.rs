@@ -69,6 +69,7 @@ diesel::table! {
         encrypted_private_key -> Text,
         encrypted_symmetric_key -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

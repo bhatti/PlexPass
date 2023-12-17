@@ -151,6 +151,7 @@ fn config_services(service_config: &mut web::ServiceConfig) {
         .service(auth_api_controller::recover_mfa)
         .service(user_api_controller::get_user)
         .service(user_api_controller::update_user)
+        .service(user_api_controller::change_password)
         .service(user_api_controller::search_usernames)
         .service(user_api_controller::delete_user)
         .service(user_api_controller::asymmetric_user_encrypt)
@@ -225,6 +226,9 @@ fn config_services(service_config: &mut web::ServiceConfig) {
     service_config.service(web::resource("/ui/users/profile")
         .route(web::get().to(user_ui_controller::user_profile))
         .route(web::post().to(user_ui_controller::update_user_profile))
+    );
+    service_config.service(web::resource("/ui/users/change_password")
+        .route(web::post().to(user_ui_controller::handle_password_change))
     );
 
     service_config.service(web::resource("/ui/webauthn/register_start").route(web::get().to(webauthn_ui_controller::start_register)));

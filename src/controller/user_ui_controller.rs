@@ -5,7 +5,7 @@ use actix_web_lab::respond::Html;
 use askama::Template;
 use serde::Deserialize;
 use serde_json::json;
-use crate::controller::models::{Authenticated};
+use crate::controller::models::{Authenticated, ChangePasswordParams};
 use crate::domain::models::{DEFAULT_LOCALES, User, UserLocale, UserToken};
 use crate::service::locator::ServiceLocator;
 use crate::utils::is_private_ip;
@@ -106,5 +106,28 @@ pub async fn update_user_profile(
             &auth.context, &auth.user_token.login_session, user.light_mode.unwrap_or_default()).await?;
     }
     Ok(HttpResponse::Found().insert_header((http::header::LOCATION, "/ui/users/profile")).finish())
+}
+
+/// Handle Password Change
+pub async fn handle_password_change(
+    service_locator: web::Data<ServiceLocator>,
+    mut payload: Multipart,
+    auth: Authenticated,
+) -> Result<HttpResponse> {
+    let params = ChangePasswordParams::from_multipart(&mut payload).await?;
+    match service_locator
+        .auth_service
+        .change_password(&auth.context, &params.old_password,
+                         &params.new_password, &params.confirm_new_password,
+                         &auth.user_token.login_session)
+        .await {
+        Ok(_) => {
+            Ok(HttpResponse::Ok().finish())
+        }
+        Err(err) => {
+            let err_msg = err.to_string();
+            Ok(HttpResponse::BadRequest().body(err_msg))
+        }
+    }
 }
 

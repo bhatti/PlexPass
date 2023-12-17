@@ -47,7 +47,31 @@ impl UserRepositoryImpl {
 }
 
 #[async_trait]
-impl UserRepository for UserRepositoryImpl {}
+impl UserRepository for UserRepositoryImpl {
+    // change password for the user.
+    async fn change_password(
+        &self,
+        ctx: &UserContext,
+        new_ctx: &UserContext,
+    ) -> PassResult<usize> {
+        let mut user_crypto_key = self.get_crypto_key(ctx, &ctx.user_id).await?;
+        user_crypto_key.re_encrypt_private_key(ctx, new_ctx)?;
+
+        // inserting both user and keys in a transaction
+        let mut conn = self.connection()?;
+
+        let size = self.crypto_key_repository.update_private_key(
+            &user_crypto_key.crypto_key_id,
+            &user_crypto_key.encrypted_private_key,
+            &user_crypto_key.nonce,
+            &mut conn)?;
+        let _ = self.audit_repository.create(&AuditEntity::new(
+            ctx,
+            AuditKind::UserChangedPassword, &ctx.user_id, "user changed password"),
+                                             &mut conn)?;
+        Ok(size)
+    }
+}
 
 #[async_trait]
 impl Repository<User, UserEntity> for UserRepositoryImpl {
@@ -57,7 +81,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
         ctx.validate_user_id(&user.user_id, || false)?;
         ctx.validate_username(&user.username)?;
 
-        // checking existing usernamme
+        // checking existing username
         let existing = self
             .find_one(
                 ctx,
@@ -83,7 +107,7 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
             self.audit_repository.create(&AuditEntity::new(
                 ctx,
                 AuditKind::Signup, &user.user_id, "user signup"),
-                                                 c)
+                                         c)
         })?;
 
         if size > 0 {
@@ -115,31 +139,31 @@ impl Repository<User, UserEntity> for UserRepositoryImpl {
                     .and(version.eq(&user.version)),
             ),
         )
-        .set((
-            // username cannot be updated
-            version.eq(user_entity.version + 1),
-            nonce.eq(&user_entity.nonce),
-            encrypted_value.eq(&user_entity.encrypted_value),
-            updated_at.eq(&user_entity.updated_at),
-        ))
-        .execute(&mut conn)?;
+            .set((
+                // username cannot be updated
+                version.eq(user_entity.version + 1),
+                nonce.eq(&user_entity.nonce),
+                encrypted_value.eq(&user_entity.encrypted_value),
+                updated_at.eq(&user_entity.updated_at),
+            ))
+            .execute(&mut conn)?;
 
         if size > 0 {
             let _ = self.audit_repository.create(&AuditEntity::new(
                 ctx,
                 AuditKind::UserUpdated, &user.user_id, "user updated"),
-                                         &mut conn)?;
+                                                 &mut conn)?;
             Ok(size)
         } else {
             Err(PassError::database(
-                        format!(
-                            "failed to update user because couldn't find it with user-id {}, username {} and version {}",
-                            user_entity.user_id, user_entity.username, user_entity.version,
-                        )
-                        .as_str(),
-                        None,
-                        false,
-                    ))
+                format!(
+                    "failed to update user because couldn't find it with user-id {}, username {} and version {}",
+                    user_entity.user_id, user_entity.username, user_entity.version,
+                )
+                    .as_str(),
+                None,
+                false,
+            ))
         }
     }
 
@@ -381,6 +405,33 @@ mod tests {
         assert!(user_repo.get(&ctx, &user.user_id).await.is_err());
     }
 
+    // #[tokio::test]
+    // async fn test_should_change_password() {
+    //     let config = PassConfig::new();
+    //     // GIVEN a user repository
+    //     let user_repo = create_user_repository(&config).await.unwrap();
+    //     let mut user = User::new(&Uuid::new_v4().to_string(), None, None);
+    //     user.email = Some("my-email".into());
+    //     user.name = Some("my-name".into());
+    //     let salt = hex::encode(crypto::generate_nonce());
+    //     let pepper = hex::encode(crypto::generate_secret_key());
+    //     let ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "pass")
+    //         .unwrap();
+    //     let new_ctx = UserContext::default_new(&user.username, &user.user_id, &salt, &pepper, "new_pass")
+    //         .unwrap();
+    //
+    //     // WHEN creating the user THEN it should succeed
+    //     assert_eq!(1, user_repo.create(&ctx, &user).await.unwrap());
+    //
+    //     // WHEN deleting the user THEN it should succeed
+    //     assert_eq!(1, user_repo.change_password(&ctx, &new_ctx).await.unwrap());
+    //     // WHEN retrieving the user with old context THEN it should fail
+    //     assert!(user_repo.get(&ctx, &user.user_id).await.is_err());
+    //     let loaded = user_repo.get(&new_ctx, &user.user_id).await.unwrap();
+    //     assert_eq!(Some("my-email".into()), loaded.email);
+    //     assert_eq!(Some("my-name".into()), loaded.name);
+    // }
+
     #[tokio::test]
     async fn test_should_create_find_users() {
         let config = PassConfig::new();
@@ -410,7 +461,7 @@ mod tests {
                     &pepper,
                     "pass",
                 )
-                .unwrap();
+                    .unwrap();
                 assert_eq!(1, user_repo.create(&ctx1, &user1).await.unwrap());
                 user_ids.push((user1.username.clone(), user1.user_id.clone()));
             } else {
@@ -422,7 +473,7 @@ mod tests {
                     &pepper,
                     "pass",
                 )
-                .unwrap();
+                    .unwrap();
                 assert_eq!(1, user_repo.create(&ctx2, &user2).await.unwrap());
                 user_ids.push((user2.username.clone(), user2.user_id.clone()));
             }

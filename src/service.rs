@@ -41,6 +41,16 @@ pub trait AuthenticationService {
                                 ctx: &UserContext,
     ) -> PassResult<CreationChallengeResponse>;
 
+    // change password for the user.
+    async fn change_password(
+        &self,
+        ctx: &UserContext,
+        old_master_password: &str,
+        new_master_password: &str,
+        confirm_new_master_password: &str,
+        login_session_id: &str,
+    ) -> PassResult<usize>;
+
     // finish MFA registration and returns hardware key with recovery code
     async fn finish_register_key(&self,
                                  ctx: &UserContext,

@@ -79,11 +79,11 @@ async function viewAccount(id) {
                             <tr>
                                 <td><strong>Password:</strong> </td>
                                 <td class="d-flex">
-                                    <input type="password" class="form-control" id="accountPassword" name="accountPassword" value="${account.password || ''}" disabled>
+                                    <input type="password" class="form-control" id="accountPassword" name="accountPassword" value="" disabled>
                                     &nbsp;
                                     <button id="viewPasswordButton" class="btn btn-outline-info" onclick="togglePasswordVisibility()">Show</button>
                                     &nbsp;
-                                    <button class="btn btn-outline-warning" onclick="copyToClipboard('${account.password}')">Copy</button>
+                                    <button id="copyPasswordButton" class="btn btn-outline-warning">Copy</button>
                                 </td>
                             </tr>
                             <tr>
@@ -167,6 +167,10 @@ async function viewAccount(id) {
             </tr>
         </table>
         `;
+    document.getElementById('accountPassword').value = account.password || '';
+    document.getElementById('copyPasswordButton').onclick = function () {
+        copyToClipboard(account.password);
+    };
     // Show modal
     const viewModalElem = document.getElementById('viewAccountModal');
     const viewModal = new bootstrap.Modal(viewModalElem);
@@ -436,7 +440,7 @@ async function showAccountForm(account) {
                                     </div>
                                     <div class="form-group mb-3">
                                         <label for="password" class="form-label">Password:</label>
-                                        <input type="password" class="form-control" id="password" name="password" value="${account.password || ''}">
+                                        <input type="password" class="form-control" id="password" name="password">
                                     </div>
                                     <div class="form-group mb-3">
                                         <label for="website_url" class="form-label">Website URL:</label>
@@ -514,6 +518,7 @@ async function showAccountForm(account) {
                     </div>                    
     `;
 
+    document.getElementById('password').value = account.password || '';
     const customFieldsContainer = document.getElementById('customFieldsEdit');
     if (account.form_fields) {
         for (const [key, value] of Object.entries(account.form_fields)) {
@@ -624,7 +629,8 @@ async function doFetch(path, headers) {
     const response = await fetch(path, headers);
     if (response.status === 401 || response.headers.get('X-Signin') === 'required') {
         window.location.href = '/ui/signin';
-        throw new Error(`Signin required Status: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        throw new Error(`Signin required Status: ${response.status} ${response.statusText} ${text}`);
     }
     return response;
 }
@@ -639,7 +645,8 @@ async function handleShareUnShareVault(vaultId) {
         if (response.status === 409) {
             alert(`You have already ${shareUnshare}d vault with the ${username}`);
         } else {
-            alert(`Could not ${shareUnshare} vault: ${response.status} ${response.statusText}`);
+            const text = await response.text();
+            alert(`Could not ${shareUnshare} vault: ${response.status} ${response.statusText} ${text}`);
         }
         return;
     }
@@ -667,8 +674,9 @@ async function handleShareAccount(vaultId) {
         method: 'POST',
     });
     if (!response.ok) {
-        alert(`Could not share account: ${response.status} ${response.statusText}`);
-        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        alert(`Could not share account: ${response.status} ${response.statusText} ${text}`);
+        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
     }
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('shareAccountModal'));
     await viewModal.hide();
@@ -726,12 +734,13 @@ async function handleImportAccounts(vaultId) {
             body: formData
         });
         if (!response.ok) {
+            const text = await response.text();
             if (password) {
-                alert(`Could not import accounts, please verify password: ${response.status} ${response.statusText}`);
+                alert(`Could not import accounts, please verify password: ${response.status} ${response.statusText} ${text}`);
             } else {
-                alert(`Could not import accounts, please try again: ${response.status} ${response.statusText}`);
+                alert(`Could not import accounts, please try again: ${response.status} ${response.statusText} ${text}`);
             }
-            throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
         }
 
         let reader = response.body.getReader();
@@ -790,8 +799,9 @@ async function deleteAccount(id) {
                 }
             );
             if (!response.ok) {
-                alert(`Could not delete account ${response.status} ${response.statusText}`);
-                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+                const text = await response.text();
+                alert(`Could not delete account ${response.status} ${response.statusText} ${text}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
             } else {
                 showToast('Data deleted successfully!', () => {
                     location.reload();
@@ -816,6 +826,33 @@ async function handleSaveAccount(form) {
     }
 }
 
+async function changePassword() {
+    const form = document.forms['changePasswordForm'];
+    const formData = new FormData(form);
+    const newPassword = document.getElementById('newPassword').value.trim();
+    const confirmNewPassword = document.getElementById('confirmNewPassword').value.trim();
+    if (newPassword !== confirmNewPassword) {
+        alert("New password didn't match confirm password");
+        return;
+    }
+    const response = await doFetch("/ui/users/change_password", {
+        method: 'POST',
+        body: formData,
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        alert(`Could not change password: ${text}`);
+        console.error(`HTTP error! Status: ${response.status} status ${response.statusText} ${text}`);
+        return;
+    }
+    const viewModal = bootstrap.Modal.getInstance(document.getElementById('changePasswordModal'));
+    await viewModal.hide();
+    alert('Your password is changed and all data is now encrypted with new password so you will need to sign-in with new password!');
+    window.location.href = '/ui/signin';
+    return true;
+}
+
+
 function togglePasswordVisibility() {
     const passwordButtonSpan = document.getElementById('viewPasswordButton');
     const accountPassword = document.getElementById('accountPassword');
@@ -837,7 +874,8 @@ async function fetchAccount(id) {
         }
     });
     if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
     }
     try {
         return await response.json();
@@ -852,7 +890,8 @@ async function postData(path, data) {
         body: data,
     });
     if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
     }
     return true; //await response.json();
 }
@@ -1063,7 +1102,8 @@ async function scheduleAnalysis() {
     if (response.ok) {
         showToast('Scheduled password analysis!');
     } else {
-        alert(`Could not schedule password analysis: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        alert(`Could not schedule password analysis: ${response.status} ${response.statusText} ${text}`);
     }
 }
 
@@ -1182,8 +1222,9 @@ async function saveCategory() {
         },
     })
     if (!response.ok) {
-        alert(`Could not add category ${response.status} ${response.statusText}`);
-        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+        const text = await response.text();
+        alert(`Could not add category ${response.status} ${response.statusText} ${text}`);
+        throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
     }
     const viewModal = bootstrap.Modal.getInstance(document.getElementById('categoryModal'));
     await viewModal.hide();
@@ -1203,8 +1244,9 @@ async function deleteCategory(name) {
                 },
             })
             if (!response.ok) {
-                alert(`Could not delete category ${response.status} ${response.statusText}`);
-                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+                const text = await response.text();
+                alert(`Could not delete category ${response.status} ${response.statusText} ${text}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
             } else {
                 showToast('Category deleted successfully!', () => {
                     location.reload();
@@ -1246,8 +1288,9 @@ async function removeMFAKey(id) {
                     location.reload();
                 })
             } else {
-                alert(`Could not remove MFA keys ${response.status} ${response.statusText}`);
-                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+                const text = await response.text();
+                alert(`Could not remove MFA keys ${response.status} ${response.statusText} ${text}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
             }
         } catch (error) {
             console.error('Error removing MFA key:', error);
@@ -1395,6 +1438,7 @@ async function registerMFAKey() {
             location.reload();
         };
     } catch (err) {
+        console.trace();
         console.error('Error during registration:', err);
     }
 }
@@ -1452,7 +1496,8 @@ async function updateVaultDetails(vaultId, version) {
                 location.reload();
             });
         } else {
-            throw new Error(`Failed to save the vault: ${response.status} ${response.statusText}`);
+            const text = await response.text();
+            throw new Error(`Failed to save the vault: ${response.status} ${response.statusText} ${text}`);
         }
     } catch (e) {
         console.error('Failed to save the vault', e);
@@ -1469,8 +1514,9 @@ async function deleteVault(vaultId, title) {
                 },
             })
             if (!response.ok) {
-                alert(`Could not delete vault ${response.status} ${response.statusText}`);
-                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+                const text = await response.text();
+                alert(`Could not delete vault ${response.status} ${response.statusText} ${text}`);
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText} ${text}`);
             } else {
                 showToast('Vault deleted successfully!', () => {
                     location.reload();
@@ -1491,6 +1537,7 @@ async function checkSession() {
         }
     } catch (error) {
         console.error('Session check failed:', error);
+        window.location.href = '/ui/signin';
     }
 }
 
