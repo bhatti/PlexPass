@@ -727,12 +727,33 @@ cargo build --release && ./target/release/plexpass server
 ```
 
 Alternatively, you can use Docker for the server by pulling plexpass image as follows:
+
+Install docker from https://docs.docker.com/engine/install/
+
+Install mkcert and ncss
+
+```
+brew install mkcert
+brew install nss # if you use Firefox
+
+mkcert -key-file key.pem -cert-file cert.pem 127.0.0.1 localhost
+export CUR_DIR=`pwd`
+export DATA_DIR=$CUR_DIR/PlexPassData
+mkdir -p $DATA_DIR
+cd $DATA_DIR && mkcert -key-file key-pass.pem -cert-file cert-pass.pem 127.0.0.1 localhost
 ```
 
-docker pull plexobject/plexpass:latest
-docker run -p 8080:8080 -p 8443:8443 -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY 
-	-e DATA_DIR=/data -e CERT_FILE=/data/cert-pass.pem 
-    -e KEY_FILE=/data/key-pass.pem -v ./PlexPassData:/data plexobject/plexpass server
+Then, run docker image for PlexPass:
+```
+# You should change this pepper key
+export DEVICE_PEPPER_KEY=fc66c5561b9bcb5bc8784a292a871c976c88e5291ba98c006a825a112ddca18c
+export HSM_PROVIDER=EncryptedFile
+export CUR_DIR=`pwd`
+export DATA_DIR=$CUR_DIR/PlexPassData
+mkdir -p $DATA_DIR
+
+docker pull plexobject/plexpass
+docker run -p 8080:8080 -p 8443:8443 -e DEVICE_PEPPER_KEY=$DEVICE_PEPPER_KEY -e DATA_DIR=/data -e CERT_FILE=/data/cert-pass.pem -e KEY_FILE=/data/key-pass.pem -v $CUR_DIR/PlexPassData:/data plexobject/plexpass server
 ```
 
 Note: You only need to run server when using REST APIs or a UI for the web application.
